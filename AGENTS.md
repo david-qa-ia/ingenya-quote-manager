@@ -15,12 +15,16 @@ Before editing files, agents must read:
 - `docs/architecture/testing-rules.md`
 - `docs/architecture/ai-agent-workflow.md`
 
+If the ticket touches persistence, drafts, saved quotes, localStorage, quote recovery, or stored data, agents must also read:
+
+- `docs/architecture/storage-architecture.md`
+
 ## Product Boundaries
 
 - The app helps Daniel create construction service quotes.
 - "Labor" means services charged to the final client, not workers, wages, salaries, unions, UOCRA, or construction chamber labor tables.
-- The current scope is quote creation for services/labor only.
-- Materials, taxes, margins, PDF generation, persistence, AI voice input, and customer follow-up are outside the current implementation scope unless a Jira ticket explicitly includes them.
+- The current scope is quote creation and local draft/saved quote management for services/labor only.
+- Materials, taxes, margins, PDF generation, backend persistence, AI voice input, and customer follow-up are outside the current implementation scope unless a Jira ticket explicitly includes them.
 
 ## Code Language Rules
 
