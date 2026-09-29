@@ -28,3 +28,7 @@ export interface QuoteDraft {
   projectName: string;
   lines: QuoteLine[];
 }
+
+export interface SavedQuote extends QuoteDraft {
+  savedAt: string;
+}

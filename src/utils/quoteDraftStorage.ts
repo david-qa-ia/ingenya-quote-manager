@@ -1,6 +1,6 @@
-import type { QuoteDraft, QuoteLine, QuoteLineSource, WorkUnit } from '../types/quote';
+import type { QuoteDraft, QuoteLine, QuoteLineSource, SavedQuote, WorkUnit } from '../types/quote';
 
-export const QUOTE_DRAFT_STORAGE_KEY = 'ingenya.quoteDraft.v1';
+export const SAVED_QUOTES_STORAGE_KEY = 'ingenya.savedQuotes.v1';
 
 const validWorkUnits: WorkUnit[] = ['squareMeter', 'linearMeter', 'unit'];
 const validLineSources: QuoteLineSource[] = ['catalog', 'manual'];
@@ -54,28 +54,57 @@ function isQuoteDraft(value: unknown): value is QuoteDraft {
   );
 }
 
-export function parseQuoteDraft(storedValue: string | null): QuoteDraft | null {
-  if (storedValue === null) return null;
+function isSavedQuote(value: unknown): value is SavedQuote {
+  return (
+    isRecord(value) &&
+    isQuoteDraft(value) &&
+    isNonEmptyString(value.savedAt) &&
+    Number.isFinite(Date.parse(value.savedAt))
+  );
+}
+
+export function parseSavedQuotes(storedValue: string | null): SavedQuote[] {
+  if (storedValue === null) return [];
 
   try {
     const parsedValue: unknown = JSON.parse(storedValue);
-    return isQuoteDraft(parsedValue) ? parsedValue : null;
+
+    if (!Array.isArray(parsedValue)) return [];
+
+    return parsedValue.filter(isSavedQuote);
   } catch {
-    return null;
+    return [];
   }
 }
 
-export function loadQuoteDraft(): QuoteDraft | null {
+export function loadSavedQuotes(): SavedQuote[] {
   try {
-    return parseQuoteDraft(localStorage.getItem(QUOTE_DRAFT_STORAGE_KEY));
+    return parseSavedQuotes(localStorage.getItem(SAVED_QUOTES_STORAGE_KEY));
   } catch {
-    return null;
+    return [];
   }
 }
 
 export function saveQuoteDraft(draft: QuoteDraft): boolean {
   try {
-    localStorage.setItem(QUOTE_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    const savedQuote: SavedQuote = {
+      id: draft.id,
+      status: draft.status,
+      clientName: draft.clientName,
+      projectName: draft.projectName,
+      lines: draft.lines,
+      savedAt: new Date().toISOString(),
+    };
+    const savedQuotes = loadSavedQuotes();
+    const existingIndex = savedQuotes.findIndex((quote) => quote.id === draft.id);
+
+    if (existingIndex === -1) {
+      savedQuotes.push(savedQuote);
+    } else {
+      savedQuotes[existingIndex] = savedQuote;
+    }
+
+    localStorage.setItem(SAVED_QUOTES_STORAGE_KEY, JSON.stringify(savedQuotes));
     return true;
   } catch {
     return false;
