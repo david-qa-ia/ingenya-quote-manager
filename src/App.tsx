@@ -8,6 +8,7 @@ import { calculateLineSubtotal, calculateQuoteTotal } from './utils/quoteCalcula
 const activeCatalogJobs = initialJobCatalog.filter((job) => job.isActive);
 const initialCatalogJob = activeCatalogJobs[0];
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
+const temporaryQuoteId = 'PRES-2026-0001';
 
 const currencyFormatter = new Intl.NumberFormat('es-AR', {
   style: 'currency',
@@ -21,6 +22,9 @@ function createLineId(): string {
 
 function App() {
   const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([]);
+  const [currentView, setCurrentView] = useState<'editor' | 'summary'>('editor');
+  const [clientName, setClientName] = useState('');
+  const [projectName, setProjectName] = useState('');
   const [selectedJobId, setSelectedJobId] = useState(initialCatalogJob.id);
   const [catalogQuantity, setCatalogQuantity] = useState('1');
   const [catalogUnitPrice, setCatalogUnitPrice] = useState(String(initialCatalogJob.defaultPrice));
@@ -104,6 +108,133 @@ function App() {
     setManualQuantity('1');
     setManualUnitPrice('');
     setManualError('');
+  }
+
+  if (currentView === 'summary') {
+    return (
+      <main className="app-shell summary-shell">
+        <header className="summary-header">
+          <div>
+            <p className="eyebrow">Ingenya · Presupuestos</p>
+            <h1>Resumen del presupuesto</h1>
+            <p className="page-description">
+              Revisá los servicios, cantidades y precios antes de guardar el borrador.
+            </p>
+          </div>
+          <div className="quote-identity" aria-label={`Presupuesto ${temporaryQuoteId}, Borrador`}>
+            <span>{temporaryQuoteId}</span>
+            <strong>Borrador</strong>
+          </div>
+        </header>
+
+        <div className="summary-layout">
+          <section className="quote-card summary-lines" aria-labelledby="summary-lines-title">
+            <div className="quote-heading">
+              <div>
+                <p className="eyebrow">Detalle</p>
+                <h2 id="summary-lines-title">Servicios incluidos</h2>
+              </div>
+              <span className="line-count">
+                {quoteLines.length} {quoteLines.length === 1 ? 'servicio' : 'servicios'}
+              </span>
+            </div>
+
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Servicio</th>
+                    <th>Unidad</th>
+                    <th className="numeric-cell">Cantidad</th>
+                    <th className="numeric-cell">Precio unitario</th>
+                    <th className="numeric-cell">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quoteLines.map((line) => (
+                    <tr key={line.id}>
+                      <td>
+                        <strong>{line.name}</strong>
+                        <small>{line.source === 'catalog' ? 'Catálogo' : 'Manual'}</small>
+                      </td>
+                      <td>
+                        {workUnitLabels[line.unit]} ({workUnitSymbols[line.unit]})
+                      </td>
+                      <td className="numeric-cell">{line.quantity}</td>
+                      <td className="numeric-cell">{currencyFormatter.format(line.unitPrice)}</td>
+                      <td className="numeric-cell subtotal">
+                        {currencyFormatter.format(
+                          calculateLineSubtotal(line.quantity, line.unitPrice),
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <footer className="summary-total">
+              <span>Total del presupuesto</span>
+              <strong>{currencyFormatter.format(quoteTotal)}</strong>
+            </footer>
+          </section>
+
+          <aside className="summary-sidebar" aria-label="Datos y acciones del presupuesto">
+            <section className="summary-panel">
+              <div className="summary-panel-heading">
+                <p className="eyebrow">Datos opcionales</p>
+                <h2>Información del trabajo</h2>
+              </div>
+
+              <label className="field">
+                <span>Cliente</span>
+                <input
+                  type="text"
+                  value={clientName}
+                  onChange={(event) => setClientName(event.target.value)}
+                  placeholder="Nombre del cliente"
+                />
+                <small>Podés dejar este campo vacío.</small>
+              </label>
+
+              <label className="field">
+                <span>Obra</span>
+                <input
+                  type="text"
+                  value={projectName}
+                  onChange={(event) => setProjectName(event.target.value)}
+                  placeholder="Nombre o ubicación de la obra"
+                />
+                <small>Podés dejar este campo vacío.</small>
+              </label>
+            </section>
+
+            <section
+              className="summary-panel summary-actions"
+              aria-label="Acciones del presupuesto"
+            >
+              <button
+                className="button button-primary"
+                type="button"
+                title="La persistencia estará disponible próximamente"
+              >
+                Guardar borrador
+              </button>
+              <button className="button button-disabled" type="button" disabled>
+                Descargar PDF (próximamente)
+              </button>
+              <button
+                className="button button-link"
+                type="button"
+                onClick={() => setCurrentView('editor')}
+              >
+                <span aria-hidden="true">←</span> Volver a editar
+              </button>
+            </section>
+          </aside>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -319,6 +450,7 @@ function App() {
             className="button button-primary"
             type="button"
             disabled={quoteLines.length === 0}
+            onClick={() => setCurrentView('summary')}
           >
             Continuar presupuesto <span aria-hidden="true">→</span>
           </button>
