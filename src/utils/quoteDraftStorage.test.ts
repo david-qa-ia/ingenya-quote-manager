@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { QuoteDraft } from '../types/quote';
-import { parseQuoteDraft } from './quoteDraftStorage';
+import {
+  loadSavedQuotes,
+  parseSavedQuotes,
+  SAVED_QUOTES_STORAGE_KEY,
+  saveQuoteDraft,
+} from './quoteDraftStorage';
 
 const validDraft: QuoteDraft = {
   id: 'PRES-2026-0001',
@@ -20,41 +25,82 @@ const validDraft: QuoteDraft = {
   ],
 };
 
-describe('parseQuoteDraft', () => {
-  it('returns a valid stored quote draft', () => {
-    expect(parseQuoteDraft(JSON.stringify(validDraft))).toEqual(validDraft);
+const validSavedQuote = {
+  ...validDraft,
+  savedAt: '2026-09-28T12:00:00.000Z',
+};
+
+describe('parseSavedQuotes', () => {
+  it('returns a valid collection of saved quotes', () => {
+    expect(parseSavedQuotes(JSON.stringify([validSavedQuote]))).toEqual([validSavedQuote]);
   });
 
-  it('returns null when no stored draft exists', () => {
-    expect(parseQuoteDraft(null)).toBeNull();
+  it('returns an empty collection when no stored value exists', () => {
+    expect(parseSavedQuotes(null)).toEqual([]);
   });
 
-  it('returns null when the stored value is malformed JSON', () => {
-    expect(parseQuoteDraft('{not-valid-json')).toBeNull();
+  it('returns an empty collection when the stored value is malformed JSON', () => {
+    expect(parseSavedQuotes('{not-valid-json')).toEqual([]);
   });
 
-  it('returns null when the draft does not have the expected shape', () => {
-    expect(parseQuoteDraft(JSON.stringify({ ...validDraft, status: 'sent' }))).toBeNull();
+  it('returns an empty collection when the stored value is not an array', () => {
+    expect(parseSavedQuotes(JSON.stringify(validSavedQuote))).toEqual([]);
   });
 
-  it('returns null when any quote line contains invalid data', () => {
-    const invalidDraft = {
-      ...validDraft,
-      lines: [{ ...validDraft.lines[0], quantity: -1 }],
-    };
+  it('ignores corrupt quotes while keeping valid entries', () => {
+    const corruptQuote = { ...validSavedQuote, id: 'corrupt', lines: [{ quantity: -1 }] };
 
-    expect(parseQuoteDraft(JSON.stringify(invalidDraft))).toBeNull();
+    expect(parseSavedQuotes(JSON.stringify([corruptQuote, validSavedQuote]))).toEqual([
+      validSavedQuote,
+    ]);
   });
 
-  it('accepts an empty draft with optional client and project data omitted', () => {
-    const emptyDraft: QuoteDraft = {
-      id: 'PRES-2026-0001',
-      status: 'draft',
+  it('accepts a saved quote with empty optional client and project data', () => {
+    const emptySavedQuote = {
+      ...validSavedQuote,
       clientName: '',
       projectName: '',
       lines: [],
     };
 
-    expect(parseQuoteDraft(JSON.stringify(emptyDraft))).toEqual(emptyDraft);
+    expect(parseSavedQuotes(JSON.stringify([emptySavedQuote]))).toEqual([emptySavedQuote]);
+  });
+});
+
+describe('saved quote storage', () => {
+  const storedValues = new Map<string, string>();
+
+  beforeEach(() => {
+    storedValues.clear();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => storedValues.get(key) ?? null,
+      setItem: (key: string, value: string) => storedValues.set(key, value),
+    });
+  });
+
+  it('saves multiple quotes in the collection', () => {
+    const secondDraft = { ...validDraft, id: 'PRES-2026-0002' };
+
+    expect(saveQuoteDraft(validDraft)).toBe(true);
+    expect(saveQuoteDraft(secondDraft)).toBe(true);
+    expect(loadSavedQuotes().map((quote) => quote.id)).toEqual([validDraft.id, secondDraft.id]);
+  });
+
+  it('updates a saved quote by id instead of duplicating it', () => {
+    expect(saveQuoteDraft(validDraft)).toBe(true);
+    expect(saveQuoteDraft({ ...validDraft, clientName: 'Cliente actualizado' })).toBe(true);
+
+    expect(loadSavedQuotes()).toHaveLength(1);
+    expect(loadSavedQuotes()[0].clientName).toBe('Cliente actualizado');
+  });
+
+  it('does not persist a derived total', () => {
+    const draftWithDerivedTotal = { ...validDraft, total: 999999 };
+
+    expect(saveQuoteDraft(draftWithDerivedTotal)).toBe(true);
+
+    const storedValue = storedValues.get(SAVED_QUOTES_STORAGE_KEY);
+    expect(storedValue).toBeDefined();
+    expect(JSON.parse(storedValue ?? '[]')[0]).not.toHaveProperty('total');
   });
 });

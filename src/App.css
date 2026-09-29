@@ -10,6 +10,12 @@
   gap: 32px;
   margin-bottom: 36px;
 }
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
 .eyebrow {
   margin: 0 0 8px;
   color: var(--accent);
@@ -528,6 +534,41 @@ td small {
   background: var(--accent-soft);
 }
 
+.saved-quotes-shell {
+  max-width: 1360px;
+}
+.saved-quotes-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 36px;
+}
+.saved-quotes-header h1 {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: clamp(2.1rem, 4vw, 3.25rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+.saved-quotes-empty-state .button {
+  width: auto;
+  margin-top: 22px;
+}
+.status-badge {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.back-to-current {
+  width: auto;
+  margin-top: 18px;
+}
+
 @media (max-width: 900px) {
   .entry-grid {
     grid-template-columns: 1fr;
@@ -541,6 +582,13 @@ td small {
   .card-heading {
     min-height: auto;
   }
+  .page-header,
+  .summary-header {
+    align-items: flex-start;
+  }
+  .header-actions {
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 640px) {
@@ -550,12 +598,18 @@ td small {
   }
   .page-header,
   .summary-header,
+  .saved-quotes-header,
   .quote-footer {
     align-items: stretch;
     flex-direction: column;
   }
   .header-total {
     min-width: 0;
+  }
+  .header-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
   }
   .entry-card {
     padding: 22px 18px;

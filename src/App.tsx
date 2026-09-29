@@ -2,32 +2,39 @@ import { useState, type FormEvent } from 'react';
 import './App.css';
 import { initialJobCatalog } from './data/jobCatalog';
 import { workUnitLabels, workUnitSymbols } from './data/workUnits';
-import type { QuoteDraft, QuoteLine, WorkUnit } from './types/quote';
+import type { QuoteDraft, QuoteLine, SavedQuote, WorkUnit } from './types/quote';
 import { calculateLineSubtotal, calculateQuoteTotal } from './utils/quoteCalculations';
-import { loadQuoteDraft, saveQuoteDraft } from './utils/quoteDraftStorage';
+import { loadSavedQuotes, saveQuoteDraft } from './utils/quoteDraftStorage';
 
 const activeCatalogJobs = initialJobCatalog.filter((job) => job.isActive);
 const initialCatalogJob = activeCatalogJobs[0];
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
-const temporaryQuoteId = 'PRES-2026-0001';
-
 const currencyFormatter = new Intl.NumberFormat('es-AR', {
   style: 'currency',
   currency: 'ARS',
   maximumFractionDigits: 0,
 });
 
+const dateFormatter = new Intl.DateTimeFormat('es-AR', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
 function createLineId(): string {
   return crypto.randomUUID();
 }
 
+function createQuoteId(): string {
+  return `PRES-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+}
+
 function App() {
-  const [initialDraft] = useState(loadQuoteDraft);
-  const [quoteId] = useState(initialDraft?.id ?? temporaryQuoteId);
-  const [quoteLines, setQuoteLines] = useState<QuoteLine[]>(initialDraft?.lines ?? []);
-  const [currentView, setCurrentView] = useState<'editor' | 'summary'>('editor');
-  const [clientName, setClientName] = useState(initialDraft?.clientName ?? '');
-  const [projectName, setProjectName] = useState(initialDraft?.projectName ?? '');
+  const [quoteId, setQuoteId] = useState(createQuoteId);
+  const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([]);
+  const [savedQuotes, setSavedQuotes] = useState(loadSavedQuotes);
+  const [currentView, setCurrentView] = useState<'editor' | 'summary' | 'savedQuotes'>('editor');
+  const [clientName, setClientName] = useState('');
+  const [projectName, setProjectName] = useState('');
   const [saveFeedback, setSaveFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -171,6 +178,31 @@ function App() {
     }
   }
 
+  function resetTransientState() {
+    setSaveFeedback(null);
+    setCatalogError('');
+    setManualError('');
+    handleEditCancel();
+  }
+
+  function handleNewQuote() {
+    setQuoteId(createQuoteId());
+    setQuoteLines([]);
+    setClientName('');
+    setProjectName('');
+    resetTransientState();
+    setCurrentView('editor');
+  }
+
+  function handleSavedQuoteOpen(savedQuote: SavedQuote) {
+    setQuoteId(savedQuote.id);
+    setQuoteLines(savedQuote.lines);
+    setClientName(savedQuote.clientName);
+    setProjectName(savedQuote.projectName);
+    resetTransientState();
+    setCurrentView('editor');
+  }
+
   function handleDraftSave() {
     const draft: QuoteDraft = {
       id: quoteId,
@@ -181,6 +213,7 @@ function App() {
     };
 
     if (saveQuoteDraft(draft)) {
+      setSavedQuotes(loadSavedQuotes());
       setSaveFeedback({
         type: 'success',
         message: 'Borrador guardado correctamente.',
@@ -194,6 +227,99 @@ function App() {
     });
   }
 
+  if (currentView === 'savedQuotes') {
+    return (
+      <main className="app-shell saved-quotes-shell">
+        <header className="saved-quotes-header">
+          <div>
+            <p className="eyebrow">Ingenya · Presupuestos</p>
+            <h1>Presupuestos guardados</h1>
+            <p className="page-description">
+              Abrí un presupuesto anterior para continuar editándolo o empezá uno nuevo.
+            </p>
+          </div>
+          <button className="button button-primary" type="button" onClick={handleNewQuote}>
+            Nuevo presupuesto
+          </button>
+        </header>
+
+        <section className="quote-card" aria-labelledby="saved-quotes-title">
+          <div className="quote-heading">
+            <div>
+              <p className="eyebrow">Guardados localmente</p>
+              <h2 id="saved-quotes-title">Tus presupuestos</h2>
+            </div>
+            <span className="line-count">
+              {savedQuotes.length} {savedQuotes.length === 1 ? 'presupuesto' : 'presupuestos'}
+            </span>
+          </div>
+
+          {savedQuotes.length === 0 ? (
+            <div className="empty-state saved-quotes-empty-state">
+              <span aria-hidden="true">⌁</span>
+              <h3>No hay presupuestos guardados</h3>
+              <p>Guardá un borrador y aparecerá en este listado.</p>
+              <button className="button button-secondary" type="button" onClick={handleNewQuote}>
+                Crear presupuesto
+              </button>
+            </div>
+          ) : (
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>Obra</th>
+                    <th>Estado</th>
+                    <th>Fecha de guardado</th>
+                    <th className="numeric-cell">Total</th>
+                    <th className="actions-cell">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {savedQuotes.map((savedQuote) => (
+                    <tr key={savedQuote.id}>
+                      <td>
+                        <strong>{savedQuote.id}</strong>
+                      </td>
+                      <td>{savedQuote.clientName.trim() || 'Sin cliente'}</td>
+                      <td>{savedQuote.projectName.trim() || 'Sin obra'}</td>
+                      <td>
+                        <span className="status-badge">Borrador</span>
+                      </td>
+                      <td>{dateFormatter.format(new Date(savedQuote.savedAt))}</td>
+                      <td className="numeric-cell subtotal">
+                        {currencyFormatter.format(calculateQuoteTotal(savedQuote.lines))}
+                      </td>
+                      <td className="actions-cell">
+                        <button
+                          className="button button-line"
+                          type="button"
+                          onClick={() => handleSavedQuoteOpen(savedQuote)}
+                        >
+                          Abrir
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <button
+          className="button button-link back-to-current"
+          type="button"
+          onClick={() => setCurrentView('editor')}
+        >
+          <span aria-hidden="true">←</span> Volver al presupuesto actual
+        </button>
+      </main>
+    );
+  }
+
   if (currentView === 'summary') {
     return (
       <main className="app-shell summary-shell">
@@ -205,9 +331,18 @@ function App() {
               Revisá los servicios, cantidades y precios antes de guardar el borrador.
             </p>
           </div>
-          <div className="quote-identity" aria-label={`Presupuesto ${quoteId}, Borrador`}>
-            <span>{quoteId}</span>
-            <strong>Borrador</strong>
+          <div className="header-actions">
+            <button
+              className="button button-line"
+              type="button"
+              onClick={() => setCurrentView('savedQuotes')}
+            >
+              Presupuestos guardados
+            </button>
+            <div className="quote-identity" aria-label={`Presupuesto ${quoteId}, Borrador`}>
+              <span>{quoteId}</span>
+              <strong>Borrador</strong>
+            </div>
           </div>
         </header>
 
@@ -335,12 +470,24 @@ function App() {
             Agregá los servicios, ajustá cantidades y precios, y revisá el total antes de continuar.
           </p>
         </div>
-        <div
-          className="header-total"
-          aria-label={`Total actual: ${currencyFormatter.format(quoteTotal)}`}
-        >
-          <span>Total actual</span>
-          <strong>{currencyFormatter.format(quoteTotal)}</strong>
+        <div className="header-actions">
+          <button
+            className="button button-line"
+            type="button"
+            onClick={() => setCurrentView('savedQuotes')}
+          >
+            Presupuestos guardados
+          </button>
+          <button className="button button-line" type="button" onClick={handleNewQuote}>
+            Nuevo presupuesto
+          </button>
+          <div
+            className="header-total"
+            aria-label={`Total actual: ${currencyFormatter.format(quoteTotal)}`}
+          >
+            <span>Total actual</span>
+            <strong>{currencyFormatter.format(quoteTotal)}</strong>
+          </div>
         </div>
       </header>
 
