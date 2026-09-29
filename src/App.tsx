@@ -2,8 +2,9 @@ import { useState, type FormEvent } from 'react';
 import './App.css';
 import { initialJobCatalog } from './data/jobCatalog';
 import { workUnitLabels, workUnitSymbols } from './data/workUnits';
-import type { QuoteLine, WorkUnit } from './types/quote';
+import type { QuoteDraft, QuoteLine, WorkUnit } from './types/quote';
 import { calculateLineSubtotal, calculateQuoteTotal } from './utils/quoteCalculations';
+import { loadQuoteDraft, saveQuoteDraft } from './utils/quoteDraftStorage';
 
 const activeCatalogJobs = initialJobCatalog.filter((job) => job.isActive);
 const initialCatalogJob = activeCatalogJobs[0];
@@ -21,10 +22,16 @@ function createLineId(): string {
 }
 
 function App() {
-  const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([]);
+  const [initialDraft] = useState(loadQuoteDraft);
+  const [quoteId] = useState(initialDraft?.id ?? temporaryQuoteId);
+  const [quoteLines, setQuoteLines] = useState<QuoteLine[]>(initialDraft?.lines ?? []);
   const [currentView, setCurrentView] = useState<'editor' | 'summary'>('editor');
-  const [clientName, setClientName] = useState('');
-  const [projectName, setProjectName] = useState('');
+  const [clientName, setClientName] = useState(initialDraft?.clientName ?? '');
+  const [projectName, setProjectName] = useState(initialDraft?.projectName ?? '');
+  const [saveFeedback, setSaveFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [selectedJobId, setSelectedJobId] = useState(initialCatalogJob.id);
   const [catalogQuantity, setCatalogQuantity] = useState('1');
   const [catalogUnitPrice, setCatalogUnitPrice] = useState(String(initialCatalogJob.defaultPrice));
@@ -164,6 +171,29 @@ function App() {
     }
   }
 
+  function handleDraftSave() {
+    const draft: QuoteDraft = {
+      id: quoteId,
+      status: 'draft',
+      clientName,
+      projectName,
+      lines: quoteLines,
+    };
+
+    if (saveQuoteDraft(draft)) {
+      setSaveFeedback({
+        type: 'success',
+        message: 'Borrador guardado correctamente.',
+      });
+      return;
+    }
+
+    setSaveFeedback({
+      type: 'error',
+      message: 'No se pudo guardar el borrador. Intentá nuevamente.',
+    });
+  }
+
   if (currentView === 'summary') {
     return (
       <main className="app-shell summary-shell">
@@ -175,8 +205,8 @@ function App() {
               Revisá los servicios, cantidades y precios antes de guardar el borrador.
             </p>
           </div>
-          <div className="quote-identity" aria-label={`Presupuesto ${temporaryQuoteId}, Borrador`}>
-            <span>{temporaryQuoteId}</span>
+          <div className="quote-identity" aria-label={`Presupuesto ${quoteId}, Borrador`}>
+            <span>{quoteId}</span>
             <strong>Borrador</strong>
           </div>
         </header>
@@ -267,13 +297,17 @@ function App() {
               className="summary-panel summary-actions"
               aria-label="Acciones del presupuesto"
             >
-              <button
-                className="button button-primary"
-                type="button"
-                title="La persistencia estará disponible próximamente"
-              >
+              <button className="button button-primary" type="button" onClick={handleDraftSave}>
                 Guardar borrador
               </button>
+              {saveFeedback && (
+                <p
+                  className={`save-feedback save-feedback-${saveFeedback.type}`}
+                  role={saveFeedback.type === 'error' ? 'alert' : 'status'}
+                >
+                  {saveFeedback.message}
+                </p>
+              )}
               <button className="button button-disabled" type="button" disabled>
                 Descargar PDF (próximamente)
               </button>

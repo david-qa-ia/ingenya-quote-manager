@@ -20,3 +20,11 @@ export interface QuoteLine {
   unitPrice: number;
   source: QuoteLineSource;
 }
+
+export interface QuoteDraft {
+  id: string;
+  status: 'draft';
+  clientName: string;
+  projectName: string;
+  lines: QuoteLine[];
+}

@@ -490,6 +490,22 @@ td small {
 .summary-actions {
   gap: 12px;
 }
+.save-feedback {
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-align: center;
+}
+.save-feedback-success {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+.save-feedback-error {
+  color: var(--danger);
+  background: var(--surface-subtle);
+}
 .summary-actions .button-primary {
   width: 100%;
   min-width: 0;
