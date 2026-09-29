@@ -309,6 +309,63 @@ td small {
   color: var(--text-heading);
   font-weight: 800;
 }
+.actions-cell {
+  text-align: right;
+}
+.line-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.button-line {
+  min-height: 34px;
+  padding: 0 11px;
+  border-color: var(--border-strong);
+  color: var(--accent-dark);
+  background: var(--surface);
+  font-size: 0.78rem;
+}
+.button-line:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.button-save {
+  border-color: var(--accent);
+  color: white;
+  background: var(--accent);
+}
+.button-save:hover {
+  background: var(--accent-dark);
+}
+.button-delete {
+  color: var(--danger);
+}
+.line-edit-input {
+  width: 90px;
+  min-height: 38px;
+  box-sizing: border-box;
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--text-heading);
+  background: var(--surface);
+  font: inherit;
+  text-align: right;
+  outline: none;
+}
+.line-edit-price {
+  width: 120px;
+}
+.line-edit-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.line-edit-error {
+  max-width: 230px;
+  margin: 8px 0 0 auto;
+  color: var(--danger);
+  white-space: normal;
+}
 .quote-footer {
   display: flex;
   align-items: center;

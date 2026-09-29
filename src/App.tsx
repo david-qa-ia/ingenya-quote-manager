@@ -34,6 +34,10 @@ function App() {
   const [manualUnitPrice, setManualUnitPrice] = useState('');
   const [catalogError, setCatalogError] = useState('');
   const [manualError, setManualError] = useState('');
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editUnitPrice, setEditUnitPrice] = useState('');
+  const [editError, setEditError] = useState('');
 
   const selectedJob =
     activeCatalogJobs.find((job) => job.id === selectedJobId) ?? initialCatalogJob;
@@ -108,6 +112,56 @@ function App() {
     setManualQuantity('1');
     setManualUnitPrice('');
     setManualError('');
+  }
+
+  function handleEditStart(line: QuoteLine) {
+    setEditingLineId(line.id);
+    setEditQuantity(String(line.quantity));
+    setEditUnitPrice(String(line.unitPrice));
+    setEditError('');
+  }
+
+  function handleEditCancel() {
+    setEditingLineId(null);
+    setEditQuantity('');
+    setEditUnitPrice('');
+    setEditError('');
+  }
+
+  function handleEditSave(lineId: string) {
+    const quantity = Number(editQuantity);
+    const unitPrice = Number(editUnitPrice);
+
+    if (
+      !Number.isFinite(quantity) ||
+      !Number.isFinite(unitPrice) ||
+      quantity <= 0 ||
+      unitPrice <= 0
+    ) {
+      setEditError('Ingresá una cantidad y un precio unitario mayores a cero.');
+      return;
+    }
+
+    setQuoteLines((currentLines) =>
+      currentLines.map((line) =>
+        line.id === lineId
+          ? {
+              ...line,
+              quantity,
+              unitPrice,
+            }
+          : line,
+      ),
+    );
+    handleEditCancel();
+  }
+
+  function handleLineDelete(lineId: string) {
+    setQuoteLines((currentLines) => currentLines.filter((line) => line.id !== lineId));
+
+    if (editingLineId === lineId) {
+      handleEditCancel();
+    }
   }
 
   if (currentView === 'summary') {
@@ -417,25 +471,102 @@ function App() {
                   <th className="numeric-cell">Cantidad</th>
                   <th className="numeric-cell">Precio unitario</th>
                   <th className="numeric-cell">Subtotal</th>
+                  <th className="actions-cell">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {quoteLines.map((line) => (
-                  <tr key={line.id}>
-                    <td>
-                      <strong>{line.name}</strong>
-                      <small>{line.source === 'catalog' ? 'Catálogo' : 'Manual'}</small>
-                    </td>
-                    <td>{workUnitSymbols[line.unit]}</td>
-                    <td className="numeric-cell">{line.quantity}</td>
-                    <td className="numeric-cell">{currencyFormatter.format(line.unitPrice)}</td>
-                    <td className="numeric-cell subtotal">
-                      {currencyFormatter.format(
-                        calculateLineSubtotal(line.quantity, line.unitPrice),
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {quoteLines.map((line) => {
+                  const isEditing = editingLineId === line.id;
+
+                  return (
+                    <tr key={line.id}>
+                      <td>
+                        <strong>{line.name}</strong>
+                        <small>{line.source === 'catalog' ? 'Catálogo' : 'Manual'}</small>
+                      </td>
+                      <td>{workUnitSymbols[line.unit]}</td>
+                      <td className="numeric-cell">
+                        {isEditing ? (
+                          <input
+                            className="line-edit-input"
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={editQuantity}
+                            onChange={(event) => setEditQuantity(event.target.value)}
+                            aria-label={`Cantidad de ${line.name}`}
+                          />
+                        ) : (
+                          line.quantity
+                        )}
+                      </td>
+                      <td className="numeric-cell">
+                        {isEditing ? (
+                          <input
+                            className="line-edit-input line-edit-price"
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={editUnitPrice}
+                            onChange={(event) => setEditUnitPrice(event.target.value)}
+                            aria-label={`Precio unitario de ${line.name}`}
+                          />
+                        ) : (
+                          currencyFormatter.format(line.unitPrice)
+                        )}
+                      </td>
+                      <td className="numeric-cell subtotal">
+                        {currencyFormatter.format(
+                          calculateLineSubtotal(line.quantity, line.unitPrice),
+                        )}
+                      </td>
+                      <td className="actions-cell">
+                        {isEditing ? (
+                          <>
+                            <div className="line-actions">
+                              <button
+                                className="button button-line button-save"
+                                type="button"
+                                onClick={() => handleEditSave(line.id)}
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                className="button button-line"
+                                type="button"
+                                onClick={handleEditCancel}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                            {editError && (
+                              <small className="line-edit-error" role="alert">
+                                {editError}
+                              </small>
+                            )}
+                          </>
+                        ) : (
+                          <div className="line-actions">
+                            <button
+                              className="button button-line"
+                              type="button"
+                              onClick={() => handleEditStart(line)}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              className="button button-line button-delete"
+                              type="button"
+                              onClick={() => handleLineDelete(line.id)}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
