@@ -9,6 +9,7 @@ import { finalizeQuote, QuoteFinalizationError } from './utils/quoteFinalization
 import { currencyFormatter } from './utils/quoteFormatting';
 import { downloadQuotePdf } from './utils/quotePdf';
 import { QuotePdfValidationError } from './utils/quotePdfModel';
+import { filterSavedQuotes, type SavedQuoteFilter } from './utils/savedQuoteFilters';
 
 const activeCatalogJobs = initialJobCatalog.filter((job) => job.isActive);
 const initialCatalogJob = activeCatalogJobs[0];
@@ -31,6 +32,13 @@ function App() {
   const [quoteStatus, setQuoteStatus] = useState<QuoteStatus>('draft');
   const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([]);
   const [savedQuotes, setSavedQuotes] = useState(loadSavedQuotes);
+  const [savedQuoteFilter, setSavedQuoteFilter] = useState<SavedQuoteFilter>('all');
+  const [downloadingSavedQuoteId, setDownloadingSavedQuoteId] = useState<string | null>(null);
+  const [savedQuotePdfFeedback, setSavedQuotePdfFeedback] = useState<{
+    quoteId: string;
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [currentView, setCurrentView] = useState<'editor' | 'summary' | 'savedQuotes'>('editor');
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -71,6 +79,7 @@ function App() {
   const selectedJob =
     activeCatalogJobs.find((job) => job.id === selectedJobId) ?? initialCatalogJob;
   const quoteTotal = calculateQuoteTotal(quoteLines);
+  const visibleSavedQuotes = filterSavedQuotes(savedQuotes, savedQuoteFilter);
 
   useEffect(() => {
     if (isFinalizationConfirmationOpen) {
@@ -403,15 +412,42 @@ function App() {
     }
   }
 
+  async function handleSavedQuotePdfDownload(savedQuote: SavedQuote) {
+    if (downloadingSavedQuoteId !== null) return;
+
+    setDownloadingSavedQuoteId(savedQuote.id);
+    setSavedQuotePdfFeedback(null);
+
+    try {
+      await downloadQuotePdf(savedQuote);
+      setSavedQuotePdfFeedback({
+        quoteId: savedQuote.id,
+        type: 'success',
+        message: 'El PDF se descargó correctamente.',
+      });
+    } catch (error) {
+      setSavedQuotePdfFeedback({
+        quoteId: savedQuote.id,
+        type: 'error',
+        message:
+          error instanceof QuotePdfValidationError
+            ? error.message
+            : 'No se pudo generar el PDF. Intentá nuevamente.',
+      });
+    } finally {
+      setDownloadingSavedQuoteId(null);
+    }
+  }
+
   if (currentView === 'savedQuotes') {
     return (
       <main className="app-shell saved-quotes-shell">
         <header className="saved-quotes-header">
           <div>
             <p className="eyebrow">Ingenya · Presupuestos</p>
-            <h1>Presupuestos guardados</h1>
+            <h1>Mis presupuestos</h1>
             <p className="page-description">
-              Abrí un presupuesto anterior para continuar editándolo o empezá uno nuevo.
+              Continuá un borrador o consultá un presupuesto finalizado.
             </p>
           </div>
           <button className="button button-primary" type="button" onClick={handleNewQuote}>
@@ -426,58 +462,118 @@ function App() {
               <h2 id="saved-quotes-title">Tus presupuestos</h2>
             </div>
             <span className="line-count">
-              {savedQuotes.length} {savedQuotes.length === 1 ? 'presupuesto' : 'presupuestos'}
+              {visibleSavedQuotes.length}{' '}
+              {visibleSavedQuotes.length === 1 ? 'presupuesto' : 'presupuestos'}
             </span>
           </div>
 
-          {savedQuotes.length === 0 ? (
+          <div className="saved-quote-filters" aria-label="Filtrar presupuestos por estado">
+            {(
+              [
+                ['all', 'Todos'],
+                ['draft', 'Borradores'],
+                ['finalized', 'Finalizados'],
+              ] as const
+            ).map(([filter, label]) => (
+              <button
+                key={filter}
+                className={`saved-quote-filter ${savedQuoteFilter === filter ? 'saved-quote-filter-active' : ''}`}
+                type="button"
+                aria-pressed={savedQuoteFilter === filter}
+                onClick={() => setSavedQuoteFilter(filter)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {visibleSavedQuotes.length === 0 ? (
             <div className="empty-state saved-quotes-empty-state">
               <span aria-hidden="true">⌁</span>
-              <h3>No hay presupuestos guardados</h3>
-              <p>Guardá un borrador y aparecerá en este listado.</p>
-              <button className="button button-secondary" type="button" onClick={handleNewQuote}>
-                Crear presupuesto
-              </button>
+              <h3>No hay presupuestos en este estado</h3>
+              <p>
+                {savedQuoteFilter === 'all'
+                  ? 'Creá un presupuesto nuevo para comenzar.'
+                  : 'Podés volver a ver todos los presupuestos o crear uno nuevo.'}
+              </p>
+              <div className="empty-state-actions">
+                {savedQuoteFilter !== 'all' && savedQuotes.length > 0 && (
+                  <button
+                    className="button button-line"
+                    type="button"
+                    onClick={() => setSavedQuoteFilter('all')}
+                  >
+                    Ver todos
+                  </button>
+                )}
+                <button className="button button-secondary" type="button" onClick={handleNewQuote}>
+                  Nuevo presupuesto
+                </button>
+              </div>
             </div>
           ) : (
             <div className="table-scroll">
-              <table>
+              <table className="saved-quotes-table">
                 <thead>
                   <tr>
                     <th>ID</th>
                     <th>Cliente</th>
                     <th>Obra</th>
                     <th>Estado</th>
-                    <th>Fecha de guardado</th>
+                    <th>Fecha</th>
                     <th className="numeric-cell">Total</th>
                     <th className="actions-cell">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {savedQuotes.map((savedQuote) => (
+                  {visibleSavedQuotes.map((savedQuote) => (
                     <tr key={savedQuote.id}>
-                      <td>
+                      <td data-label="ID">
                         <strong>{savedQuote.id}</strong>
                       </td>
-                      <td>{savedQuote.clientName.trim() || 'Sin cliente'}</td>
-                      <td>{savedQuote.projectName.trim() || 'Sin obra'}</td>
-                      <td>
+                      <td data-label="Cliente">{savedQuote.clientName.trim() || 'Sin cliente'}</td>
+                      <td data-label="Obra">{savedQuote.projectName.trim() || 'Sin obra'}</td>
+                      <td data-label="Estado">
                         <span className={`status-badge status-badge-${savedQuote.status}`}>
                           {savedQuote.status === 'draft' ? 'Borrador' : 'Finalizado'}
                         </span>
                       </td>
-                      <td>{dateFormatter.format(new Date(savedQuote.savedAt))}</td>
-                      <td className="numeric-cell subtotal">
+                      <td data-label="Fecha">
+                        {dateFormatter.format(new Date(savedQuote.savedAt))}
+                      </td>
+                      <td data-label="Total" className="numeric-cell subtotal">
                         {currencyFormatter.format(calculateQuoteTotal(savedQuote.lines))}
                       </td>
-                      <td className="actions-cell">
-                        <button
-                          className="button button-line"
-                          type="button"
-                          onClick={() => handleSavedQuoteOpen(savedQuote)}
-                        >
-                          {savedQuote.status === 'draft' ? 'Abrir' : 'Ver'}
-                        </button>
+                      <td data-label="Acciones" className="actions-cell saved-quote-actions-cell">
+                        <div className="saved-quote-actions">
+                          <button
+                            className="button button-line"
+                            type="button"
+                            onClick={() => handleSavedQuoteOpen(savedQuote)}
+                          >
+                            {savedQuote.status === 'draft'
+                              ? 'Continuar editando'
+                              : 'Ver presupuesto'}
+                          </button>
+                          {savedQuote.status === 'finalized' && (
+                            <button
+                              className="button button-line"
+                              type="button"
+                              onClick={() => handleSavedQuotePdfDownload(savedQuote)}
+                              disabled={downloadingSavedQuoteId !== null}
+                            >
+                              {downloadingSavedQuoteId === savedQuote.id ? 'Generando…' : 'PDF'}
+                            </button>
+                          )}
+                        </div>
+                        {savedQuotePdfFeedback?.quoteId === savedQuote.id && (
+                          <p
+                            className={`saved-quote-pdf-feedback save-feedback-${savedQuotePdfFeedback.type}`}
+                            role={savedQuotePdfFeedback.type === 'error' ? 'alert' : 'status'}
+                          >
+                            {savedQuotePdfFeedback.message}
+                          </p>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -517,7 +613,7 @@ function App() {
               type="button"
               onClick={() => setCurrentView('savedQuotes')}
             >
-              Presupuestos guardados
+              Mis presupuestos
             </button>
             <div
               className="quote-identity"
@@ -760,7 +856,7 @@ function App() {
             type="button"
             onClick={() => setCurrentView('savedQuotes')}
           >
-            Presupuestos guardados
+            Mis presupuestos
           </button>
           <button className="button button-line" type="button" onClick={handleNewQuote}>
             Nuevo presupuesto

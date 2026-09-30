@@ -588,9 +588,51 @@ td small {
   line-height: 1;
   letter-spacing: -0.04em;
 }
+.saved-quote-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 18px 30px;
+  border-bottom: 1px solid var(--border);
+}
+.saved-quote-filter {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.saved-quote-filter:hover,
+.saved-quote-filter:focus-visible {
+  border-color: var(--accent-border);
+  color: var(--accent-dark);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.saved-quote-filter-active {
+  border-color: var(--accent);
+  color: white;
+  background: var(--accent);
+}
+.saved-quote-filter-active:hover,
+.saved-quote-filter-active:focus-visible {
+  color: white;
+  background: var(--accent-dark);
+}
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
 .saved-quotes-empty-state .button {
   width: auto;
-  margin-top: 22px;
 }
 .status-badge {
   display: inline-flex;
@@ -604,6 +646,25 @@ td small {
 .status-badge-finalized {
   color: #31506f;
   background: #e8f1f8;
+}
+.saved-quote-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.saved-quote-actions .button {
+  white-space: nowrap;
+}
+.saved-quote-pdf-feedback {
+  max-width: 240px;
+  margin: 8px 0 0 auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
 }
 .modal-backdrop {
   position: fixed;
@@ -730,5 +791,88 @@ td small {
   .confirmation-actions {
     align-items: stretch;
     flex-direction: column-reverse;
+  }
+  .saved-quote-filters {
+    padding: 16px 18px;
+  }
+  .saved-quote-filter {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+  .saved-quotes-table,
+  .saved-quotes-table tbody,
+  .saved-quotes-table tr,
+  .saved-quotes-table td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .saved-quotes-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+  .saved-quotes-table tbody {
+    padding: 0 18px 18px;
+  }
+  .saved-quotes-table tr {
+    margin-top: 18px;
+    padding: 8px 0;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+  .saved-quotes-table td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 10px 14px;
+    border-bottom: 0;
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .saved-quotes-table td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+  .saved-quotes-table .saved-quote-actions-cell {
+    display: block;
+    text-align: left;
+  }
+  .saved-quotes-table .saved-quote-actions-cell::before {
+    display: block;
+    margin-bottom: 10px;
+  }
+  .saved-quote-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .saved-quote-actions .button {
+    min-height: 44px;
+    width: 100%;
+  }
+  .saved-quote-pdf-feedback {
+    max-width: none;
+    margin-left: 0;
+  }
+  .empty-state-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .saved-quotes-empty-state .button {
+    width: 100%;
+    min-height: 44px;
   }
 }

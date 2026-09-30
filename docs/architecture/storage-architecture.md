@@ -74,7 +74,7 @@ The app must validate:
 - Work unit values.
 - Source values.
 - Positive quantity.
-- Positive unit price.
+- Finite unit price greater than or equal to zero.
 
 Invalid saved quotes must be ignored without breaking the app.
 
@@ -100,11 +100,10 @@ The app does not support:
 - Multi-device sync.
 - Quote history.
 - Quote versioning.
-- PDF export.
 - WhatsApp/email delivery.
 - Deleting saved quotes.
 - Duplicating saved quotes.
-- Advanced search or filters.
+- Advanced search or filters beyond the local status filters approved by SCRUM-38.
 
 Each of these requires its own Jira ticket.
 

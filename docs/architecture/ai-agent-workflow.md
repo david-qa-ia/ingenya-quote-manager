@@ -43,6 +43,8 @@ If the scope is unclear, the agent must ask before implementing.
 
 Agents must not work directly on `main`.
 
+Before creating the feature branch, move the Jira ticket to `In Progress`.
+
 Branch names should include the Jira issue key.
 
 Example:
@@ -91,6 +93,12 @@ The pull request should include:
 - Validation performed.
 - Screenshots or videos when UI changes are included.
 
+When the pull request is opened:
+
+- Move the Jira ticket to `In Review` when that status exists. Otherwise, keep it in `In Progress`.
+- Add a Jira comment with the pull request link, a change summary, completed quality checks,
+  pending manual validation, and known risks.
+
 ## Step 7: CI Must Pass
 
 GitHub Actions must pass before merging.
@@ -101,11 +109,13 @@ Do not bypass CI.
 
 ## Step 8: Merge And Close Ticket
 
-After merge:
+After David validates the change and the pull request is merged:
 
 - Delete the feature branch.
 - Update the Jira ticket with evidence.
 - Move the ticket to `Done`.
+
+Do not move the ticket to `Done` before both conditions are met.
 
 ## Agent Stop Conditions
 
