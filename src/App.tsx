@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './App.css';
 import { initialJobCatalog } from './data/jobCatalog';
 import { workUnitLabels, workUnitSymbols } from './data/workUnits';
@@ -46,6 +46,10 @@ function App() {
   const [isFinalizationConfirmationOpen, setIsFinalizationConfirmationOpen] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const finalizationLockRef = useRef(false);
+  const finalizationTriggerRef = useRef<HTMLButtonElement>(null);
+  const finalizationCancelRef = useRef<HTMLButtonElement>(null);
+  const finalizationConfirmRef = useRef<HTMLButtonElement>(null);
+  const wasFinalizationConfirmationOpenRef = useRef(false);
   const [finalizationFeedback, setFinalizationFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -67,6 +71,55 @@ function App() {
   const selectedJob =
     activeCatalogJobs.find((job) => job.id === selectedJobId) ?? initialCatalogJob;
   const quoteTotal = calculateQuoteTotal(quoteLines);
+
+  useEffect(() => {
+    if (isFinalizationConfirmationOpen) {
+      finalizationCancelRef.current?.focus();
+      wasFinalizationConfirmationOpenRef.current = true;
+      return;
+    }
+
+    if (wasFinalizationConfirmationOpenRef.current) {
+      finalizationTriggerRef.current?.focus();
+      wasFinalizationConfirmationOpenRef.current = false;
+    }
+  }, [isFinalizationConfirmationOpen]);
+
+  useEffect(() => {
+    if (!isFinalizationConfirmationOpen) return;
+
+    function handleConfirmationKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+
+        if (!isFinalizing && !finalizationLockRef.current) {
+          setIsFinalizationConfirmationOpen(false);
+        }
+
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+
+      event.preventDefault();
+
+      if (isFinalizing || finalizationLockRef.current) return;
+
+      const cancelButton = finalizationCancelRef.current;
+      const confirmButton = finalizationConfirmRef.current;
+
+      if (!cancelButton || !confirmButton) return;
+
+      if (event.shiftKey) {
+        (document.activeElement === cancelButton ? confirmButton : cancelButton).focus();
+      } else {
+        (document.activeElement === confirmButton ? cancelButton : confirmButton).focus();
+      }
+    }
+
+    document.addEventListener('keydown', handleConfirmationKeyDown);
+    return () => document.removeEventListener('keydown', handleConfirmationKeyDown);
+  }, [isFinalizationConfirmationOpen, isFinalizing]);
 
   function getCurrentQuote(): Quote {
     return {
@@ -582,6 +635,7 @@ function App() {
               {quoteStatus === 'draft' && (
                 <>
                   <button
+                    ref={finalizationTriggerRef}
                     className="button button-primary"
                     type="button"
                     onClick={handleFinalizationRequest}
@@ -665,6 +719,7 @@ function App() {
               </p>
               <div className="confirmation-actions">
                 <button
+                  ref={finalizationCancelRef}
                   className="button button-line"
                   type="button"
                   onClick={() => setIsFinalizationConfirmationOpen(false)}
@@ -673,6 +728,7 @@ function App() {
                   Cancelar
                 </button>
                 <button
+                  ref={finalizationConfirmRef}
                   className="button button-primary"
                   type="button"
                   onClick={handleFinalizationConfirm}
