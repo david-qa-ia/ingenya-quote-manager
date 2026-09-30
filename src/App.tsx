@@ -5,16 +5,13 @@ import { workUnitLabels, workUnitSymbols } from './data/workUnits';
 import type { QuoteDraft, QuoteLine, SavedQuote, WorkUnit } from './types/quote';
 import { calculateLineSubtotal, calculateQuoteTotal } from './utils/quoteCalculations';
 import { loadSavedQuotes, saveQuoteDraft } from './utils/quoteDraftStorage';
+import { currencyFormatter } from './utils/quoteFormatting';
+import { downloadQuotePdf } from './utils/quotePdf';
+import { QuotePdfValidationError } from './utils/quotePdfModel';
 
 const activeCatalogJobs = initialJobCatalog.filter((job) => job.isActive);
 const initialCatalogJob = activeCatalogJobs[0];
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
-const currencyFormatter = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'ARS',
-  maximumFractionDigits: 0,
-});
-
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -39,6 +36,11 @@ function App() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
+  const [pdfFeedback, setPdfFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState(initialCatalogJob.id);
   const [catalogQuantity, setCatalogQuantity] = useState('1');
   const [catalogUnitPrice, setCatalogUnitPrice] = useState(String(initialCatalogJob.defaultPrice));
@@ -180,6 +182,7 @@ function App() {
 
   function resetTransientState() {
     setSaveFeedback(null);
+    setPdfFeedback(null);
     setCatalogError('');
     setManualError('');
     handleEditCancel();
@@ -225,6 +228,39 @@ function App() {
       type: 'error',
       message: 'No se pudo guardar el borrador. Intentá nuevamente.',
     });
+  }
+
+  async function handlePdfDownload() {
+    if (isDownloadingPdf) return;
+
+    const draft: QuoteDraft = {
+      id: quoteId,
+      status: 'draft',
+      clientName,
+      projectName,
+      lines: quoteLines,
+    };
+
+    setIsDownloadingPdf(true);
+    setPdfFeedback(null);
+
+    try {
+      await downloadQuotePdf(draft);
+      setPdfFeedback({
+        type: 'success',
+        message: 'El PDF se descargó correctamente.',
+      });
+    } catch (error) {
+      setPdfFeedback({
+        type: 'error',
+        message:
+          error instanceof QuotePdfValidationError
+            ? error.message
+            : 'No se pudo generar el PDF. Intentá nuevamente.',
+      });
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   }
 
   if (currentView === 'savedQuotes') {
@@ -443,9 +479,22 @@ function App() {
                   {saveFeedback.message}
                 </p>
               )}
-              <button className="button button-disabled" type="button" disabled>
-                Descargar PDF (próximamente)
+              <button
+                className="button button-secondary pdf-download-button"
+                type="button"
+                onClick={handlePdfDownload}
+                disabled={quoteLines.length === 0 || isDownloadingPdf}
+              >
+                {isDownloadingPdf ? 'Generando PDF…' : 'Descargar PDF'}
               </button>
+              {pdfFeedback && (
+                <p
+                  className={`save-feedback save-feedback-${pdfFeedback.type}`}
+                  role={pdfFeedback.type === 'error' ? 'alert' : 'status'}
+                >
+                  {pdfFeedback.message}
+                </p>
+              )}
               <button
                 className="button button-link"
                 type="button"
