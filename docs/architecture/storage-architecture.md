@@ -31,6 +31,10 @@ A saved quote may persist:
 - Quote lines.
 - Saved date.
 
+The current MVP status contract and the transition approved by SCRUM-37 are documented in
+[`quote-status.md`](./quote-status.md). This is a newer, increment-specific decision; historical
+specifications that excluded `finalized` remain unchanged.
+
 Quote lines may persist:
 
 - Line ID.

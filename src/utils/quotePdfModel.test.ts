@@ -65,6 +65,10 @@ describe('prepareQuotePdfModel', () => {
     );
   });
 
+  it('shows the real status of a finalized quote', () => {
+    expect(prepareQuotePdfModel({ ...draft, status: 'finalized' }).status).toBe('Finalizado');
+  });
+
   it.each([
     { name: ' ', unit: 'unit', quantity: 1, unitPrice: 1 },
     { name: 'Servicio', unit: 'invalid', quantity: 1, unitPrice: 1 },

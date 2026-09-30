@@ -1,5 +1,5 @@
 import type { jsPDF as JsPdf } from 'jspdf';
-import type { QuoteDraft } from '../types/quote';
+import type { Quote } from '../types/quote';
 import { formatCurrency } from './quoteFormatting';
 import { prepareQuotePdfModel, type QuotePdfModel } from './quotePdfModel';
 
@@ -177,7 +177,7 @@ function drawQuote(document: JsPdf, model: QuotePdfModel): void {
 }
 
 export async function downloadQuotePdf(
-  draft: Readonly<QuoteDraft>,
+  draft: Readonly<Quote>,
   jsPdfLoader: JsPdfLoader = loadJsPdf,
 ): Promise<void> {
   const model = prepareQuotePdfModel(draft);

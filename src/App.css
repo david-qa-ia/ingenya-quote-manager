@@ -493,8 +493,35 @@ td small {
   font-size: 1.15rem;
   letter-spacing: -0.02em;
 }
+.summary-read-only-data {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+}
+.summary-read-only-data div {
+  display: grid;
+  gap: 6px;
+}
+.summary-read-only-data dt {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.summary-read-only-data dd {
+  margin: 0;
+  color: var(--text-heading);
+  font-weight: 700;
+}
 .summary-actions {
   gap: 12px;
+}
+.finalization-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
 }
 .save-feedback {
   margin: 0;
@@ -573,6 +600,45 @@ td small {
   background: var(--accent-soft);
   font-size: 0.75rem;
   font-weight: 700;
+}
+.status-badge-finalized {
+  color: #31506f;
+  background: #e8f1f8;
+}
+.modal-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(20, 31, 28, 0.55);
+}
+.confirmation-modal {
+  width: min(100%, 460px);
+  box-sizing: border-box;
+  padding: 28px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 24px 70px rgba(20, 31, 28, 0.25);
+}
+.confirmation-modal h2 {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 1.4rem;
+}
+.confirmation-modal p {
+  margin: 14px 0 24px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.confirmation-actions .button-primary {
+  min-width: 150px;
 }
 .back-to-current {
   width: auto;
@@ -660,5 +726,9 @@ td small {
     flex-direction: column;
     gap: 6px;
     padding: 22px 18px;
+  }
+  .confirmation-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
   }
 }

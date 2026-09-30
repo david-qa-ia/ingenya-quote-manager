@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './App.css';
 import { initialJobCatalog } from './data/jobCatalog';
 import { workUnitLabels, workUnitSymbols } from './data/workUnits';
-import type { QuoteDraft, QuoteLine, SavedQuote, WorkUnit } from './types/quote';
+import type { Quote, QuoteLine, QuoteStatus, SavedQuote, WorkUnit } from './types/quote';
 import { calculateLineSubtotal, calculateQuoteTotal } from './utils/quoteCalculations';
-import { loadSavedQuotes, saveQuoteDraft } from './utils/quoteDraftStorage';
+import { loadSavedQuotes, saveQuote } from './utils/quoteDraftStorage';
+import { finalizeQuote, QuoteFinalizationError } from './utils/quoteFinalization';
 import { currencyFormatter } from './utils/quoteFormatting';
 import { downloadQuotePdf } from './utils/quotePdf';
 import { QuotePdfValidationError } from './utils/quotePdfModel';
@@ -27,6 +28,7 @@ function createQuoteId(): string {
 
 function App() {
   const [quoteId, setQuoteId] = useState(createQuoteId);
+  const [quoteStatus, setQuoteStatus] = useState<QuoteStatus>('draft');
   const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([]);
   const [savedQuotes, setSavedQuotes] = useState(loadSavedQuotes);
   const [currentView, setCurrentView] = useState<'editor' | 'summary' | 'savedQuotes'>('editor');
@@ -41,6 +43,17 @@ function App() {
     message: string;
   } | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isFinalizationConfirmationOpen, setIsFinalizationConfirmationOpen] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const finalizationLockRef = useRef(false);
+  const finalizationTriggerRef = useRef<HTMLButtonElement>(null);
+  const finalizationCancelRef = useRef<HTMLButtonElement>(null);
+  const finalizationConfirmRef = useRef<HTMLButtonElement>(null);
+  const wasFinalizationConfirmationOpenRef = useRef(false);
+  const [finalizationFeedback, setFinalizationFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [selectedJobId, setSelectedJobId] = useState(initialCatalogJob.id);
   const [catalogQuantity, setCatalogQuantity] = useState('1');
   const [catalogUnitPrice, setCatalogUnitPrice] = useState(String(initialCatalogJob.defaultPrice));
@@ -59,6 +72,65 @@ function App() {
     activeCatalogJobs.find((job) => job.id === selectedJobId) ?? initialCatalogJob;
   const quoteTotal = calculateQuoteTotal(quoteLines);
 
+  useEffect(() => {
+    if (isFinalizationConfirmationOpen) {
+      finalizationCancelRef.current?.focus();
+      wasFinalizationConfirmationOpenRef.current = true;
+      return;
+    }
+
+    if (wasFinalizationConfirmationOpenRef.current) {
+      finalizationTriggerRef.current?.focus();
+      wasFinalizationConfirmationOpenRef.current = false;
+    }
+  }, [isFinalizationConfirmationOpen]);
+
+  useEffect(() => {
+    if (!isFinalizationConfirmationOpen) return;
+
+    function handleConfirmationKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+
+        if (!isFinalizing && !finalizationLockRef.current) {
+          setIsFinalizationConfirmationOpen(false);
+        }
+
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+
+      event.preventDefault();
+
+      if (isFinalizing || finalizationLockRef.current) return;
+
+      const cancelButton = finalizationCancelRef.current;
+      const confirmButton = finalizationConfirmRef.current;
+
+      if (!cancelButton || !confirmButton) return;
+
+      if (event.shiftKey) {
+        (document.activeElement === cancelButton ? confirmButton : cancelButton).focus();
+      } else {
+        (document.activeElement === confirmButton ? cancelButton : confirmButton).focus();
+      }
+    }
+
+    document.addEventListener('keydown', handleConfirmationKeyDown);
+    return () => document.removeEventListener('keydown', handleConfirmationKeyDown);
+  }, [isFinalizationConfirmationOpen, isFinalizing]);
+
+  function getCurrentQuote(): Quote {
+    return {
+      id: quoteId,
+      status: quoteStatus,
+      clientName,
+      projectName,
+      lines: quoteLines,
+    };
+  }
+
   function handleCatalogJobChange(jobId: string) {
     const nextJob = activeCatalogJobs.find((job) => job.id === jobId);
 
@@ -74,8 +146,14 @@ function App() {
     const quantity = Number(catalogQuantity);
     const unitPrice = Number(catalogUnitPrice);
 
-    if (quantity <= 0 || unitPrice <= 0) {
-      setCatalogError('Ingresá una cantidad y un precio unitario mayores a cero.');
+    if (
+      !Number.isFinite(quantity) ||
+      !Number.isFinite(unitPrice) ||
+      catalogUnitPrice.trim() === '' ||
+      quantity <= 0 ||
+      unitPrice < 0
+    ) {
+      setCatalogError('Ingresá una cantidad mayor a cero y un precio no negativo.');
       return;
     }
 
@@ -107,8 +185,14 @@ function App() {
       return;
     }
 
-    if (quantity <= 0 || unitPrice <= 0) {
-      setManualError('Ingresá una cantidad y un precio unitario mayores a cero.');
+    if (
+      !Number.isFinite(quantity) ||
+      !Number.isFinite(unitPrice) ||
+      manualUnitPrice.trim() === '' ||
+      quantity <= 0 ||
+      unitPrice < 0
+    ) {
+      setManualError('Ingresá una cantidad mayor a cero y un precio no negativo.');
       return;
     }
 
@@ -151,10 +235,11 @@ function App() {
     if (
       !Number.isFinite(quantity) ||
       !Number.isFinite(unitPrice) ||
+      editUnitPrice.trim() === '' ||
       quantity <= 0 ||
-      unitPrice <= 0
+      unitPrice < 0
     ) {
-      setEditError('Ingresá una cantidad y un precio unitario mayores a cero.');
+      setEditError('Ingresá una cantidad mayor a cero y un precio no negativo.');
       return;
     }
 
@@ -185,11 +270,16 @@ function App() {
     setPdfFeedback(null);
     setCatalogError('');
     setManualError('');
+    setFinalizationFeedback(null);
+    setIsFinalizationConfirmationOpen(false);
+    setIsFinalizing(false);
+    finalizationLockRef.current = false;
     handleEditCancel();
   }
 
   function handleNewQuote() {
     setQuoteId(createQuoteId());
+    setQuoteStatus('draft');
     setQuoteLines([]);
     setClientName('');
     setProjectName('');
@@ -199,23 +289,20 @@ function App() {
 
   function handleSavedQuoteOpen(savedQuote: SavedQuote) {
     setQuoteId(savedQuote.id);
+    setQuoteStatus(savedQuote.status);
     setQuoteLines(savedQuote.lines);
     setClientName(savedQuote.clientName);
     setProjectName(savedQuote.projectName);
     resetTransientState();
-    setCurrentView('editor');
+    setCurrentView(savedQuote.status === 'draft' ? 'editor' : 'summary');
   }
 
   function handleDraftSave() {
-    const draft: QuoteDraft = {
-      id: quoteId,
-      status: 'draft',
-      clientName,
-      projectName,
-      lines: quoteLines,
-    };
+    const draft = getCurrentQuote();
 
-    if (saveQuoteDraft(draft)) {
+    if (draft.status !== 'draft') return;
+
+    if (saveQuote(draft)) {
       setSavedQuotes(loadSavedQuotes());
       setSaveFeedback({
         type: 'success',
@@ -230,22 +317,75 @@ function App() {
     });
   }
 
+  function handleFinalizationRequest() {
+    setSaveFeedback(null);
+    setFinalizationFeedback(null);
+
+    try {
+      finalizeQuote(getCurrentQuote());
+      setIsFinalizationConfirmationOpen(true);
+    } catch (error) {
+      setFinalizationFeedback({
+        type: 'error',
+        message:
+          error instanceof QuoteFinalizationError
+            ? error.message
+            : 'No se pudo validar el presupuesto. Intentá nuevamente.',
+      });
+    }
+  }
+
+  function handleFinalizationConfirm() {
+    if (finalizationLockRef.current || quoteStatus !== 'draft') return;
+
+    finalizationLockRef.current = true;
+    setIsFinalizing(true);
+    setFinalizationFeedback(null);
+
+    try {
+      const finalizedQuote = finalizeQuote(getCurrentQuote());
+
+      if (!saveQuote(finalizedQuote)) {
+        setIsFinalizationConfirmationOpen(false);
+        setFinalizationFeedback({
+          type: 'error',
+          message: 'No se pudo finalizar el presupuesto. Intentá nuevamente.',
+        });
+        return;
+      }
+
+      setQuoteStatus('finalized');
+      setSavedQuotes(loadSavedQuotes());
+      setIsFinalizationConfirmationOpen(false);
+      setFinalizationFeedback({
+        type: 'success',
+        message: 'Presupuesto finalizado correctamente.',
+      });
+    } catch (error) {
+      setIsFinalizationConfirmationOpen(false);
+      setFinalizationFeedback({
+        type: 'error',
+        message:
+          error instanceof QuoteFinalizationError
+            ? error.message
+            : 'No se pudo finalizar el presupuesto. Intentá nuevamente.',
+      });
+    } finally {
+      finalizationLockRef.current = false;
+      setIsFinalizing(false);
+    }
+  }
+
   async function handlePdfDownload() {
     if (isDownloadingPdf) return;
 
-    const draft: QuoteDraft = {
-      id: quoteId,
-      status: 'draft',
-      clientName,
-      projectName,
-      lines: quoteLines,
-    };
+    const quote = getCurrentQuote();
 
     setIsDownloadingPdf(true);
     setPdfFeedback(null);
 
     try {
-      await downloadQuotePdf(draft);
+      await downloadQuotePdf(quote);
       setPdfFeedback({
         type: 'success',
         message: 'El PDF se descargó correctamente.',
@@ -322,7 +462,9 @@ function App() {
                       <td>{savedQuote.clientName.trim() || 'Sin cliente'}</td>
                       <td>{savedQuote.projectName.trim() || 'Sin obra'}</td>
                       <td>
-                        <span className="status-badge">Borrador</span>
+                        <span className={`status-badge status-badge-${savedQuote.status}`}>
+                          {savedQuote.status === 'draft' ? 'Borrador' : 'Finalizado'}
+                        </span>
                       </td>
                       <td>{dateFormatter.format(new Date(savedQuote.savedAt))}</td>
                       <td className="numeric-cell subtotal">
@@ -334,7 +476,7 @@ function App() {
                           type="button"
                           onClick={() => handleSavedQuoteOpen(savedQuote)}
                         >
-                          Abrir
+                          {savedQuote.status === 'draft' ? 'Abrir' : 'Ver'}
                         </button>
                       </td>
                     </tr>
@@ -348,7 +490,7 @@ function App() {
         <button
           className="button button-link back-to-current"
           type="button"
-          onClick={() => setCurrentView('editor')}
+          onClick={() => setCurrentView(quoteStatus === 'draft' ? 'editor' : 'summary')}
         >
           <span aria-hidden="true">←</span> Volver al presupuesto actual
         </button>
@@ -362,9 +504,11 @@ function App() {
         <header className="summary-header">
           <div>
             <p className="eyebrow">Ingenya · Presupuestos</p>
-            <h1>Resumen del presupuesto</h1>
+            <h1>{quoteStatus === 'draft' ? 'Revisá el presupuesto' : 'Presupuesto finalizado'}</h1>
             <p className="page-description">
-              Revisá los servicios, cantidades y precios antes de guardar el borrador.
+              {quoteStatus === 'draft'
+                ? 'Confirmá los datos antes de finalizarlo.'
+                : 'Consultá el detalle o descargá el PDF del presupuesto.'}
             </p>
           </div>
           <div className="header-actions">
@@ -375,9 +519,14 @@ function App() {
             >
               Presupuestos guardados
             </button>
-            <div className="quote-identity" aria-label={`Presupuesto ${quoteId}, Borrador`}>
+            <div
+              className="quote-identity"
+              aria-label={`Presupuesto ${quoteId}, ${
+                quoteStatus === 'draft' ? 'Borrador' : 'Finalizado'
+              }`}
+            >
               <span>{quoteId}</span>
-              <strong>Borrador</strong>
+              <strong>{quoteStatus === 'draft' ? 'Borrador' : 'Finalizado'}</strong>
             </div>
           </div>
         </header>
@@ -441,42 +590,81 @@ function App() {
                 <h2>Información del trabajo</h2>
               </div>
 
-              <label className="field">
-                <span>Cliente</span>
-                <input
-                  type="text"
-                  value={clientName}
-                  onChange={(event) => setClientName(event.target.value)}
-                  placeholder="Nombre del cliente"
-                />
-                <small>Podés dejar este campo vacío.</small>
-              </label>
+              {quoteStatus === 'draft' ? (
+                <>
+                  <label className="field">
+                    <span>Cliente</span>
+                    <input
+                      type="text"
+                      value={clientName}
+                      onChange={(event) => setClientName(event.target.value)}
+                      placeholder="Nombre del cliente"
+                    />
+                    <small>Podés dejar este campo vacío.</small>
+                  </label>
 
-              <label className="field">
-                <span>Obra</span>
-                <input
-                  type="text"
-                  value={projectName}
-                  onChange={(event) => setProjectName(event.target.value)}
-                  placeholder="Nombre o ubicación de la obra"
-                />
-                <small>Podés dejar este campo vacío.</small>
-              </label>
+                  <label className="field">
+                    <span>Obra</span>
+                    <input
+                      type="text"
+                      value={projectName}
+                      onChange={(event) => setProjectName(event.target.value)}
+                      placeholder="Nombre o ubicación de la obra"
+                    />
+                    <small>Podés dejar este campo vacío.</small>
+                  </label>
+                </>
+              ) : (
+                <dl className="summary-read-only-data">
+                  <div>
+                    <dt>Cliente</dt>
+                    <dd>{clientName.trim() || 'Sin cliente'}</dd>
+                  </div>
+                  <div>
+                    <dt>Obra</dt>
+                    <dd>{projectName.trim() || 'Sin obra'}</dd>
+                  </div>
+                </dl>
+              )}
             </section>
 
             <section
               className="summary-panel summary-actions"
               aria-label="Acciones del presupuesto"
             >
-              <button className="button button-primary" type="button" onClick={handleDraftSave}>
-                Guardar borrador
-              </button>
+              {quoteStatus === 'draft' && (
+                <>
+                  <button
+                    ref={finalizationTriggerRef}
+                    className="button button-primary"
+                    type="button"
+                    onClick={handleFinalizationRequest}
+                    disabled={isFinalizing}
+                  >
+                    Finalizar presupuesto
+                  </button>
+                  <button className="button button-line" type="button" onClick={handleDraftSave}>
+                    Guardar borrador
+                  </button>
+                  <p className="finalization-note">
+                    Finalizar no envía el presupuesto al cliente ni registra un cobro.
+                  </p>
+                </>
+              )}
               {saveFeedback && (
                 <p
                   className={`save-feedback save-feedback-${saveFeedback.type}`}
                   role={saveFeedback.type === 'error' ? 'alert' : 'status'}
                 >
                   {saveFeedback.message}
+                </p>
+              )}
+              {finalizationFeedback && (
+                <p
+                  className={`save-feedback save-feedback-${finalizationFeedback.type}`}
+                  role={finalizationFeedback.type === 'error' ? 'alert' : 'status'}
+                >
+                  {finalizationFeedback.message}
                 </p>
               )}
               <button
@@ -495,16 +683,63 @@ function App() {
                   {pdfFeedback.message}
                 </p>
               )}
-              <button
-                className="button button-link"
-                type="button"
-                onClick={() => setCurrentView('editor')}
-              >
-                <span aria-hidden="true">←</span> Volver a editar
-              </button>
+              {quoteStatus === 'draft' ? (
+                <button
+                  className="button button-link"
+                  type="button"
+                  onClick={() => setCurrentView('editor')}
+                >
+                  <span aria-hidden="true">←</span> Volver a editar
+                </button>
+              ) : (
+                <button
+                  className="button button-link"
+                  type="button"
+                  onClick={() => setCurrentView('savedQuotes')}
+                >
+                  Ir a Mis presupuestos
+                </button>
+              )}
             </section>
           </aside>
         </div>
+        {isFinalizationConfirmationOpen && (
+          <div className="modal-backdrop">
+            <section
+              className="confirmation-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="finalization-title"
+              aria-describedby="finalization-description"
+            >
+              <h2 id="finalization-title">¿Finalizar este presupuesto?</h2>
+              <p id="finalization-description">
+                Se guardará con estado “Finalizado”. No se enviará al cliente y podrás descargar el
+                PDF después.
+              </p>
+              <div className="confirmation-actions">
+                <button
+                  ref={finalizationCancelRef}
+                  className="button button-line"
+                  type="button"
+                  onClick={() => setIsFinalizationConfirmationOpen(false)}
+                  disabled={isFinalizing}
+                >
+                  Cancelar
+                </button>
+                <button
+                  ref={finalizationConfirmRef}
+                  className="button button-primary"
+                  type="button"
+                  onClick={handleFinalizationConfirm}
+                  disabled={isFinalizing}
+                >
+                  {isFinalizing ? 'Finalizando…' : 'Sí, finalizar'}
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
       </main>
     );
   }
@@ -588,7 +823,7 @@ function App() {
                 <span>$</span>
                 <input
                   type="number"
-                  min="0.01"
+                  min="0"
                   step="0.01"
                   value={catalogUnitPrice}
                   onChange={(event) => setCatalogUnitPrice(event.target.value)}
@@ -656,7 +891,7 @@ function App() {
                 <span>$</span>
                 <input
                   type="number"
-                  min="0.01"
+                  min="0"
                   step="0.01"
                   value={manualUnitPrice}
                   onChange={(event) => setManualUnitPrice(event.target.value)}
@@ -720,7 +955,7 @@ function App() {
                           <input
                             className="line-edit-input"
                             type="number"
-                            min="0.01"
+                            min="0"
                             step="0.01"
                             value={editQuantity}
                             onChange={(event) => setEditQuantity(event.target.value)}

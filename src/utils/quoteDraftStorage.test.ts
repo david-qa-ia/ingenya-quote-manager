@@ -65,6 +65,23 @@ describe('parseSavedQuotes', () => {
 
     expect(parseSavedQuotes(JSON.stringify([emptySavedQuote]))).toEqual([emptySavedQuote]);
   });
+
+  it('accepts finalized quotes and unit prices equal to zero', () => {
+    const finalizedQuote = {
+      ...validSavedQuote,
+      status: 'finalized',
+      lines: [{ ...validSavedQuote.lines[0], unitPrice: 0 }],
+    };
+
+    expect(parseSavedQuotes(JSON.stringify([finalizedQuote]))).toEqual([finalizedQuote]);
+  });
+
+  it('rejects unsupported statuses and finalized quotes without lines', () => {
+    const unsupportedQuote = { ...validSavedQuote, status: 'sent' };
+    const emptyFinalizedQuote = { ...validSavedQuote, status: 'finalized', lines: [] };
+
+    expect(parseSavedQuotes(JSON.stringify([unsupportedQuote, emptyFinalizedQuote]))).toEqual([]);
+  });
 });
 
 describe('saved quote storage', () => {
@@ -92,6 +109,12 @@ describe('saved quote storage', () => {
 
     expect(loadSavedQuotes()).toHaveLength(1);
     expect(loadSavedQuotes()[0].clientName).toBe('Cliente actualizado');
+  });
+
+  it('persists and recovers a finalized quote', () => {
+    expect(saveQuoteDraft({ ...validDraft, status: 'finalized' })).toBe(true);
+
+    expect(loadSavedQuotes()[0].status).toBe('finalized');
   });
 
   it('does not persist a derived total', () => {
