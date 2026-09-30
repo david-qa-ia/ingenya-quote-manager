@@ -516,6 +516,16 @@ td small {
   width: 100%;
   min-width: 0;
 }
+.pdf-download-button {
+  width: 100%;
+  margin-top: 0;
+}
+.pdf-download-button:disabled {
+  border-color: var(--border);
+  color: var(--text-subtle);
+  background: var(--disabled-bg);
+  cursor: not-allowed;
+}
 .button-disabled {
   width: 100%;
   padding: 0 16px;
