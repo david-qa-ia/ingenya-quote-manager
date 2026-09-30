@@ -1,9 +1,17 @@
-import type { QuoteDraft, QuoteLine, QuoteLineSource, SavedQuote, WorkUnit } from '../types/quote';
+import type {
+  Quote,
+  QuoteLine,
+  QuoteLineSource,
+  QuoteStatus,
+  SavedQuote,
+  WorkUnit,
+} from '../types/quote';
 
 export const SAVED_QUOTES_STORAGE_KEY = 'ingenya.savedQuotes.v1';
 
 const validWorkUnits: WorkUnit[] = ['squareMeter', 'linearMeter', 'unit'];
 const validLineSources: QuoteLineSource[] = ['catalog', 'manual'];
+const validQuoteStatuses: QuoteStatus[] = ['draft', 'finalized'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -17,12 +25,20 @@ function isPositiveFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+function isNonNegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
 function isWorkUnit(value: unknown): value is WorkUnit {
   return typeof value === 'string' && validWorkUnits.includes(value as WorkUnit);
 }
 
 function isLineSource(value: unknown): value is QuoteLineSource {
   return typeof value === 'string' && validLineSources.includes(value as QuoteLineSource);
+}
+
+function isQuoteStatus(value: unknown): value is QuoteStatus {
+  return typeof value === 'string' && validQuoteStatuses.includes(value as QuoteStatus);
 }
 
 function isQuoteLine(value: unknown): value is QuoteLine {
@@ -37,27 +53,28 @@ function isQuoteLine(value: unknown): value is QuoteLine {
     isNonEmptyString(value.name) &&
     isWorkUnit(value.unit) &&
     isPositiveFiniteNumber(value.quantity) &&
-    isPositiveFiniteNumber(value.unitPrice) &&
+    isNonNegativeFiniteNumber(value.unitPrice) &&
     isLineSource(value.source)
   );
 }
 
-function isQuoteDraft(value: unknown): value is QuoteDraft {
+function isQuote(value: unknown): value is Quote {
   return (
     isRecord(value) &&
     isNonEmptyString(value.id) &&
-    value.status === 'draft' &&
+    isQuoteStatus(value.status) &&
     typeof value.clientName === 'string' &&
     typeof value.projectName === 'string' &&
     Array.isArray(value.lines) &&
-    value.lines.every(isQuoteLine)
+    value.lines.every(isQuoteLine) &&
+    (value.status === 'draft' || value.lines.length > 0)
   );
 }
 
 function isSavedQuote(value: unknown): value is SavedQuote {
   return (
     isRecord(value) &&
-    isQuoteDraft(value) &&
+    isQuote(value) &&
     isNonEmptyString(value.savedAt) &&
     Number.isFinite(Date.parse(value.savedAt))
   );
@@ -85,18 +102,18 @@ export function loadSavedQuotes(): SavedQuote[] {
   }
 }
 
-export function saveQuoteDraft(draft: QuoteDraft): boolean {
+export function saveQuote(quote: Quote): boolean {
   try {
     const savedQuote: SavedQuote = {
-      id: draft.id,
-      status: draft.status,
-      clientName: draft.clientName,
-      projectName: draft.projectName,
-      lines: draft.lines,
+      id: quote.id,
+      status: quote.status,
+      clientName: quote.clientName,
+      projectName: quote.projectName,
+      lines: quote.lines,
       savedAt: new Date().toISOString(),
     };
     const savedQuotes = loadSavedQuotes();
-    const existingIndex = savedQuotes.findIndex((quote) => quote.id === draft.id);
+    const existingIndex = savedQuotes.findIndex((saved) => saved.id === quote.id);
 
     if (existingIndex === -1) {
       savedQuotes.push(savedQuote);
@@ -110,3 +127,5 @@ export function saveQuoteDraft(draft: QuoteDraft): boolean {
     return false;
   }
 }
+
+export const saveQuoteDraft = saveQuote;

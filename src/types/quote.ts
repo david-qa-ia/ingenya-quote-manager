@@ -2,6 +2,8 @@ export type WorkUnit = 'squareMeter' | 'linearMeter' | 'unit';
 
 export type QuoteLineSource = 'catalog' | 'manual';
 
+export type QuoteStatus = 'draft' | 'finalized';
+
 export interface CatalogJob {
   id: string;
   name: string;
@@ -21,14 +23,18 @@ export interface QuoteLine {
   source: QuoteLineSource;
 }
 
-export interface QuoteDraft {
+export interface Quote {
   id: string;
-  status: 'draft';
+  status: QuoteStatus;
   clientName: string;
   projectName: string;
   lines: QuoteLine[];
 }
 
-export interface SavedQuote extends QuoteDraft {
+export interface QuoteDraft extends Quote {
+  status: 'draft';
+}
+
+export interface SavedQuote extends Quote {
   savedAt: string;
 }
