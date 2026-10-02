@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QuoteDraft } from '../types/quote';
+import type { DeploymentBrandConfig } from '../types/branding';
 import { createSafeQuotePdfFileName, prepareQuotePdfModel } from './quotePdfModel';
 
 const draft: QuoteDraft = {
@@ -39,6 +40,8 @@ describe('prepareQuotePdfModel', () => {
       status: 'Borrador',
       total: 187500,
       fileName: 'presupuesto-PRES-2026-0001.pdf',
+      proposalTitle: 'Propuesta de servicios',
+      isDraft: true,
       lines: [
         {
           description: 'Pintar pared',
@@ -66,7 +69,38 @@ describe('prepareQuotePdfModel', () => {
   });
 
   it('shows the real status of a finalized quote', () => {
-    expect(prepareQuotePdfModel({ ...draft, status: 'finalized' }).status).toBe('Finalizado');
+    expect(prepareQuotePdfModel({ ...draft, status: 'finalized' })).toMatchObject({
+      status: 'Finalizado',
+      isDraft: false,
+    });
+  });
+
+  it('uses the project as proposal title without expanding the quote contract', () => {
+    expect(prepareQuotePdfModel(draft).proposalTitle).toBe('Reforma cocina');
+  });
+
+  it('preserves optional branding without inventing logo or Instagram', () => {
+    const brand: DeploymentBrandConfig = {
+      companyName: 'Otra empresa',
+      email: 'contacto@example.com',
+      whatsapp: { display: '123', value: '123' },
+      footerBusinessText: 'Otra empresa - Servicios',
+    };
+
+    expect(prepareQuotePdfModel(draft, brand).brand).toEqual(brand);
+  });
+
+  it('rejects incomplete required deployment branding', () => {
+    const brand: DeploymentBrandConfig = {
+      companyName: 'Otra empresa',
+      email: '',
+      whatsapp: { display: '123', value: '123' },
+      footerBusinessText: 'Otra empresa - Servicios',
+    };
+
+    expect(() => prepareQuotePdfModel(draft, brand)).toThrow(
+      'No se puede generar el PDF porque la configuración comercial está incompleta.',
+    );
   });
 
   it.each([

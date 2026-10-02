@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "evidence:pdf": "GENERATE_PDF_EVIDENCE=1 vitest run scripts/quotePdfVisualEvidence.test.ts"
   },
   "dependencies": {
     "jspdf": "^4.2.1",
