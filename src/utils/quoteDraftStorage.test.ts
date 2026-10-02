@@ -17,6 +17,7 @@ const validDraft: QuoteDraft = {
       id: 'line-1',
       catalogJobId: 'paint-wall',
       name: 'Pintar pared',
+      description: 'Preparación y dos manos',
       unit: 'squareMeter',
       quantity: 12.5,
       unitPrice: 15000,
@@ -74,6 +75,14 @@ describe('parseSavedQuotes', () => {
     };
 
     expect(parseSavedQuotes(JSON.stringify([finalizedQuote]))).toEqual([finalizedQuote]);
+  });
+
+  it('keeps historical quote lines valid when they do not have a description', () => {
+    const historicalQuote = {
+      ...validSavedQuote,
+      lines: [{ ...validSavedQuote.lines[0], description: undefined }],
+    };
+    expect(parseSavedQuotes(JSON.stringify([historicalQuote]))).toHaveLength(1);
   });
 
   it('rejects unsupported statuses and finalized quotes without lines', () => {

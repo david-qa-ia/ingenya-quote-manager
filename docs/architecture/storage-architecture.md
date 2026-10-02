@@ -18,6 +18,16 @@ Previous single-draft key:
 
 `ingenya.quoteDraft.v1`
 
+Labor catalog key:
+
+`ingenya.laborCatalog.v1`
+
+The labor catalog is stored independently from quotes. When its key does not exist, the app
+persists a copy of the static seed. Invalid root data is never silently overwritten: the app uses
+the seed as an in-memory recovery and reports the problem. When a stored array contains a mix of
+valid and invalid entries, only the valid entries are loaded and the discarded seed entries are not
+reintroduced automatically.
+
 New saved quote behavior should use the collection key.
 
 ## Persisted Data
@@ -40,6 +50,7 @@ Quote lines may persist:
 - Line ID.
 - Catalog job ID, when the line comes from the catalog.
 - Name.
+- Optional description.
 - Work unit.
 - Quantity.
 - Unit price.
@@ -117,3 +128,5 @@ Before modifying storage behavior, agents must read:
 - `docs/architecture/storage-architecture.md`
 
 Agents must not introduce new storage keys, persistence mechanisms, backend assumptions, or duplicated derived totals without an explicit Jira ticket.
+
+SCRUM-40 explicitly authorizes `ingenya.laborCatalog.v1` for the local labor catalog.

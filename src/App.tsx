@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './App.css';
-import { initialJobCatalog } from './data/jobCatalog';
+import { LaborCatalogView } from './components/LaborCatalogView';
 import { workUnitLabels, workUnitSymbols } from './data/workUnits';
-import type { Quote, QuoteLine, QuoteStatus, SavedQuote, WorkUnit } from './types/quote';
+import type {
+  CatalogJob,
+  Quote,
+  QuoteLine,
+  QuoteStatus,
+  SavedQuote,
+  WorkUnit,
+} from './types/quote';
 import { calculateLineSubtotal, calculateQuoteTotal } from './utils/quoteCalculations';
 import { loadSavedQuotes, saveQuote } from './utils/quoteDraftStorage';
 import { finalizeQuote, QuoteFinalizationError } from './utils/quoteFinalization';
@@ -10,9 +17,16 @@ import { currencyFormatter } from './utils/quoteFormatting';
 import { downloadQuotePdf } from './utils/quotePdf';
 import { QuotePdfValidationError } from './utils/quotePdfModel';
 import { filterSavedQuotes, type SavedQuoteFilter } from './utils/savedQuoteFilters';
+import {
+  addCatalogJob,
+  loadLaborCatalog,
+  saveLaborCatalog,
+  setCatalogJobActive,
+  updateCatalogJob,
+} from './utils/jobCatalogStorage';
+import { createCatalogQuoteLine } from './utils/quoteLineFactory';
+import { addQuickService } from './utils/quickServiceAddition';
 
-const activeCatalogJobs = initialJobCatalog.filter((job) => job.isActive);
-const initialCatalogJob = activeCatalogJobs[0];
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'medium',
@@ -28,6 +42,9 @@ function createQuoteId(): string {
 }
 
 function App() {
+  const [initialCatalogLoad] = useState(loadLaborCatalog);
+  const [catalogJobs, setCatalogJobs] = useState<CatalogJob[]>(initialCatalogLoad.jobs);
+  const [catalogLoadIssue, setCatalogLoadIssue] = useState(initialCatalogLoad.issue);
   const [quoteId, setQuoteId] = useState(createQuoteId);
   const [quoteStatus, setQuoteStatus] = useState<QuoteStatus>('draft');
   const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([]);
@@ -39,7 +56,9 @@ function App() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-  const [currentView, setCurrentView] = useState<'editor' | 'summary' | 'savedQuotes'>('editor');
+  const [currentView, setCurrentView] = useState<'editor' | 'summary' | 'savedQuotes' | 'catalog'>(
+    'editor',
+  );
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [saveFeedback, setSaveFeedback] = useState<{
@@ -62,13 +81,20 @@ function App() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-  const [selectedJobId, setSelectedJobId] = useState(initialCatalogJob.id);
+  const [selectedJobId, setSelectedJobId] = useState(
+    initialCatalogLoad.jobs.find((job) => job.isActive)?.id ?? '',
+  );
+  const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogQuantity, setCatalogQuantity] = useState('1');
-  const [catalogUnitPrice, setCatalogUnitPrice] = useState(String(initialCatalogJob.defaultPrice));
+  const [catalogUnitPrice, setCatalogUnitPrice] = useState(
+    String(initialCatalogLoad.jobs.find((job) => job.isActive)?.defaultPrice ?? ''),
+  );
   const [manualName, setManualName] = useState('');
+  const [manualDescription, setManualDescription] = useState('');
   const [manualUnit, setManualUnit] = useState<WorkUnit>('squareMeter');
   const [manualQuantity, setManualQuantity] = useState('1');
   const [manualUnitPrice, setManualUnitPrice] = useState('');
+  const [saveManualToCatalog, setSaveManualToCatalog] = useState(false);
   const [catalogError, setCatalogError] = useState('');
   const [manualError, setManualError] = useState('');
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
@@ -76,8 +102,14 @@ function App() {
   const [editUnitPrice, setEditUnitPrice] = useState('');
   const [editError, setEditError] = useState('');
 
-  const selectedJob =
-    activeCatalogJobs.find((job) => job.id === selectedJobId) ?? initialCatalogJob;
+  const activeCatalogJobs = catalogJobs.filter((job) => job.isActive);
+  const visibleActiveCatalogJobs = activeCatalogJobs.filter((job) =>
+    `${job.name} ${job.description ?? ''}`
+      .toLocaleLowerCase('es')
+      .includes(catalogSearch.trim().toLocaleLowerCase('es')),
+  );
+  const selectedJob = activeCatalogJobs.find((job) => job.id === selectedJobId);
+  const selectedVisibleJob = visibleActiveCatalogJobs.find((job) => job.id === selectedJobId);
   const quoteTotal = calculateQuoteTotal(quoteLines);
   const visibleSavedQuotes = filterSavedQuotes(savedQuotes, savedQuoteFilter);
 
@@ -150,8 +182,28 @@ function App() {
     setCatalogError('');
   }
 
+  function handleCatalogSearchChange(value: string) {
+    setCatalogSearch(value);
+    const normalized = value.trim().toLocaleLowerCase('es');
+    const firstMatch = activeCatalogJobs.find((job) =>
+      `${job.name} ${job.description ?? ''}`.toLocaleLowerCase('es').includes(normalized),
+    );
+    if (
+      firstMatch &&
+      !`${selectedJob?.name ?? ''} ${selectedJob?.description ?? ''}`
+        .toLocaleLowerCase('es')
+        .includes(normalized)
+    ) {
+      handleCatalogJobChange(firstMatch.id);
+    }
+  }
+
   function handleCatalogSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!selectedVisibleJob) {
+      setCatalogError('Seleccioná un servicio activo del catálogo.');
+      return;
+    }
     const quantity = Number(catalogQuantity);
     const unitPrice = Number(catalogUnitPrice);
 
@@ -168,18 +220,10 @@ function App() {
 
     setQuoteLines((currentLines) => [
       ...currentLines,
-      {
-        id: createLineId(),
-        catalogJobId: selectedJob.id,
-        name: selectedJob.name,
-        unit: selectedJob.unit,
-        quantity,
-        unitPrice,
-        source: 'catalog',
-      },
+      createCatalogQuoteLine(selectedVisibleJob, createLineId(), quantity, unitPrice),
     ]);
     setCatalogQuantity('1');
-    setCatalogUnitPrice(String(selectedJob.defaultPrice));
+    setCatalogUnitPrice(String(selectedVisibleJob.defaultPrice));
     setCatalogError('');
   }
 
@@ -205,22 +249,64 @@ function App() {
       return;
     }
 
-    setQuoteLines((currentLines) => [
-      ...currentLines,
+    const addition = addQuickService(
+      catalogJobs,
       {
-        id: createLineId(),
         name,
+        description: manualDescription.trim() || undefined,
         unit: manualUnit,
         quantity,
         unitPrice,
-        source: 'manual',
       },
-    ]);
+      saveManualToCatalog,
+      (jobs) => catalogLoadIssue !== 'invalid-root' && saveLaborCatalog(jobs),
+      createLineId,
+    );
+    if (!addition.success) {
+      setManualError(addition.message);
+      return;
+    }
+    if (addition.catalogJobs) {
+      setCatalogJobs(addition.catalogJobs);
+      setCatalogLoadIssue(null);
+    }
+    setQuoteLines((currentLines) => [...currentLines, addition.line]);
     setManualName('');
+    setManualDescription('');
     setManualUnit('squareMeter');
     setManualQuantity('1');
     setManualUnitPrice('');
+    setSaveManualToCatalog(false);
     setManualError('');
+  }
+
+  function persistCatalog(nextJobs: CatalogJob[]): string | null {
+    if (catalogLoadIssue === 'invalid-root') {
+      return 'No se guardaron cambios para preservar el catálogo corrupto para diagnóstico.';
+    }
+    if (!saveLaborCatalog(nextJobs)) return 'No se pudo guardar el catálogo. Intentá nuevamente.';
+    setCatalogJobs(nextJobs);
+    setCatalogLoadIssue(null);
+    const nextSelectedJob =
+      nextJobs.find((job) => job.id === selectedJobId && job.isActive) ??
+      nextJobs.find((job) => job.isActive);
+    setSelectedJobId(nextSelectedJob?.id ?? '');
+    setCatalogUnitPrice(nextSelectedJob ? String(nextSelectedJob.defaultPrice) : '');
+    return null;
+  }
+
+  function handleCatalogCreate(job: Omit<CatalogJob, 'id' | 'isActive'>): string | null {
+    return persistCatalog(
+      addCatalogJob(catalogJobs, { ...job, id: crypto.randomUUID(), isActive: true }),
+    );
+  }
+
+  function handleCatalogUpdate(job: CatalogJob): string | null {
+    return persistCatalog(updateCatalogJob(catalogJobs, job));
+  }
+
+  function handleCatalogActivation(job: CatalogJob, isActive: boolean): string | null {
+    return persistCatalog(setCatalogJobActive(catalogJobs, job.id, isActive));
   }
 
   function handleEditStart(line: QuoteLine) {
@@ -439,6 +525,19 @@ function App() {
     }
   }
 
+  if (currentView === 'catalog') {
+    return (
+      <LaborCatalogView
+        jobs={catalogJobs}
+        loadIssue={catalogLoadIssue}
+        onBack={() => setCurrentView(quoteStatus === 'draft' ? 'editor' : 'summary')}
+        onCreate={handleCatalogCreate}
+        onUpdate={handleCatalogUpdate}
+        onSetActive={handleCatalogActivation}
+      />
+    );
+  }
+
   if (currentView === 'savedQuotes') {
     return (
       <main className="app-shell saved-quotes-shell">
@@ -450,9 +549,18 @@ function App() {
               Continuá un borrador o consultá un presupuesto finalizado.
             </p>
           </div>
-          <button className="button button-primary" type="button" onClick={handleNewQuote}>
-            Nuevo presupuesto
-          </button>
+          <nav className="header-actions" aria-label="Navegación principal">
+            <button className="button button-primary" type="button" onClick={handleNewQuote}>
+              Nuevo presupuesto
+            </button>
+            <button
+              className="button button-line"
+              type="button"
+              onClick={() => setCurrentView('catalog')}
+            >
+              Mano de obra
+            </button>
+          </nav>
         </header>
 
         <section className="quote-card" aria-labelledby="saved-quotes-title">
@@ -607,13 +715,20 @@ function App() {
                 : 'Consultá el detalle o descargá el PDF del presupuesto.'}
             </p>
           </div>
-          <div className="header-actions">
+          <nav className="header-actions" aria-label="Navegación principal">
             <button
               className="button button-line"
               type="button"
               onClick={() => setCurrentView('savedQuotes')}
             >
               Mis presupuestos
+            </button>
+            <button
+              className="button button-line"
+              type="button"
+              onClick={() => setCurrentView('catalog')}
+            >
+              Mano de obra
             </button>
             <div
               className="quote-identity"
@@ -624,7 +739,7 @@ function App() {
               <span>{quoteId}</span>
               <strong>{quoteStatus === 'draft' ? 'Borrador' : 'Finalizado'}</strong>
             </div>
-          </div>
+          </nav>
         </header>
 
         <div className="summary-layout">
@@ -655,6 +770,7 @@ function App() {
                     <tr key={line.id}>
                       <td>
                         <strong>{line.name}</strong>
+                        {line.description && <small>{line.description}</small>}
                         <small>{line.source === 'catalog' ? 'Catálogo' : 'Manual'}</small>
                       </td>
                       <td>
@@ -850,13 +966,20 @@ function App() {
             Agregá los servicios, ajustá cantidades y precios, y revisá el total antes de continuar.
           </p>
         </div>
-        <div className="header-actions">
+        <nav className="header-actions" aria-label="Navegación principal">
           <button
             className="button button-line"
             type="button"
             onClick={() => setCurrentView('savedQuotes')}
           >
             Mis presupuestos
+          </button>
+          <button
+            className="button button-line"
+            type="button"
+            onClick={() => setCurrentView('catalog')}
+          >
+            Administrar mano de obra
           </button>
           <button className="button button-line" type="button" onClick={handleNewQuote}>
             Nuevo presupuesto
@@ -868,7 +991,7 @@ function App() {
             <span>Total actual</span>
             <strong>{currencyFormatter.format(quoteTotal)}</strong>
           </div>
-        </div>
+        </nav>
       </header>
 
       <section className="entry-grid" aria-label="Agregar mano de obra">
@@ -882,12 +1005,24 @@ function App() {
           </div>
 
           <label className="field">
+            <span>Buscar servicio activo</span>
+            <input
+              type="search"
+              value={catalogSearch}
+              onChange={(event) => handleCatalogSearchChange(event.target.value)}
+              placeholder="Nombre o descripción"
+            />
+          </label>
+
+          <label className="field catalog-quote-select">
             <span>Servicio</span>
             <select
               value={selectedJobId}
               onChange={(event) => handleCatalogJobChange(event.target.value)}
+              disabled={visibleActiveCatalogJobs.length === 0}
             >
-              {activeCatalogJobs.map((job) => (
+              {visibleActiveCatalogJobs.length === 0 && <option value="">Sin resultados</option>}
+              {visibleActiveCatalogJobs.map((job) => (
                 <option key={job.id} value={job.id}>
                   {job.name}
                 </option>
@@ -899,7 +1034,9 @@ function App() {
             <div className="field read-only-field">
               <span>Unidad</span>
               <strong>
-                {workUnitLabels[selectedJob.unit]} ({workUnitSymbols[selectedJob.unit]})
+                {selectedVisibleJob
+                  ? `${workUnitLabels[selectedVisibleJob.unit]} (${workUnitSymbols[selectedVisibleJob.unit]})`
+                  : 'Sin servicio seleccionado'}
               </strong>
             </div>
             <label className="field">
@@ -931,7 +1068,7 @@ function App() {
           </div>
 
           {catalogError && <p className="form-error">{catalogError}</p>}
-          <button className="button button-secondary" type="submit">
+          <button className="button button-secondary" type="submit" disabled={!selectedVisibleJob}>
             Agregar servicio
           </button>
         </form>
@@ -953,6 +1090,16 @@ function App() {
               onChange={(event) => setManualName(event.target.value)}
               placeholder="Ej.: Reparar revoque"
               required
+            />
+          </label>
+
+          <label className="field quick-description">
+            <span>Descripción (opcional)</span>
+            <textarea
+              value={manualDescription}
+              onChange={(event) => setManualDescription(event.target.value)}
+              placeholder="Detalle breve del trabajo"
+              rows={3}
             />
           </label>
 
@@ -997,6 +1144,15 @@ function App() {
               </div>
             </label>
           </div>
+
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={saveManualToCatalog}
+              onChange={(event) => setSaveManualToCatalog(event.target.checked)}
+            />
+            <span>Guardar también en el catálogo para reutilizarlo</span>
+          </label>
 
           {manualError && <p className="form-error">{manualError}</p>}
           <button className="button button-secondary" type="submit">
@@ -1043,6 +1199,7 @@ function App() {
                     <tr key={line.id}>
                       <td>
                         <strong>{line.name}</strong>
+                        {line.description && <small>{line.description}</small>}
                         <small>{line.source === 'catalog' ? 'Catálogo' : 'Manual'}</small>
                       </td>
                       <td>{workUnitSymbols[line.unit]}</td>
