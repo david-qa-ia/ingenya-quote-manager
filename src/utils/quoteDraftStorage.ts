@@ -51,6 +51,7 @@ function isQuoteLine(value: unknown): value is QuoteLine {
     isNonEmptyString(value.id) &&
     hasValidCatalogJobId &&
     isNonEmptyString(value.name) &&
+    (value.description === undefined || typeof value.description === 'string') &&
     isWorkUnit(value.unit) &&
     isPositiveFiniteNumber(value.quantity) &&
     isNonNegativeFiniteNumber(value.unitPrice) &&

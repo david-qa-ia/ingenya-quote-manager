@@ -17,6 +17,7 @@ export interface QuoteLine {
   id: string;
   catalogJobId?: string;
   name: string;
+  description?: string;
   unit: WorkUnit;
   quantity: number;
   unitPrice: number;

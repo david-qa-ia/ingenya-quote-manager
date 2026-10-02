@@ -54,6 +54,9 @@ Each catalog job must have:
 
 The default price is only a starting value. The user may edit the unit price inside a quote.
 
+Catalog default prices must be finite and greater than zero. Quote line prices remain valid when
+they are finite and greater than or equal to zero.
+
 Changing a unit price in one quote must not automatically change the catalog price.
 
 ## Quote Line Rules
@@ -65,6 +68,7 @@ Each quote line must have:
 - `id`
 - optional `catalogJobId`
 - `name`
+- optional `description`
 - `unit`
 - `quantity`
 - `unitPrice`
