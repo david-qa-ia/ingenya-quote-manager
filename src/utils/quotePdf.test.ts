@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { jsPDF as JsPdf } from 'jspdf';
+import { jsPDF as JsPdf } from 'jspdf';
 import type { QuoteDraft } from '../types/quote';
 import { downloadQuotePdf } from './quotePdf';
 
@@ -20,28 +20,10 @@ const draft: QuoteDraft = {
   ],
 };
 
-function createDocumentMock() {
-  return {
-    internal: { pageSize: { getHeight: () => 297 } },
-    setFont: vi.fn(),
-    setFontSize: vi.fn(),
-    text: vi.fn(),
-    setDrawColor: vi.fn(),
-    line: vi.fn(),
-    setFillColor: vi.fn(),
-    rect: vi.fn(),
-    splitTextToSize: vi.fn((text: string) => [text]),
-    addPage: vi.fn(),
-    getNumberOfPages: vi.fn(() => 1),
-    setPage: vi.fn(),
-    setTextColor: vi.fn(),
-    save: vi.fn(),
-  };
-}
-
 describe('downloadQuotePdf', () => {
   it('downloads the prepared quote using its safe file name', async () => {
-    const document = createDocumentMock();
+    const document = new JsPdf({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const saveSpy = vi.spyOn(document, 'save').mockImplementation(() => document);
     const constructorSpy = vi.fn();
     class JsPdfMock {
       constructor(options: unknown) {
@@ -57,7 +39,7 @@ describe('downloadQuotePdf', () => {
       unit: 'mm',
       format: 'a4',
     });
-    expect(document.save).toHaveBeenCalledWith('presupuesto-PRES-2026-0001.pdf');
+    expect(saveSpy).toHaveBeenCalledWith('presupuesto-PRES-2026-0001.pdf');
   });
 
   it('propagates a loading failure so the interface can report it and retry', async () => {
