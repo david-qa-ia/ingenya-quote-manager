@@ -130,3 +130,57 @@ Before modifying storage behavior, agents must read:
 Agents must not introduce new storage keys, persistence mechanisms, backend assumptions, or duplicated derived totals without an explicit Jira ticket.
 
 SCRUM-40 explicitly authorizes `ingenya.laborCatalog.v1` for the local labor catalog.
+
+## SCRUM-46 Compatible Extension
+
+Approved specification: [Clients, opportunities and responsible seller](https://docs.google.com/document/d/1UWtAjAoOcGyXfVp9nTEVZ_DPLhsFM_sbvciaL5u9ZjM/edit).
+
+New independent array collections:
+
+- `ingenya.clients.v1`: `id`, `name`, `phone`, `email`, `preferredChannel`, `contactConsent`,
+  `createdAt`, `updatedAt`.
+- `ingenya.opportunities.v1`: `id`, `clientId`, `name`, `address`, `estimatedStartDate`,
+  `responsibleSeller`, `createdAt`, `updatedAt`.
+
+The saved quote collection remains `ingenya.savedQuotes.v1`. Optional `clientId` and
+`opportunityId` are additive fields. No root envelope, totals, seller snapshot, commercial
+status or duplicated opportunity data is added. Existing quotes need no rewrite or new ID.
+Dates on entities use ISO timestamps; an estimated start date is empty or a valid `YYYY-MM-DD`.
+
+### Migration And Recovery
+
+Migration is read-time, pure and idempotent: accept legacy quotes without references, remove
+malformed optional references in memory and preserve the rest of the valid quote. It generates
+no entities, IDs or timestamps and makes no storage writes. Names and contacts never establish
+identity. Distinct IDs remain distinct even when all names and contacts match.
+
+Well-formed references to missing entities are retained. Display a missing-association warning
+and the historical document snapshots. A mismatched opportunity is not displayed as the client's
+opportunity. New associations must use an opportunity belonging to the selected client.
+Existing opportunities cannot be moved between clients in this increment.
+
+Unknown storage input is validated per record. Mixed collections recover valid records without
+failing the rest of the application. Duplicate IDs expose only the first valid record in memory;
+writes to an ambiguous ID are rejected. Reads never remove invalid records from storage.
+Subsequent writes preserve unrelated invalid records for recovery. Invalid JSON/root data or
+read failures must not be replaced with an empty collection on save. Write failures return an
+error and the UI does not claim success. Missing collections start empty without automatic writes.
+
+The old single-draft key `ingenya.quoteDraft.v1` remains untouched and is not automatically
+imported. It was already outside the active loader before SCRUM-46; its format lacks `savedAt`.
+
+### Writes And Historical Integrity
+
+Create/save the client before its opportunity, and save the quote association only on explicit
+draft save or finalization. Each write is independent; localStorage provides no cross-key
+transaction. If saving a later step fails, an already saved client/opportunity remains reusable.
+Retry updates by stable ID rather than creating alternatives with the same quote ID.
+
+Client and opportunity writes serialize only their approved fields and never write quotes.
+An already finalized saved quote rejects every update, including association-only changes and
+attempts to return to draft. Finalization of a draft preserves its optional references and
+document snapshots. Several quotes may share the same opportunity without replacing one another.
+
+There is no automatic cross-tab conflict resolution, backup service or rollback to older app
+versions. An older application build can discard fields it does not understand when saving;
+do not use older builds to edit data created by this increment.

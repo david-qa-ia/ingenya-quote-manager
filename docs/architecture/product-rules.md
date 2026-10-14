@@ -83,3 +83,27 @@ Subtotal is calculated as:
 ```text
 quantity * unitPrice
 ```
+
+## Clients And Opportunities (SCRUM-46)
+
+Clients and opportunities are reusable local entities. A quote may have no association, a
+client only, or a client and one of that client's opportunities. Several independent quotes
+may reference the same opportunity; identity and updates always use the quote ID.
+
+Client name, phone and email are required. `1111111111` and `none` mean pending confirmation,
+never usable contact destinations. Preferred channel is empty, `phone`, `whatsapp` or `email`;
+contact consent starts as false. This increment does not send communications.
+
+Opportunity name and client are required. Address, estimated start date and responsible seller
+are optional. The seller is text, initially empty; there are no users or permissions.
+
+`clientName` and `projectName` remain document snapshots. Initial selection in a new quote
+copies the names. Manual association of an already saved draft preserves its existing texts;
+the user may explicitly edit those document texts while it remains a draft. Editing a client
+or opportunity never updates saved quote snapshots. Finalized quotes cannot be edited or
+associated retrospectively. The current responsible seller is resolved from the opportunity,
+not copied into the quote or PDF.
+
+Commercial statuses, follow-up, messaging, backend persistence and synchronization remain
+outside this increment. `draft` and `finalized`, service lines, calculations and PDF behavior
+are unchanged.

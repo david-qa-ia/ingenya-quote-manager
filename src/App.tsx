@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './App.css';
+import { QuoteCommercialContext } from './components/QuoteCommercialContext';
+import type { Client } from './types/client';
+import type { Opportunity } from './types/opportunity';
+import { associateQuote } from './utils/quoteAssociations';
+import { loadOpportunities } from './utils/opportunityStorage';
 import { AppHeader } from './components/AppHeader';
 import { LaborCatalogView } from './components/LaborCatalogView';
 import { workUnitLabels, workUnitSymbols } from './data/workUnits';
@@ -59,6 +64,9 @@ function App() {
     message: string;
   } | null>(null);
   const [currentView, setCurrentView] = useState<AppView>('editor');
+  const [clientId, setClientId] = useState<string | undefined>();
+  const [opportunityId, setOpportunityId] = useState<string | undefined>();
+  const [opportunities, setOpportunities] = useState(() => loadOpportunities().items);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [saveFeedback, setSaveFeedback] = useState<{
@@ -166,10 +174,27 @@ function App() {
     return {
       id: quoteId,
       status: quoteStatus,
+      clientId,
+      opportunityId,
       clientName,
       projectName,
       lines: quoteLines,
     };
+  }
+
+  function handleAssociation(client: Client | undefined, opportunity: Opportunity | undefined) {
+    if (quoteStatus !== 'draft') return;
+    const next = associateQuote(
+      getCurrentQuote(),
+      client,
+      opportunity,
+      savedQuotes.some((quote) => quote.id === quoteId),
+    );
+    setClientId(next.clientId);
+    setOpportunityId(next.opportunityId);
+    setClientName(next.clientName);
+    setProjectName(next.projectName);
+    setSaveFeedback(null);
   }
 
   function handleCatalogJobChange(jobId: string) {
@@ -378,6 +403,8 @@ function App() {
     setQuoteLines([]);
     setClientName('');
     setProjectName('');
+    setClientId(undefined);
+    setOpportunityId(undefined);
     resetTransientState();
     setCurrentView('editor');
   }
@@ -386,6 +413,8 @@ function App() {
     setQuoteId(savedQuote.id);
     setQuoteStatus(savedQuote.status);
     setQuoteLines(savedQuote.lines);
+    setClientId(savedQuote.clientId);
+    setOpportunityId(savedQuote.opportunityId);
     setClientName(savedQuote.clientName);
     setProjectName(savedQuote.projectName);
     resetTransientState();
@@ -632,7 +661,7 @@ function App() {
                     <tr>
                       <th>ID</th>
                       <th>Cliente</th>
-                      <th>Obra</th>
+                      <th>Obra / Oportunidad</th>
                       <th>Estado</th>
                       <th>Fecha</th>
                       <th className="numeric-cell">Total</th>
@@ -648,7 +677,19 @@ function App() {
                         <td data-label="Cliente">
                           {savedQuote.clientName.trim() || 'Sin cliente'}
                         </td>
-                        <td data-label="Obra">{savedQuote.projectName.trim() || 'Sin obra'}</td>
+                        <td data-label="Obra / Oportunidad">
+                          {savedQuote.projectName.trim() || 'Sin obra'}
+                          {savedQuote.opportunityId && (
+                            <small>
+                              Oportunidad:{' '}
+                              {opportunities.find(
+                                (item) =>
+                                  item.id === savedQuote.opportunityId &&
+                                  item.clientId === savedQuote.clientId,
+                              )?.name ?? 'Asociación no disponible'}
+                            </small>
+                          )}
+                        </td>
                         <td data-label="Estado">
                           <span className={`status-badge status-badge-${savedQuote.status}`}>
                             {savedQuote.status === 'draft' ? 'Borrador' : 'Finalizado'}
@@ -795,10 +836,19 @@ function App() {
             </section>
 
             <aside className="summary-sidebar" aria-label="Datos y acciones del presupuesto">
+              <QuoteCommercialContext
+                key={quoteId}
+                quote={getCurrentQuote()}
+                onAssociate={handleAssociation}
+                onEntitiesChange={() => setOpportunities(loadOpportunities().items)}
+              />
               <section className="summary-panel">
                 <div className="summary-panel-heading">
                   <p className="eyebrow">Datos opcionales</p>
-                  <h2>Información del trabajo</h2>
+                  <h2>Datos del documento</h2>
+                  <p className="commercial-note">
+                    Estos textos se conservan aunque cambien el cliente o la oportunidad.
+                  </p>
                 </div>
 
                 {quoteStatus === 'draft' ? (

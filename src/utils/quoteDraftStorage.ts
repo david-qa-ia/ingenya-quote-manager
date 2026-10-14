@@ -1,3 +1,4 @@
+import { hasRecordId, readCollection } from './localCollectionStorage';
 import type {
   Quote,
   QuoteLine,
@@ -89,7 +90,20 @@ export function parseSavedQuotes(storedValue: string | null): SavedQuote[] {
 
     if (!Array.isArray(parsedValue)) return [];
 
-    return parsedValue.filter(isSavedQuote);
+    const ids = new Set<string>();
+    return parsedValue
+      .filter(isSavedQuote)
+      .filter((quote) => {
+        if (ids.has(quote.id)) return false;
+        ids.add(quote.id);
+        return true;
+      })
+      .map((quote) => {
+        const recovered = { ...quote };
+        if (!isNonEmptyString(recovered.clientId)) delete recovered.clientId;
+        if (!isNonEmptyString(recovered.opportunityId)) delete recovered.opportunityId;
+        return recovered;
+      });
   } catch {
     return [];
   }
@@ -108,13 +122,22 @@ export function saveQuote(quote: Quote): boolean {
     const savedQuote: SavedQuote = {
       id: quote.id,
       status: quote.status,
+      ...(isNonEmptyString(quote.clientId) ? { clientId: quote.clientId } : {}),
+      ...(isNonEmptyString(quote.opportunityId) ? { opportunityId: quote.opportunityId } : {}),
       clientName: quote.clientName,
       projectName: quote.projectName,
       lines: quote.lines,
       savedAt: new Date().toISOString(),
     };
-    const savedQuotes = loadSavedQuotes();
-    const existingIndex = savedQuotes.findIndex((saved) => saved.id === quote.id);
+    if (!isSavedQuote(savedQuote)) return false;
+    const savedQuotes = readCollection(SAVED_QUOTES_STORAGE_KEY);
+    const matching = savedQuotes.filter((saved) => hasRecordId(saved, quote.id));
+    if (
+      matching.length > 1 ||
+      (matching.length === 1 && (!isSavedQuote(matching[0]) || matching[0].status === 'finalized'))
+    )
+      return false;
+    const existingIndex = savedQuotes.findIndex((saved) => hasRecordId(saved, quote.id));
 
     if (existingIndex === -1) {
       savedQuotes.push(savedQuote);

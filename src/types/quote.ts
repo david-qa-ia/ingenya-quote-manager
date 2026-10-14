@@ -27,6 +27,8 @@ export interface QuoteLine {
 export interface Quote {
   id: string;
   status: QuoteStatus;
+  clientId?: string;
+  opportunityId?: string;
   clientName: string;
   projectName: string;
   lines: QuoteLine[];
