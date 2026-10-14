@@ -9,7 +9,12 @@ export type ActivitySubject =
   | { kind: 'quote'; quoteId: string };
 
 export type AutomaticActivityEvent =
-  'created' | 'finalized' | 'pdfGenerated' | 'commercialStatusChanged' | 'nextActionChanged';
+  | 'created'
+  | 'finalized'
+  | 'pdfGenerated'
+  | 'commercialStatusChanged'
+  | 'nextActionChanged'
+  | 'cadenceChanged';
 
 export interface ActivityNoteRevision {
   editedAt: string;

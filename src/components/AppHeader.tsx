@@ -9,6 +9,7 @@ interface AppHeaderProps {
   onShowSavedQuotes: () => void;
   onShowCatalog: () => void;
   onShowNextActions: () => void;
+  onShowCadences: () => void;
 }
 
 const focusableSelector = 'button:not([disabled]), a[href]';
@@ -19,6 +20,7 @@ export function AppHeader({
   onShowSavedQuotes,
   onShowCatalog,
   onShowNextActions,
+  onShowCadences,
 }: AppHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -155,6 +157,14 @@ export function AppHeader({
               onClick={() => navigate(onShowNextActions)}
             >
               Seguimiento
+            </button>
+            <button
+              className="navigation-link"
+              type="button"
+              aria-current={activeSection === 'cadences' ? 'page' : undefined}
+              onClick={() => navigate(onShowCadences)}
+            >
+              Cadencias
             </button>
             <button
               className="navigation-link"

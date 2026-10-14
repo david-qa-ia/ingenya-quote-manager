@@ -10,7 +10,11 @@ import { recordAutomaticActivity, recordNextActionActivity } from '../utils/acti
 import { ClientForm } from './ClientForm';
 import { OpportunityForm } from './OpportunityForm';
 import { NextActionCard } from './NextActionCard';
+import { CadencePanel } from './CadencePanel';
+import { QuoteCadencePanel } from './QuoteCadencePanel';
 import { transitionNextAction } from '../utils/opportunityNextAction';
+import { loadCadenceExecutions, saveCadenceExecution } from '../utils/cadenceStorage';
+import { completeCadenceAction, updateCadenceAction } from '../utils/cadenceTransitions';
 
 interface Props {
   quote: Quote;
@@ -138,7 +142,41 @@ export function QuoteCommercialContext({
     );
   }
   function persistNextAction(next: Opportunity, event: string): boolean {
-    if (readOnly || !saveOpportunity(next)) return false;
+    if (readOnly) return false;
+    const origin = next.nextAction?.cadenceOrigin;
+    if (origin && (event === 'completed' || event === 'reschedule' || event === 'cancel')) {
+      const execution = loadCadenceExecutions().items.find(
+        (item) => item.id === origin.cadenceExecutionId,
+      );
+      if (!execution) return false;
+      try {
+        const now = new Date().toISOString();
+        const updated =
+          event === 'completed'
+            ? completeCadenceAction(
+                execution,
+                next.nextAction!.history.at(-1)?.actor ?? 'Sistema local',
+                next.nextAction!.history.at(-1)?.result ?? '',
+                now,
+              )
+            : updateCadenceAction(
+                execution,
+                event === 'cancel' ? 'cancelled' : 'rescheduled',
+                next.nextAction!.history.at(-1)?.actor ?? 'Sistema local',
+                next.nextAction!.history.at(-1)?.reason ?? '',
+                now,
+                event === 'reschedule' ? next.nextAction?.dueAt : undefined,
+              );
+        const current = updated.stepExecutions.find(
+          (item) => item.id === updated.currentStepExecutionId,
+        );
+        const opportunityWithCadence = { ...next, nextAction: current?.nextAction, updatedAt: now };
+        if (!saveCadenceExecution(updated) || !saveOpportunity(opportunityWithCadence))
+          return false;
+      } catch {
+        return false;
+      }
+    } else if (!saveOpportunity(next)) return false;
     const action = next.nextAction;
     if (
       !action ||
@@ -313,6 +351,8 @@ export function QuoteCommercialContext({
         </div>
       </dl>
       {opportunity && <NextActionCard opportunity={opportunity} onSave={persistNextAction} />}
+      {opportunity && <CadencePanel opportunity={opportunity} onChange={refresh} />}
+      {!opportunity && quote.status === 'finalized' && <QuoteCadencePanel quote={quote} />}
       {opportunityQuotes.length > 0 && (
         <div className="opportunity-quotes">
           <h3>Presupuestos asociados</h3>

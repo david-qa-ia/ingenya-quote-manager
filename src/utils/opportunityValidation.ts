@@ -39,6 +39,15 @@ function isHistory(value: unknown): value is NextActionHistoryEntry {
     (entry.result === undefined || typeof entry.result === 'string')
   );
 }
+function isCadenceOrigin(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const origin = value as Record<string, unknown>;
+  return (
+    isNonEmpty(origin.cadenceExecutionId) &&
+    isNonEmpty(origin.stepExecutionId) &&
+    isNonEmpty(origin.templateStepId)
+  );
+}
 export function isNextAction(value: unknown): value is NextAction {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const action = value as Record<string, unknown>;
@@ -55,6 +64,7 @@ export function isNextAction(value: unknown): value is NextAction {
     actionStatuses.includes(action.status) &&
     isIso(action.createdAt) &&
     isIso(action.updatedAt) &&
+    (action.cadenceOrigin === undefined || isCadenceOrigin(action.cadenceOrigin)) &&
     Array.isArray(action.history) &&
     action.history.every(isHistory)
   );

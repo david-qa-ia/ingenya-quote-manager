@@ -53,6 +53,8 @@ import { addQuickService } from './utils/quickServiceAddition';
 import { resolveActiveNavigationSection, type AppView } from './utils/appNavigation';
 import { recordAutomaticActivity } from './utils/activityStorage';
 import { OpportunityNextActionsInbox } from './components/OpportunityNextActionsInbox';
+import { CadenceView } from './components/CadenceView';
+import { cancelCadencesForCommercialClose } from './utils/cadenceStorage';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -521,6 +523,17 @@ function App() {
       setCommercialStatusAudit(next.commercialStatusAudit);
       setSentAudit(next.sentAudit);
       setSavedQuotes(loadSavedQuotes());
+      if (['accepted', 'rejected', 'expired'].includes(nextStatus)) {
+        const cadenceCancelled = cancelCadencesForCommercialClose(
+          quote.id,
+          quote.opportunityId,
+          audit.changedBy,
+          `Presupuesto ${commercialStatusLabels[nextStatus].toLowerCase()}.`,
+          audit.changedAt,
+        );
+        if (!cadenceCancelled)
+          return 'El estado comercial se guardó, pero no se pudo cancelar la cadencia.';
+      }
       if (
         !recordAutomaticActivity(
           { kind: 'quote', quoteId: quote.id },
@@ -686,6 +699,7 @@ function App() {
       onShowSavedQuotes={() => setCurrentView('savedQuotes')}
       onShowCatalog={() => setCurrentView('catalog')}
       onShowNextActions={() => setCurrentView('nextActions')}
+      onShowCadences={() => setCurrentView('cadences')}
     />
   );
 
@@ -710,6 +724,15 @@ function App() {
       <>
         {appHeader}
         <OpportunityNextActionsInbox opportunities={opportunities} />
+      </>
+    );
+  }
+
+  if (currentView === 'cadences') {
+    return (
+      <>
+        {appHeader}
+        <CadenceView onBack={() => setCurrentView('editor')} />
       </>
     );
   }
