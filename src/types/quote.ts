@@ -2,7 +2,18 @@ export type WorkUnit = 'squareMeter' | 'linearMeter' | 'unit';
 
 export type QuoteLineSource = 'catalog' | 'manual';
 
-export type QuoteStatus = 'draft' | 'finalized';
+export type QuoteDocumentStatus = 'draft' | 'finalized';
+
+export type QuoteStatus = QuoteDocumentStatus;
+
+export type CommercialStatus =
+  'prepared' | 'sent' | 'followingUp' | 'accepted' | 'rejected' | 'expired' | 'paused';
+
+export interface CommercialStatusAudit {
+  changedAt: string;
+  changedBy: string;
+  reason: string;
+}
 
 export interface CatalogJob {
   id: string;
@@ -26,7 +37,10 @@ export interface QuoteLine {
 
 export interface Quote {
   id: string;
-  status: QuoteStatus;
+  status: QuoteDocumentStatus;
+  commercialStatus: CommercialStatus;
+  commercialStatusAudit: CommercialStatusAudit;
+  sentAudit?: CommercialStatusAudit;
   clientId?: string;
   opportunityId?: string;
   clientName: string;

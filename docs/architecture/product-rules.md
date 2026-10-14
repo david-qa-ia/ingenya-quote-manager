@@ -107,3 +107,14 @@ not copied into the quote or PDF.
 Commercial statuses, follow-up, messaging, backend persistence and synchronization remain
 outside this increment. `draft` and `finalized`, service lines, calculations and PDF behavior
 are unchanged.
+
+## Commercial Statuses (SCRUM-47)
+
+Document status and commercial status are independent. Finalizing or downloading a PDF does not
+mean a quote was sent. Commercial changes are manually confirmed records; they do not send a
+message or infer a contact action. The pending contact values `1111111111` and `none` are never
+contact destinations.
+
+Finalized documents remain immutable. Later commercial changes may update only commercial
+metadata through the approved storage operation. Contact history, next actions, reminders,
+cadences, metrics and AI remain outside this increment.

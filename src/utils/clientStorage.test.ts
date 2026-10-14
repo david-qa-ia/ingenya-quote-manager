@@ -38,6 +38,12 @@ const opportunity = {
 const quote: Quote = {
   id: 'quote',
   status: 'draft',
+  commercialStatus: 'prepared',
+  commercialStatusAudit: {
+    changedAt: '2026-10-14T00:00:00Z',
+    changedBy: 'Sistema local',
+    reason: 'Estado comercial inicial al crear el presupuesto.',
+  },
   clientName: 'Ana histórica',
   projectName: 'Obra histórica',
   lines: [

@@ -4,12 +4,19 @@ import {
   loadSavedQuotes,
   parseSavedQuotes,
   SAVED_QUOTES_STORAGE_KEY,
+  saveFinalizedQuoteCommercialState,
   saveQuoteDraft,
 } from './quoteDraftStorage';
 
 const validDraft: QuoteDraft = {
   id: 'PRES-2026-0001',
   status: 'draft',
+  commercialStatus: 'prepared',
+  commercialStatusAudit: {
+    changedAt: '2026-09-28T12:00:00.000Z',
+    changedBy: 'Sistema local',
+    reason: 'Estado comercial inicial al crear el presupuesto.',
+  },
   clientName: 'Ana Pérez',
   projectName: 'Reforma cocina',
   lines: [
@@ -134,5 +141,60 @@ describe('saved quote storage', () => {
     const storedValue = storedValues.get(SAVED_QUOTES_STORAGE_KEY);
     expect(storedValue).toBeDefined();
     expect(JSON.parse(storedValue ?? '[]')[0]).not.toHaveProperty('total');
+  });
+
+  it('migrates legacy quotes to prepared in memory without writing to storage', () => {
+    const legacy = { ...validSavedQuote } as Record<string, unknown>;
+    delete legacy.commercialStatus;
+    delete legacy.commercialStatusAudit;
+    const raw = JSON.stringify([legacy]);
+    storedValues.set(SAVED_QUOTES_STORAGE_KEY, raw);
+
+    expect(loadSavedQuotes()[0]).toMatchObject({
+      commercialStatus: 'prepared',
+      commercialStatusAudit: {
+        changedAt: validSavedQuote.savedAt,
+        changedBy: 'Migración local',
+      },
+    });
+    expect(storedValues.get(SAVED_QUOTES_STORAGE_KEY)).toBe(raw);
+  });
+
+  it('changes only commercial metadata through the dedicated finalized operation', () => {
+    const finalized = { ...validDraft, status: 'finalized' as const };
+    expect(saveQuoteDraft(finalized)).toBe(true);
+    const before = loadSavedQuotes()[0];
+    const audit = {
+      changedAt: '2026-10-14T12:00:00.000Z',
+      changedBy: 'Daniel',
+      reason: 'Envío confirmado manualmente.',
+    };
+
+    expect(saveFinalizedQuoteCommercialState(before.id, 'sent', audit, audit)).toBe(true);
+    const after = loadSavedQuotes()[0];
+    expect(after).toMatchObject({
+      commercialStatus: 'sent',
+      commercialStatusAudit: audit,
+      sentAudit: audit,
+    });
+    expect({
+      ...after,
+      commercialStatus: before.commercialStatus,
+      commercialStatusAudit: before.commercialStatusAudit,
+      sentAudit: before.sentAudit,
+    }).toEqual(before);
+  });
+
+  it('rejects invalid commercial transitions in the persistence boundary', () => {
+    const finalized = { ...validDraft, status: 'finalized' as const };
+    expect(saveQuoteDraft(finalized)).toBe(true);
+    const audit = {
+      changedAt: '2026-10-14T12:00:00.000Z',
+      changedBy: 'Daniel',
+      reason: 'Registro manual confirmado.',
+    };
+
+    expect(saveFinalizedQuoteCommercialState(finalized.id, 'accepted', audit)).toBe(false);
+    expect(loadSavedQuotes()[0].commercialStatus).toBe('prepared');
   });
 });

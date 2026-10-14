@@ -5,6 +5,12 @@ import { finalizeQuote } from './quoteFinalization';
 const validQuote: Quote = {
   id: 'PRES-2026-0001',
   status: 'draft',
+  commercialStatus: 'prepared',
+  commercialStatusAudit: {
+    changedAt: '2026-09-28T12:00:00.000Z',
+    changedBy: 'Sistema local',
+    reason: 'Estado comercial inicial al crear el presupuesto.',
+  },
   clientName: 'Ana Pérez',
   projectName: 'Reforma cocina',
   lines: [

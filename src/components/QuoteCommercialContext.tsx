@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { Client, ClientInput } from '../types/client';
 import type { Opportunity, OpportunityInput } from '../types/opportunity';
-import type { Quote } from '../types/quote';
+import type { Quote, SavedQuote } from '../types/quote';
+import { commercialStatusLabels } from '../utils/quoteCommercialStatus';
 import { loadClients, saveClient } from '../utils/clientStorage';
 import { loadOpportunities, saveOpportunity } from '../utils/opportunityStorage';
 import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
@@ -10,11 +11,17 @@ import { OpportunityForm } from './OpportunityForm';
 
 interface Props {
   quote: Quote;
+  savedQuotes: readonly SavedQuote[];
   onAssociate: (client: Client | undefined, opportunity: Opportunity | undefined) => void;
   onEntitiesChange: () => void;
 }
 
-export function QuoteCommercialContext({ quote, onAssociate, onEntitiesChange }: Props) {
+export function QuoteCommercialContext({
+  quote,
+  savedQuotes,
+  onAssociate,
+  onEntitiesChange,
+}: Props) {
   const [clientLoad, setClientLoad] = useState(loadClients);
   const [opportunityLoad, setOpportunityLoad] = useState(loadOpportunities);
   const [form, setForm] = useState<
@@ -28,6 +35,10 @@ export function QuoteCommercialContext({ quote, onAssociate, onEntitiesChange }:
   const readOnly = quote.status === 'finalized';
   const availableOpportunities = opportunityLoad.items.filter(
     (item) => item.clientId === client?.id,
+  );
+  const opportunityQuotes = savedQuotes.filter(
+    (savedQuote) =>
+      savedQuote.opportunityId === quote.opportunityId && savedQuote.clientId === quote.clientId,
   );
 
   function refresh() {
@@ -236,6 +247,20 @@ export function QuoteCommercialContext({ quote, onAssociate, onEntitiesChange }:
           <dd>{opportunity?.responsibleSeller || 'Sin asignar'}</dd>
         </div>
       </dl>
+      {opportunityQuotes.length > 0 && (
+        <div className="opportunity-quotes">
+          <h3>Presupuestos asociados</h3>
+          <ul>
+            {opportunityQuotes.map((savedQuote) => (
+              <li key={savedQuote.id}>
+                <strong>{savedQuote.id}</strong> ·{' '}
+                {savedQuote.status === 'draft' ? 'Borrador' : 'Finalizado'} ·{' '}
+                {commercialStatusLabels[savedQuote.commercialStatus]}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {!readOnly && (
         <p className="commercial-note">
           Guardá el borrador o finalizalo para conservar la asociación. Editar un cliente u
