@@ -29,6 +29,7 @@ const automaticEvents: AutomaticActivityEvent[] = [
   'pdfGenerated',
   'commercialStatusChanged',
   'nextActionChanged',
+  'cadenceChanged',
 ];
 
 function isNonEmptyString(value: unknown): value is string {
@@ -140,6 +141,32 @@ export function recordNextActionActivity(
       subject: { kind: 'opportunity', opportunityId },
       source: 'automatic',
       event: 'nextActionChanged',
+      noteRevisions: [],
+    });
+  } catch {
+    return false;
+  }
+}
+
+export function recordCadenceActivity(
+  subject: ActivitySubject,
+  eventId: string,
+  note: string,
+): boolean {
+  const id = `cadence:${eventId}`;
+  try {
+    const records = readCollection(ACTIVITIES_STORAGE_KEY);
+    if (records.some((record) => hasRecordId(record, id))) return true;
+    return saveActivity({
+      id,
+      type: 'relevantChange',
+      occurredAt: new Date().toISOString(),
+      author: 'Sistema local',
+      result: 'Cadencia actualizada',
+      note,
+      subject,
+      source: 'automatic',
+      event: 'cadenceChanged',
       noteRevisions: [],
     });
   } catch {

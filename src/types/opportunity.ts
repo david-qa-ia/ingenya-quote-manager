@@ -27,6 +27,7 @@ export interface NextAction {
   status: NextActionStatus;
   createdAt: string;
   updatedAt: string;
+  cadenceOrigin?: { cadenceExecutionId: string; stepExecutionId: string; templateStepId: string };
   history: NextActionHistoryEntry[];
 }
 

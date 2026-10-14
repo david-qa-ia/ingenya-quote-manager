@@ -1,7 +1,7 @@
 import type { DeploymentBrandConfig } from '../types/branding';
 
-export type AppView = 'editor' | 'summary' | 'savedQuotes' | 'catalog' | 'nextActions';
-export type NavigationSection = 'newQuote' | 'savedQuotes' | 'catalog' | 'nextActions';
+export type AppView = 'editor' | 'summary' | 'savedQuotes' | 'catalog' | 'nextActions' | 'cadences';
+export type NavigationSection = 'newQuote' | 'savedQuotes' | 'catalog' | 'nextActions' | 'cadences';
 
 export interface ContactItem {
   readonly label: string;
@@ -12,6 +12,7 @@ export function resolveActiveNavigationSection(view: AppView): NavigationSection
   if (view === 'savedQuotes') return 'savedQuotes';
   if (view === 'catalog') return 'catalog';
   if (view === 'nextActions') return 'nextActions';
+  if (view === 'cadences') return 'cadences';
   return 'newQuote';
 }
 
