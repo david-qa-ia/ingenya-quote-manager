@@ -196,3 +196,19 @@ Quotes without commercial fields recover as `prepared` with a compatibility audi
 existing `savedAt`; this is pure, idempotent and does not write storage. A dedicated write may
 change only commercial metadata on a finalized quote. It preserves every document field and the
 existing `savedAt` value. Normal quote writes remain unable to overwrite a finalized quote.
+
+## SCRUM-48 Compatible Extension
+
+`ingenya.activities.v1` is an independent activity collection. Each valid activity stores its
+identity, type, occurrence date and time, author, result, note, unique client/opportunity/quote
+subject, origin and append-only note revisions. It never becomes part of a saved quote and cannot
+change quote lines, totals, document snapshots, associations or document/commercial status.
+
+Missing activity storage recovers as an empty in-memory collection without a write. Invalid roots
+are never overwritten; mixed arrays recover valid activities and retain unrelated invalid records
+on later writes. Historical activity subjects whose entities no longer load remain valid IDs and
+are shown as unavailable context rather than being removed.
+
+`ingenya.activityAuthor.v1` stores the locally configured current author. It is a browser-local
+preference, not a user account or authorization system. A note revision is accepted only when its
+author matches the original manual activity author; every prior revision remains persisted.

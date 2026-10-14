@@ -6,6 +6,7 @@ import { commercialStatusLabels } from '../utils/quoteCommercialStatus';
 import { loadClients, saveClient } from '../utils/clientStorage';
 import { loadOpportunities, saveOpportunity } from '../utils/opportunityStorage';
 import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
+import { recordAutomaticActivity } from '../utils/activityStorage';
 import { ClientForm } from './ClientForm';
 import { OpportunityForm } from './OpportunityForm';
 
@@ -59,9 +60,16 @@ export function QuoteCommercialContext({
     };
     if (!saveClient(next))
       return 'No se pudo guardar el cliente. Los datos existentes se conservaron.';
+    const activitySaved =
+      existing ||
+      recordAutomaticActivity({ kind: 'client', clientId: next.id }, 'created', 'Cliente creado.');
     refresh();
     if (!existing) onAssociate(next, undefined);
-    setFeedback('Cliente guardado. Los datos de presupuestos anteriores se conservan.');
+    setFeedback(
+      activitySaved
+        ? 'Cliente guardado. Los datos de presupuestos anteriores se conservan.'
+        : 'Cliente guardado, pero no se pudo registrar su actividad.',
+    );
     return null;
   }
   function persistOpportunity(input: OpportunityInput): string | null {
@@ -76,9 +84,27 @@ export function QuoteCommercialContext({
     };
     if (!saveOpportunity(next))
       return 'No se pudo guardar la oportunidad. Revisá el cliente y el almacenamiento.';
+    const nextActionChanged =
+      JSON.stringify(existing?.nextAction) !== JSON.stringify(next.nextAction);
+    const activitySaved = !existing
+      ? recordAutomaticActivity(
+          { kind: 'opportunity', opportunityId: next.id },
+          'created',
+          'Oportunidad creada.',
+        )
+      : !nextActionChanged ||
+        recordAutomaticActivity(
+          { kind: 'opportunity', opportunityId: next.id },
+          'nextActionChanged',
+          'Próxima acción modificada.',
+        );
     refresh();
     if (!existing) onAssociate(client, next);
-    setFeedback('Oportunidad guardada. Los presupuestos anteriores se conservan.');
+    setFeedback(
+      activitySaved
+        ? 'Oportunidad guardada. Los presupuestos anteriores se conservan.'
+        : 'Oportunidad guardada, pero no se pudo registrar la actividad.',
+    );
     return null;
   }
   function selectClient(id: string) {
@@ -246,6 +272,15 @@ export function QuoteCommercialContext({
           <dt>Vendedor responsable actual</dt>
           <dd>{opportunity?.responsibleSeller || 'Sin asignar'}</dd>
         </div>
+        {opportunity?.nextAction && (
+          <div>
+            <dt>Próxima acción</dt>
+            <dd>
+              {opportunity.nextAction.description} · {opportunity.nextAction.dueDate} ·{' '}
+              {opportunity.nextAction.responsible} · {opportunity.nextAction.status}
+            </dd>
+          </div>
+        )}
       </dl>
       {opportunityQuotes.length > 0 && (
         <div className="opportunity-quotes">

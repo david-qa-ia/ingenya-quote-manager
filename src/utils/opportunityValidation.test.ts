@@ -25,6 +25,25 @@ describe('opportunity validation', () => {
       getOpportunityValidationError({ ...input, estimatedStartDate: '2028-02-29' }),
     ).toBeNull();
   });
+  it('validates the complete next action while keeping historical opportunities compatible', () => {
+    expect(
+      getOpportunityValidationError({
+        ...input,
+        nextAction: {
+          description: 'Llamar para confirmar visita',
+          dueDate: '2026-10-20',
+          responsible: 'Daniel',
+          status: 'pending',
+        },
+      }),
+    ).toBeNull();
+    expect(
+      getOpportunityValidationError({
+        ...input,
+        nextAction: { description: '', dueDate: '', responsible: '', status: 'pending' },
+      }),
+    ).not.toBeNull();
+  });
   it('rejects malformed stored records without throwing', () => {
     expect(isOpportunity(null)).toBe(false);
     expect(isOpportunity({ ...input, estimatedStartDate: 123 })).toBe(false);
