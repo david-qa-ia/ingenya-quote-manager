@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './App.css';
 import { QuoteCommercialContext } from './components/QuoteCommercialContext';
 import { QuoteCommercialStatus } from './components/QuoteCommercialStatus';
+import { QuoteActivityPanel } from './components/QuoteActivityPanel';
+import { QuoteSidebar } from './components/QuoteSidebar';
 import type { Client } from './types/client';
 import type { Opportunity } from './types/opportunity';
 import { associateQuote } from './utils/quoteAssociations';
@@ -49,6 +51,7 @@ import {
 import { createCatalogQuoteLine } from './utils/quoteLineFactory';
 import { addQuickService } from './utils/quickServiceAddition';
 import { resolveActiveNavigationSection, type AppView } from './utils/appNavigation';
+import { recordAutomaticActivity } from './utils/activityStorage';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -126,6 +129,7 @@ function App() {
   const [manualQuantity, setManualQuantity] = useState('1');
   const [manualUnitPrice, setManualUnitPrice] = useState('');
   const [saveManualToCatalog, setSaveManualToCatalog] = useState(false);
+  const [isOptionalDataOpen, setIsOptionalDataOpen] = useState(false);
   const [catalogError, setCatalogError] = useState('');
   const [manualError, setManualError] = useState('');
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
@@ -145,6 +149,9 @@ function App() {
   const visibleSavedQuotes = filterSavedQuotesByCommercialStatus(
     filterSavedQuotes(savedQuotes, savedQuoteFilter),
     savedQuoteCommercialFilter,
+  );
+  const currentOpportunity = opportunities.find(
+    (opportunity) => opportunity.id === opportunityId && opportunity.clientId === clientId,
   );
 
   useEffect(() => {
@@ -461,11 +468,21 @@ function App() {
 
     if (draft.status !== 'draft') return;
 
+    const isNewQuote = !savedQuotes.some((savedQuote) => savedQuote.id === draft.id);
     if (saveQuote(draft)) {
+      const activitySaved =
+        !isNewQuote ||
+        recordAutomaticActivity(
+          { kind: 'quote', quoteId: draft.id },
+          'created',
+          'Presupuesto creado.',
+        );
       setSavedQuotes(loadSavedQuotes());
       setSaveFeedback({
-        type: 'success',
-        message: 'Borrador guardado correctamente.',
+        type: activitySaved ? 'success' : 'error',
+        message: activitySaved
+          ? 'Borrador guardado correctamente.'
+          : 'Borrador guardado, pero no se pudo registrar la actividad de creación.',
       });
       return;
     }
@@ -503,6 +520,15 @@ function App() {
       setCommercialStatusAudit(next.commercialStatusAudit);
       setSentAudit(next.sentAudit);
       setSavedQuotes(loadSavedQuotes());
+      if (
+        !recordAutomaticActivity(
+          { kind: 'quote', quoteId: quote.id },
+          'commercialStatusChanged',
+          `Estado comercial cambiado a ${commercialStatusLabels[nextStatus]}.`,
+        )
+      ) {
+        return 'El estado comercial se guardó, pero no se pudo registrar su actividad.';
+      }
       return null;
     } catch (error) {
       return error instanceof Error ? error.message : 'No se pudo registrar el estado comercial.';
@@ -536,6 +562,7 @@ function App() {
 
     try {
       const finalizedQuote = finalizeQuote(getCurrentQuote());
+      const isNewQuote = !savedQuotes.some((savedQuote) => savedQuote.id === finalizedQuote.id);
 
       if (!saveQuote(finalizedQuote)) {
         setIsFinalizationConfirmationOpen(false);
@@ -548,10 +575,25 @@ function App() {
 
       setQuoteStatus('finalized');
       setSavedQuotes(loadSavedQuotes());
+      const creationActivitySaved =
+        !isNewQuote ||
+        recordAutomaticActivity(
+          { kind: 'quote', quoteId: finalizedQuote.id },
+          'created',
+          'Presupuesto creado.',
+        );
+      const finalizationActivitySaved = recordAutomaticActivity(
+        { kind: 'quote', quoteId: finalizedQuote.id },
+        'finalized',
+        'Presupuesto finalizado.',
+      );
+      const activitySaved = creationActivitySaved && finalizationActivitySaved;
       setIsFinalizationConfirmationOpen(false);
       setFinalizationFeedback({
-        type: 'success',
-        message: 'Presupuesto finalizado correctamente.',
+        type: activitySaved ? 'success' : 'error',
+        message: activitySaved
+          ? 'Presupuesto finalizado correctamente.'
+          : 'Presupuesto finalizado, pero no se pudo registrar la actividad.',
       });
     } catch (error) {
       setIsFinalizationConfirmationOpen(false);
@@ -578,9 +620,16 @@ function App() {
 
     try {
       await downloadQuotePdf(quote);
+      const activitySaved = recordAutomaticActivity(
+        { kind: 'quote', quoteId: quote.id },
+        'pdfGenerated',
+        'PDF generado.',
+      );
       setPdfFeedback({
-        type: 'success',
-        message: 'El PDF se descargó correctamente.',
+        type: activitySaved ? 'success' : 'error',
+        message: activitySaved
+          ? 'El PDF se descargó correctamente.'
+          : 'El PDF se descargó, pero no se pudo registrar la actividad.',
       });
     } catch (error) {
       setPdfFeedback({
@@ -603,10 +652,17 @@ function App() {
 
     try {
       await downloadQuotePdf(savedQuote);
+      const activitySaved = recordAutomaticActivity(
+        { kind: 'quote', quoteId: savedQuote.id },
+        'pdfGenerated',
+        'PDF generado.',
+      );
       setSavedQuotePdfFeedback({
         quoteId: savedQuote.id,
-        type: 'success',
-        message: 'El PDF se descargó correctamente.',
+        type: activitySaved ? 'success' : 'error',
+        message: activitySaved
+          ? 'El PDF se descargó correctamente.'
+          : 'El PDF se descargó, pero no se pudo registrar la actividad.',
       });
     } catch (error) {
       setSavedQuotePdfFeedback({
@@ -887,126 +943,39 @@ function App() {
           </header>
 
           <div className="summary-layout">
-            <section className="quote-card summary-lines" aria-labelledby="summary-lines-title">
-              <div className="quote-heading">
-                <div>
-                  <p className="eyebrow">Detalle</p>
-                  <h2 id="summary-lines-title">Servicios incluidos</h2>
-                </div>
-                <span className="line-count">
-                  {quoteLines.length} {quoteLines.length === 1 ? 'servicio' : 'servicios'}
-                </span>
-              </div>
-
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Servicio</th>
-                      <th>Unidad</th>
-                      <th className="numeric-cell">Cantidad</th>
-                      <th className="numeric-cell">Precio unitario</th>
-                      <th className="numeric-cell">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {quoteLines.map((line) => (
-                      <tr key={line.id}>
-                        <td>
-                          <strong>{line.name}</strong>
-                          {line.description && <small>{line.description}</small>}
-                          <small>{line.source === 'catalog' ? 'Catálogo' : 'Manual'}</small>
-                        </td>
-                        <td>
-                          {workUnitLabels[line.unit]} ({workUnitSymbols[line.unit]})
-                        </td>
-                        <td className="numeric-cell">{line.quantity}</td>
-                        <td className="numeric-cell">{currencyFormatter.format(line.unitPrice)}</td>
-                        <td className="numeric-cell subtotal">
-                          {currencyFormatter.format(
-                            calculateLineSubtotal(line.quantity, line.unitPrice),
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <footer className="summary-total">
-                <span>Total del presupuesto</span>
-                <strong>{currencyFormatter.format(quoteTotal)}</strong>
-              </footer>
-            </section>
-
-            <aside className="summary-sidebar" aria-label="Datos y acciones del presupuesto">
-              <QuoteCommercialContext
-                key={quoteId}
-                quote={getCurrentQuote()}
-                savedQuotes={savedQuotes}
-                onAssociate={handleAssociation}
-                onEntitiesChange={() => setOpportunities(loadOpportunities().items)}
-              />
-              <QuoteCommercialStatus
-                documentStatus={quoteStatus}
-                commercialStatus={commercialStatus}
-                commercialStatusAudit={commercialStatusAudit}
-                sentAudit={sentAudit}
-                onChange={handleCommercialStatusChange}
-              />
-              <section className="summary-panel">
-                <div className="summary-panel-heading">
-                  <p className="eyebrow">Datos opcionales</p>
-                  <h2>Datos del documento</h2>
-                  <p className="commercial-note">
-                    Estos textos se conservan aunque cambien el cliente o la oportunidad.
-                  </p>
-                </div>
-
-                {quoteStatus === 'draft' ? (
-                  <>
-                    <label className="field">
-                      <span>Cliente</span>
-                      <input
-                        type="text"
-                        value={clientName}
-                        onChange={(event) => setClientName(event.target.value)}
-                        placeholder="Nombre del cliente"
-                      />
-                      <small>Podés dejar este campo vacío.</small>
-                    </label>
-
-                    <label className="field">
-                      <span>Obra</span>
-                      <input
-                        type="text"
-                        value={projectName}
-                        onChange={(event) => setProjectName(event.target.value)}
-                        placeholder="Nombre o ubicación de la obra"
-                      />
-                      <small>Podés dejar este campo vacío.</small>
-                    </label>
-                  </>
-                ) : (
-                  <dl className="summary-read-only-data">
-                    <div>
-                      <dt>Cliente</dt>
-                      <dd>{clientName.trim() || 'Sin cliente'}</dd>
-                    </div>
-                    <div>
-                      <dt>Obra</dt>
-                      <dd>{projectName.trim() || 'Sin obra'}</dd>
-                    </div>
-                  </dl>
-                )}
-              </section>
-
+            <div className="summary-main-column">
               <section
-                className="summary-panel summary-actions"
+                className="quote-card summary-action-card"
                 aria-label="Acciones del presupuesto"
               >
-                {quoteStatus === 'draft' && (
-                  <>
+                <div className="summary-action-row">
+                  {quoteStatus === 'draft' && (
+                    <>
+                      <button
+                        className="button button-line"
+                        type="button"
+                        onClick={() => setCurrentView('editor')}
+                      >
+                        <span aria-hidden="true">←</span> Volver a editar
+                      </button>
+                      <button
+                        className="button button-line"
+                        type="button"
+                        onClick={handleDraftSave}
+                      >
+                        Guardar borrador
+                      </button>
+                    </>
+                  )}
+                  <button
+                    className="button button-secondary summary-pdf-button"
+                    type="button"
+                    onClick={handlePdfDownload}
+                    disabled={quoteLines.length === 0 || isDownloadingPdf}
+                  >
+                    {isDownloadingPdf ? 'Generando PDF…' : 'Descargar PDF'}
+                  </button>
+                  {quoteStatus === 'draft' && (
                     <button
                       ref={finalizationTriggerRef}
                       className="button button-primary"
@@ -1016,13 +985,21 @@ function App() {
                     >
                       Finalizar presupuesto
                     </button>
-                    <button className="button button-line" type="button" onClick={handleDraftSave}>
-                      Guardar borrador
+                  )}
+                  {quoteStatus === 'finalized' && (
+                    <button
+                      className="button button-line"
+                      type="button"
+                      onClick={() => setCurrentView('savedQuotes')}
+                    >
+                      Ir a Mis presupuestos
                     </button>
-                    <p className="finalization-note">
-                      Finalizar no envía el presupuesto al cliente ni registra un cobro.
-                    </p>
-                  </>
+                  )}
+                </div>
+                {quoteStatus === 'draft' && (
+                  <p className="finalization-note">
+                    Finalizar no envía el presupuesto al cliente ni registra un cobro.
+                  </p>
                 )}
                 {saveFeedback && (
                   <p
@@ -1040,14 +1017,6 @@ function App() {
                     {finalizationFeedback.message}
                   </p>
                 )}
-                <button
-                  className="button button-secondary pdf-download-button"
-                  type="button"
-                  onClick={handlePdfDownload}
-                  disabled={quoteLines.length === 0 || isDownloadingPdf}
-                >
-                  {isDownloadingPdf ? 'Generando PDF…' : 'Descargar PDF'}
-                </button>
                 {pdfFeedback && (
                   <p
                     className={`save-feedback save-feedback-${pdfFeedback.type}`}
@@ -1056,24 +1025,145 @@ function App() {
                     {pdfFeedback.message}
                   </p>
                 )}
-                {quoteStatus === 'draft' ? (
+                <div className="optional-data-disclosure">
                   <button
-                    className="button button-link"
+                    className="optional-data-toggle"
                     type="button"
-                    onClick={() => setCurrentView('editor')}
+                    aria-expanded={isOptionalDataOpen}
+                    aria-controls="optional-quote-data"
+                    onClick={() => setIsOptionalDataOpen((isOpen) => !isOpen)}
                   >
-                    <span aria-hidden="true">←</span> Volver a editar
+                    <span>Datos opcionales</span>
+                    <span aria-hidden="true">{isOptionalDataOpen ? '−' : '+'}</span>
                   </button>
-                ) : (
-                  <button
-                    className="button button-link"
-                    type="button"
-                    onClick={() => setCurrentView('savedQuotes')}
-                  >
-                    Ir a Mis presupuestos
-                  </button>
-                )}
+                  {isOptionalDataOpen && (
+                    <div id="optional-quote-data" className="optional-data-content">
+                      <p className="commercial-note">
+                        Estos textos se conservan aunque cambien el cliente o la oportunidad.
+                      </p>
+                      {quoteStatus === 'draft' ? (
+                        <>
+                          <label className="field">
+                            <span>Cliente</span>
+                            <input
+                              type="text"
+                              value={clientName}
+                              onChange={(event) => setClientName(event.target.value)}
+                              placeholder="Nombre del cliente"
+                            />
+                            <small>Podés dejar este campo vacío.</small>
+                          </label>
+                          <label className="field">
+                            <span>Oportunidad</span>
+                            <input
+                              type="text"
+                              value={projectName}
+                              onChange={(event) => setProjectName(event.target.value)}
+                              placeholder="Nombre o ubicación de la obra"
+                            />
+                            <small>Podés dejar este campo vacío.</small>
+                          </label>
+                        </>
+                      ) : (
+                        <dl className="summary-read-only-data">
+                          <div>
+                            <dt>Cliente</dt>
+                            <dd>{clientName.trim() || 'Sin cliente'}</dd>
+                          </div>
+                          <div>
+                            <dt>Oportunidad</dt>
+                            <dd>{projectName.trim() || 'Sin oportunidad'}</dd>
+                          </div>
+                        </dl>
+                      )}
+                      <dl className="summary-read-only-data">
+                        <div>
+                          <dt>Vendedor responsable</dt>
+                          <dd>{currentOpportunity?.responsibleSeller || 'Sin asignar'}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  )}
+                </div>
               </section>
+
+              <section className="quote-card summary-lines" aria-labelledby="summary-lines-title">
+                <div className="quote-heading">
+                  <div>
+                    <p className="eyebrow">Detalle</p>
+                    <h2 id="summary-lines-title">Servicios incluidos</h2>
+                  </div>
+                  <span className="line-count">
+                    {quoteLines.length} {quoteLines.length === 1 ? 'servicio' : 'servicios'}
+                  </span>
+                </div>
+
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Servicio</th>
+                        <th>Unidad</th>
+                        <th className="numeric-cell">Cantidad</th>
+                        <th className="numeric-cell">Precio unitario</th>
+                        <th className="numeric-cell">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quoteLines.map((line) => (
+                        <tr key={line.id}>
+                          <td>
+                            <strong>{line.name}</strong>
+                            {line.description && <small>{line.description}</small>}
+                            <small>{line.source === 'catalog' ? 'Catálogo' : 'Manual'}</small>
+                          </td>
+                          <td>
+                            {workUnitLabels[line.unit]} ({workUnitSymbols[line.unit]})
+                          </td>
+                          <td className="numeric-cell">{line.quantity}</td>
+                          <td className="numeric-cell">
+                            {currencyFormatter.format(line.unitPrice)}
+                          </td>
+                          <td className="numeric-cell subtotal">
+                            {currencyFormatter.format(
+                              calculateLineSubtotal(line.quantity, line.unitPrice),
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <footer className="summary-total">
+                  <span>Total del presupuesto</span>
+                  <strong>{currencyFormatter.format(quoteTotal)}</strong>
+                </footer>
+              </section>
+            </div>
+
+            <aside className="summary-sidebar" aria-label="Datos y acciones del presupuesto">
+              <QuoteSidebar
+                summary={
+                  <QuoteCommercialContext
+                    key={quoteId}
+                    quote={getCurrentQuote()}
+                    savedQuotes={savedQuotes}
+                    onAssociate={handleAssociation}
+                    onEntitiesChange={() => setOpportunities(loadOpportunities().items)}
+                  />
+                }
+                activities={<QuoteActivityPanel quote={getCurrentQuote()} />}
+                commercialStatus={
+                  <QuoteCommercialStatus
+                    documentStatus={quoteStatus}
+                    commercialStatus={commercialStatus}
+                    commercialStatusAudit={commercialStatusAudit}
+                    sentAudit={sentAudit}
+                    onChange={handleCommercialStatusChange}
+                  />
+                }
+              />
             </aside>
           </div>
           {isFinalizationConfirmationOpen && (
