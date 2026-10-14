@@ -61,3 +61,22 @@ Avoid:
 - Confusing worker/payroll language
 - References to UOCRA or salary tables
 ```
+
+## Client And Opportunity Context (SCRUM-46)
+
+The summary supports selecting, creating and editing reusable clients and opportunities
+without leaving the current quote. Opportunities are selected after the client and belong
+to that client. Keep a visible "Continuar sin cliente" action and explain that an association
+is optional. The existing primary navigation remains unchanged.
+
+Show pending contact values as "Pendiente de confirmar", without contact links. Client consent
+starts unchecked. Allow `none` through application validation rather than native email input
+validation. Do not prefill a confirmed responsible seller.
+
+Separate current entity context from document texts. Saved drafts retain their historical
+document texts when linked manually; finalized quotes show context without editing controls.
+Changing entity details must not imply that a quote was saved. Explain that saving the draft
+or finalizing it persists the association.
+
+Keep each saved quote as an independent row, including when opportunities are shared. Forms,
+warnings and actions must remain readable and keyboard accessible on desktop and mobile.

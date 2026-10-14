@@ -22,6 +22,8 @@ export function finalizeQuote(quote: Readonly<Quote>): Quote {
   return {
     id: quote.id,
     status: 'finalized',
+    ...(quote.clientId ? { clientId: quote.clientId } : {}),
+    ...(quote.opportunityId ? { opportunityId: quote.opportunityId } : {}),
     clientName: quote.clientName,
     projectName: quote.projectName,
     lines: quote.lines.map((line) => ({ ...line })),

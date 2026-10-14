@@ -1237,3 +1237,61 @@ td small {
     min-height: 44px;
   }
 }
+
+.commercial-context {
+  min-width: 0;
+}
+.commercial-context dd {
+  overflow-wrap: anywhere;
+}
+.commercial-form {
+  display: grid;
+  gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  min-width: 0;
+}
+.commercial-form h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.commercial-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.commercial-actions .button {
+  min-height: 44px;
+  white-space: normal;
+}
+.commercial-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.commercial-warning {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff8e5;
+  color: #684e16;
+  font-size: 0.85rem;
+}
+.pending-contact {
+  display: block;
+  margin-top: 6px;
+  color: #684e16;
+  font-size: 0.8rem;
+}
+.commercial-consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.85rem;
+}
+.commercial-consent input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
