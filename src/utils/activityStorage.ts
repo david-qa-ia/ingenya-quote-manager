@@ -120,6 +120,33 @@ export function recordAutomaticActivity(
   });
 }
 
+export function recordNextActionActivity(
+  opportunityId: string,
+  actionId: string,
+  event: 'completed' | 'rescheduled' | 'cancelled' | 'notRelevant',
+  note: string,
+): boolean {
+  const id = `next-action:${actionId}:${event}`;
+  try {
+    const records = readCollection(ACTIVITIES_STORAGE_KEY);
+    if (records.some((record) => hasRecordId(record, id))) return true;
+    return saveActivity({
+      id,
+      type: 'relevantChange',
+      occurredAt: new Date().toISOString(),
+      author: 'Sistema local',
+      result: 'Próxima acción actualizada',
+      note,
+      subject: { kind: 'opportunity', opportunityId },
+      source: 'automatic',
+      event: 'nextActionChanged',
+      noteRevisions: [],
+    });
+  } catch {
+    return false;
+  }
+}
+
 export function appendActivityNoteRevision(
   activityId: string,
   author: string,

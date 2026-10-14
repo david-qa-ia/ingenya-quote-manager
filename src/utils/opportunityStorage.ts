@@ -1,10 +1,20 @@
 import type { Opportunity } from '../types/opportunity';
 import { loadClients } from './clientStorage';
-import { isOpportunity, normalizeOpportunityInput } from './opportunityValidation';
+import {
+  isOpportunity,
+  normalizeOpportunityInput,
+  recoverOpportunity,
+} from './opportunityValidation';
 import { loadCollection, saveCollectionItem } from './localCollectionStorage';
 
 export const OPPORTUNITIES_STORAGE_KEY = 'ingenya.opportunities.v1';
-export const loadOpportunities = () => loadCollection(OPPORTUNITIES_STORAGE_KEY, isOpportunity);
+export const loadOpportunities = () => {
+  const loaded = loadCollection(OPPORTUNITIES_STORAGE_KEY, isOpportunity);
+  return {
+    ...loaded,
+    items: loaded.items.map((item) => recoverOpportunity(item)!).filter(Boolean),
+  };
+};
 
 export function saveOpportunity(opportunity: Opportunity): boolean {
   if (

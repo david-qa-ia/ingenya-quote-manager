@@ -54,6 +54,24 @@ describe('client validation', () => {
       true,
     );
   });
+  it('requires a complete explicit no-contact audit when it is present', () => {
+    expect(
+      getClientValidationError({
+        ...input,
+        doNotContact: { reason: '', recordedAt: 'invalid', recordedBy: '' },
+      }),
+    ).not.toBeNull();
+    expect(
+      getClientValidationError({
+        ...input,
+        doNotContact: {
+          reason: 'Lo solicitó',
+          recordedAt: '2026-10-14T12:00:00.000Z',
+          recordedBy: 'Daniel',
+        },
+      }),
+    ).toBeNull();
+  });
   it('rejects untrusted records with missing consent, invalid channels or dates', () => {
     const client = {
       ...input,

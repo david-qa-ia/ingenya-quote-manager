@@ -5,6 +5,7 @@ import {
   appendActivityNoteRevision,
   loadActivities,
   recordAutomaticActivity,
+  recordNextActionActivity,
   saveActivity,
 } from './activityStorage';
 
@@ -85,5 +86,14 @@ describe('activity storage', () => {
       lines: [{ id: 'line', unitPrice: 100 }],
       clientName: 'Ana',
     });
+  });
+  it('records a next-action event idempotently on retry', () => {
+    expect(
+      recordNextActionActivity('opportunity', 'action', 'completed', 'Acción completada.'),
+    ).toBe(true);
+    expect(
+      recordNextActionActivity('opportunity', 'action', 'completed', 'Acción completada.'),
+    ).toBe(true);
+    expect(loadActivities().items).toHaveLength(1);
   });
 });

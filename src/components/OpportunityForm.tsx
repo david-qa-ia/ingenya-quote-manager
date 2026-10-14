@@ -20,7 +20,6 @@ export function OpportunityForm({ clientId, opportunity, onSave, onCancel }: Pro
       address: '',
       estimatedStartDate: '',
       responsibleSeller: '',
-      nextAction: undefined,
     },
   );
   const [error, setError] = useState<string | null>(null);
@@ -39,82 +38,6 @@ export function OpportunityForm({ clientId, opportunity, onSave, onCancel }: Pro
           required
         />
       </label>
-      <fieldset className="commercial-form">
-        <legend>Próxima acción (opcional)</legend>
-        <label className="field">
-          <span>Descripción</span>
-          <input
-            value={input.nextAction?.description ?? ''}
-            onChange={(e) =>
-              setInput({
-                ...input,
-                nextAction: {
-                  description: e.target.value,
-                  dueDate: input.nextAction?.dueDate ?? '',
-                  responsible: input.nextAction?.responsible ?? '',
-                  status: input.nextAction?.status ?? 'pending',
-                },
-              })
-            }
-          />
-        </label>
-        <label className="field">
-          <span>Fecha</span>
-          <input
-            type="date"
-            value={input.nextAction?.dueDate ?? ''}
-            onChange={(e) =>
-              setInput({
-                ...input,
-                nextAction: {
-                  description: input.nextAction?.description ?? '',
-                  dueDate: e.target.value,
-                  responsible: input.nextAction?.responsible ?? '',
-                  status: input.nextAction?.status ?? 'pending',
-                },
-              })
-            }
-          />
-        </label>
-        <label className="field">
-          <span>Responsable</span>
-          <input
-            value={input.nextAction?.responsible ?? ''}
-            onChange={(e) =>
-              setInput({
-                ...input,
-                nextAction: {
-                  description: input.nextAction?.description ?? '',
-                  dueDate: input.nextAction?.dueDate ?? '',
-                  responsible: e.target.value,
-                  status: input.nextAction?.status ?? 'pending',
-                },
-              })
-            }
-          />
-        </label>
-        <label className="field">
-          <span>Estado</span>
-          <select
-            value={input.nextAction?.status ?? 'pending'}
-            onChange={(e) =>
-              setInput({
-                ...input,
-                nextAction: {
-                  description: input.nextAction?.description ?? '',
-                  dueDate: input.nextAction?.dueDate ?? '',
-                  responsible: input.nextAction?.responsible ?? '',
-                  status: e.target.value as 'pending' | 'completed' | 'cancelled',
-                },
-              })
-            }
-          >
-            <option value="pending">Pendiente</option>
-            <option value="completed">Completada</option>
-            <option value="cancelled">Cancelada</option>
-          </select>
-        </label>
-      </fieldset>
       <label className="field">
         <span>Dirección (opcional)</span>
         <input

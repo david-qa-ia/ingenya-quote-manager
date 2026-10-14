@@ -52,6 +52,7 @@ import { createCatalogQuoteLine } from './utils/quoteLineFactory';
 import { addQuickService } from './utils/quickServiceAddition';
 import { resolveActiveNavigationSection, type AppView } from './utils/appNavigation';
 import { recordAutomaticActivity } from './utils/activityStorage';
+import { OpportunityNextActionsInbox } from './components/OpportunityNextActionsInbox';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -684,6 +685,7 @@ function App() {
       onNewQuote={handleNewQuote}
       onShowSavedQuotes={() => setCurrentView('savedQuotes')}
       onShowCatalog={() => setCurrentView('catalog')}
+      onShowNextActions={() => setCurrentView('nextActions')}
     />
   );
 
@@ -699,6 +701,15 @@ function App() {
           onUpdate={handleCatalogUpdate}
           onSetActive={handleCatalogActivation}
         />
+      </>
+    );
+  }
+
+  if (currentView === 'nextActions') {
+    return (
+      <>
+        {appHeader}
+        <OpportunityNextActionsInbox opportunities={opportunities} />
       </>
     );
   }
