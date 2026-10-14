@@ -184,3 +184,15 @@ document snapshots. Several quotes may share the same opportunity without replac
 There is no automatic cross-tab conflict resolution, backup service or rollback to older app
 versions. An older application build can discard fields it does not understand when saving;
 do not use older builds to edit data created by this increment.
+
+## SCRUM-47 Compatible Extension
+
+Saved quotes retain their `status` document field and add `commercialStatus`,
+`commercialStatusAudit` and optional `sentAudit` in the existing
+`ingenya.savedQuotes.v1` collection. No storage key, totals, document versions or event timeline
+is introduced.
+
+Quotes without commercial fields recover as `prepared` with a compatibility audit based on their
+existing `savedAt`; this is pure, idempotent and does not write storage. A dedicated write may
+change only commercial metadata on a finalized quote. It preserves every document field and the
+existing `savedAt` value. Normal quote writes remain unable to overwrite a finalized quote.

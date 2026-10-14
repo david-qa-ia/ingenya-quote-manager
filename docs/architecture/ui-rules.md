@@ -80,3 +80,10 @@ or finalizing it persists the association.
 
 Keep each saved quote as an independent row, including when opportunities are shared. Forms,
 warnings and actions must remain readable and keyboard accessible on desktop and mobile.
+
+## Commercial Statuses (SCRUM-47)
+
+Show document and commercial states separately in the saved quote list and summary. Commercial
+changes require an explicit confirmation with actor and reason. Do not show an action that sends
+messages or infer a sent status from PDF activity. Closed commercial states explain that audited
+reopening belongs to a later increment.

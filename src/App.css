@@ -782,6 +782,29 @@ td small {
   color: #31506f;
   background: #e8f1f8;
 }
+
+.status-badge-prepared {
+  background: #eef2f7;
+  color: #43546a;
+}
+.status-badge-sent,
+.status-badge-followingUp {
+  background: #e7f1ff;
+  color: #195a96;
+}
+.status-badge-accepted {
+  background: #e6f5ea;
+  color: #22663a;
+}
+.status-badge-rejected,
+.status-badge-expired {
+  background: #fbe8e7;
+  color: #8d332b;
+}
+.status-badge-paused {
+  background: #fff5d9;
+  color: #765518;
+}
 .saved-quote-actions {
   display: flex;
   justify-content: flex-end;
@@ -1294,4 +1317,18 @@ td small {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
+}
+.opportunity-quotes {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.opportunity-quotes h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+.opportunity-quotes ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
 }

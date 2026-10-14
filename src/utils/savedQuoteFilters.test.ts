@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { SavedQuote } from '../types/quote';
-import { filterSavedQuotes } from './savedQuoteFilters';
+import { filterSavedQuotes, filterSavedQuotesByCommercialStatus } from './savedQuoteFilters';
 
 const savedQuotes: SavedQuote[] = [
   {
     id: 'PRES-2026-0001',
     status: 'draft',
+    commercialStatus: 'prepared',
+    commercialStatusAudit: {
+      changedAt: '2026-09-28T12:00:00.000Z',
+      changedBy: 'Sistema local',
+      reason: 'Estado comercial inicial al crear el presupuesto.',
+    },
     clientName: 'Ana Pérez',
     projectName: 'Reforma cocina',
     lines: [],
@@ -14,6 +20,12 @@ const savedQuotes: SavedQuote[] = [
   {
     id: 'PRES-2026-0002',
     status: 'finalized',
+    commercialStatus: 'prepared',
+    commercialStatusAudit: {
+      changedAt: '2026-09-29T12:00:00.000Z',
+      changedBy: 'Sistema local',
+      reason: 'Estado comercial inicial al crear el presupuesto.',
+    },
     clientName: 'Luis Gómez',
     projectName: 'Pintura exterior',
     lines: [
@@ -31,6 +43,12 @@ const savedQuotes: SavedQuote[] = [
   {
     id: 'PRES-2026-0003',
     status: 'draft',
+    commercialStatus: 'prepared',
+    commercialStatusAudit: {
+      changedAt: '2026-09-30T12:00:00.000Z',
+      changedBy: 'Sistema local',
+      reason: 'Estado comercial inicial al crear el presupuesto.',
+    },
     clientName: '',
     projectName: '',
     lines: [],
@@ -70,5 +88,22 @@ describe('filterSavedQuotes', () => {
     filterSavedQuotes(savedQuotes, 'draft');
 
     expect(savedQuotes).toEqual(original);
+  });
+
+  it('filters commercial status independently from the document status', () => {
+    const withCommercialStates = [
+      { ...savedQuotes[0], commercialStatus: 'followingUp' as const },
+      { ...savedQuotes[1], commercialStatus: 'accepted' as const },
+    ];
+
+    expect(filterSavedQuotesByCommercialStatus(withCommercialStates, 'followingUp')).toEqual([
+      withCommercialStates[0],
+    ]);
+    expect(
+      filterSavedQuotesByCommercialStatus(
+        filterSavedQuotes(withCommercialStates, 'finalized'),
+        'accepted',
+      ),
+    ).toEqual([withCommercialStates[1]]);
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './App.css';
 import { QuoteCommercialContext } from './components/QuoteCommercialContext';
+import { QuoteCommercialStatus } from './components/QuoteCommercialStatus';
 import type { Client } from './types/client';
 import type { Opportunity } from './types/opportunity';
 import { associateQuote } from './utils/quoteAssociations';
@@ -10,6 +11,7 @@ import { LaborCatalogView } from './components/LaborCatalogView';
 import { workUnitLabels, workUnitSymbols } from './data/workUnits';
 import type {
   CatalogJob,
+  CommercialStatus,
   Quote,
   QuoteLine,
   QuoteStatus,
@@ -17,12 +19,26 @@ import type {
   WorkUnit,
 } from './types/quote';
 import { calculateLineSubtotal, calculateQuoteTotal } from './utils/quoteCalculations';
-import { loadSavedQuotes, saveQuote } from './utils/quoteDraftStorage';
+import {
+  loadSavedQuotes,
+  saveFinalizedQuoteCommercialState,
+  saveQuote,
+} from './utils/quoteDraftStorage';
 import { finalizeQuote, QuoteFinalizationError } from './utils/quoteFinalization';
 import { currencyFormatter } from './utils/quoteFormatting';
 import { downloadQuotePdf } from './utils/quotePdf';
 import { QuotePdfValidationError } from './utils/quotePdfModel';
-import { filterSavedQuotes, type SavedQuoteFilter } from './utils/savedQuoteFilters';
+import {
+  filterSavedQuotes,
+  filterSavedQuotesByCommercialStatus,
+  type SavedQuoteCommercialFilter,
+  type SavedQuoteFilter,
+} from './utils/savedQuoteFilters';
+import {
+  applyCommercialTransition,
+  commercialStatusLabels,
+  createPreparedCommercialAudit,
+} from './utils/quoteCommercialStatus';
 import {
   addCatalogJob,
   loadLaborCatalog,
@@ -54,9 +70,16 @@ function App() {
   const [catalogLoadIssue, setCatalogLoadIssue] = useState(initialCatalogLoad.issue);
   const [quoteId, setQuoteId] = useState(createQuoteId);
   const [quoteStatus, setQuoteStatus] = useState<QuoteStatus>('draft');
+  const [commercialStatus, setCommercialStatus] = useState<CommercialStatus>('prepared');
+  const [commercialStatusAudit, setCommercialStatusAudit] = useState(() =>
+    createPreparedCommercialAudit(new Date().toISOString()),
+  );
+  const [sentAudit, setSentAudit] = useState<Quote['sentAudit']>();
   const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([]);
   const [savedQuotes, setSavedQuotes] = useState(loadSavedQuotes);
   const [savedQuoteFilter, setSavedQuoteFilter] = useState<SavedQuoteFilter>('all');
+  const [savedQuoteCommercialFilter, setSavedQuoteCommercialFilter] =
+    useState<SavedQuoteCommercialFilter>('all');
   const [downloadingSavedQuoteId, setDownloadingSavedQuoteId] = useState<string | null>(null);
   const [savedQuotePdfFeedback, setSavedQuotePdfFeedback] = useState<{
     quoteId: string;
@@ -119,7 +142,10 @@ function App() {
   const selectedJob = activeCatalogJobs.find((job) => job.id === selectedJobId);
   const selectedVisibleJob = visibleActiveCatalogJobs.find((job) => job.id === selectedJobId);
   const quoteTotal = calculateQuoteTotal(quoteLines);
-  const visibleSavedQuotes = filterSavedQuotes(savedQuotes, savedQuoteFilter);
+  const visibleSavedQuotes = filterSavedQuotesByCommercialStatus(
+    filterSavedQuotes(savedQuotes, savedQuoteFilter),
+    savedQuoteCommercialFilter,
+  );
 
   useEffect(() => {
     if (isFinalizationConfirmationOpen) {
@@ -174,6 +200,9 @@ function App() {
     return {
       id: quoteId,
       status: quoteStatus,
+      commercialStatus,
+      commercialStatusAudit,
+      sentAudit,
       clientId,
       opportunityId,
       clientName,
@@ -400,6 +429,9 @@ function App() {
   function handleNewQuote() {
     setQuoteId(createQuoteId());
     setQuoteStatus('draft');
+    setCommercialStatus('prepared');
+    setCommercialStatusAudit(createPreparedCommercialAudit(new Date().toISOString()));
+    setSentAudit(undefined);
     setQuoteLines([]);
     setClientName('');
     setProjectName('');
@@ -412,6 +444,9 @@ function App() {
   function handleSavedQuoteOpen(savedQuote: SavedQuote) {
     setQuoteId(savedQuote.id);
     setQuoteStatus(savedQuote.status);
+    setCommercialStatus(savedQuote.commercialStatus);
+    setCommercialStatusAudit(savedQuote.commercialStatusAudit);
+    setSentAudit(savedQuote.sentAudit);
     setQuoteLines(savedQuote.lines);
     setClientId(savedQuote.clientId);
     setOpportunityId(savedQuote.opportunityId);
@@ -439,6 +474,39 @@ function App() {
       type: 'error',
       message: 'No se pudo guardar el borrador. Intentá nuevamente.',
     });
+  }
+
+  function handleCommercialStatusChange(
+    nextStatus: CommercialStatus,
+    audit: Quote['commercialStatusAudit'],
+  ): string | null {
+    const quote = getCurrentQuote();
+    try {
+      const next = applyCommercialTransition(
+        quote.commercialStatus,
+        nextStatus,
+        quote.status,
+        audit,
+        quote.sentAudit,
+      );
+      if (
+        !saveFinalizedQuoteCommercialState(
+          quote.id,
+          next.commercialStatus,
+          next.commercialStatusAudit,
+          next.sentAudit,
+        )
+      ) {
+        return 'No se pudo guardar el estado comercial. El documento no fue modificado.';
+      }
+      setCommercialStatus(next.commercialStatus);
+      setCommercialStatusAudit(next.commercialStatusAudit);
+      setSentAudit(next.sentAudit);
+      setSavedQuotes(loadSavedQuotes());
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : 'No se pudo registrar el estado comercial.';
+    }
   }
 
   function handleFinalizationRequest() {
@@ -626,6 +694,34 @@ function App() {
               ))}
             </div>
 
+            <div
+              className="saved-quote-filters"
+              aria-label="Filtrar presupuestos por estado comercial"
+            >
+              {(
+                [
+                  'all',
+                  'prepared',
+                  'sent',
+                  'followingUp',
+                  'accepted',
+                  'rejected',
+                  'expired',
+                  'paused',
+                ] as const
+              ).map((filter) => (
+                <button
+                  key={filter}
+                  className={`saved-quote-filter ${savedQuoteCommercialFilter === filter ? 'saved-quote-filter-active' : ''}`}
+                  type="button"
+                  aria-pressed={savedQuoteCommercialFilter === filter}
+                  onClick={() => setSavedQuoteCommercialFilter(filter)}
+                >
+                  {filter === 'all' ? 'Comerciales: todos' : commercialStatusLabels[filter]}
+                </button>
+              ))}
+            </div>
+
             {visibleSavedQuotes.length === 0 ? (
               <div className="empty-state saved-quotes-empty-state">
                 <span aria-hidden="true">⌁</span>
@@ -663,6 +759,7 @@ function App() {
                       <th>Cliente</th>
                       <th>Obra / Oportunidad</th>
                       <th>Estado</th>
+                      <th>Estado comercial</th>
                       <th>Fecha</th>
                       <th className="numeric-cell">Total</th>
                       <th className="actions-cell">Acciones</th>
@@ -693,6 +790,13 @@ function App() {
                         <td data-label="Estado">
                           <span className={`status-badge status-badge-${savedQuote.status}`}>
                             {savedQuote.status === 'draft' ? 'Borrador' : 'Finalizado'}
+                          </span>
+                        </td>
+                        <td data-label="Estado comercial">
+                          <span
+                            className={`status-badge commercial-status-badge status-badge-${savedQuote.commercialStatus}`}
+                          >
+                            {commercialStatusLabels[savedQuote.commercialStatus]}
                           </span>
                         </td>
                         <td data-label="Fecha">
@@ -839,8 +943,16 @@ function App() {
               <QuoteCommercialContext
                 key={quoteId}
                 quote={getCurrentQuote()}
+                savedQuotes={savedQuotes}
                 onAssociate={handleAssociation}
                 onEntitiesChange={() => setOpportunities(loadOpportunities().items)}
+              />
+              <QuoteCommercialStatus
+                documentStatus={quoteStatus}
+                commercialStatus={commercialStatus}
+                commercialStatusAudit={commercialStatusAudit}
+                sentAudit={sentAudit}
+                onChange={handleCommercialStatusChange}
               />
               <section className="summary-panel">
                 <div className="summary-panel-heading">

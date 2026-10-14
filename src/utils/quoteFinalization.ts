@@ -22,6 +22,9 @@ export function finalizeQuote(quote: Readonly<Quote>): Quote {
   return {
     id: quote.id,
     status: 'finalized',
+    commercialStatus: quote.commercialStatus,
+    commercialStatusAudit: { ...quote.commercialStatusAudit },
+    ...(quote.sentAudit ? { sentAudit: { ...quote.sentAudit } } : {}),
     ...(quote.clientId ? { clientId: quote.clientId } : {}),
     ...(quote.opportunityId ? { opportunityId: quote.opportunityId } : {}),
     clientName: quote.clientName,

@@ -29,3 +29,20 @@ the earlier restrictions that excluded a finalized status from the MVP.
 
 Future commercial statuses such as `sent`, `accepted`, `rejected`, or `archived` remain outside
 this increment. Historical documents are intentionally left unchanged.
+
+## Commercial Status Extension (SCRUM-47)
+
+The `status` field remains the document status and keeps the `draft | finalized` contract above.
+Commercial status is stored separately and never changes a document snapshot, its lines,
+associations, calculated total or document status.
+
+Supported commercial statuses are `prepared`, `sent`, `followingUp`, `accepted`, `rejected`,
+`expired` and `paused`. New and historical quotes start as `prepared`; historical recovery is
+read-time only and does not write localStorage automatically.
+
+`sent`, `accepted` and `rejected` require a finalized document. Each commercial change records
+the date, free-text actor and reason. The latest change is retained, as is the sent audit when a
+quote later enters follow-up. This is not a contact history or event timeline.
+
+`accepted`, `rejected` and `expired` are closed states in the current interface. Their audited
+reopening is deliberately deferred to SCRUM-53 or a later approved increment.
