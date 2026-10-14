@@ -6,9 +6,11 @@ import { commercialStatusLabels } from '../utils/quoteCommercialStatus';
 import { loadClients, saveClient } from '../utils/clientStorage';
 import { loadOpportunities, saveOpportunity } from '../utils/opportunityStorage';
 import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
-import { recordAutomaticActivity } from '../utils/activityStorage';
+import { recordAutomaticActivity, recordNextActionActivity } from '../utils/activityStorage';
 import { ClientForm } from './ClientForm';
 import { OpportunityForm } from './OpportunityForm';
+import { NextActionCard } from './NextActionCard';
+import { transitionNextAction } from '../utils/opportunityNextAction';
 
 interface Props {
   quote: Quote;
@@ -60,6 +62,26 @@ export function QuoteCommercialContext({
     };
     if (!saveClient(next))
       return 'No se pudo guardar el cliente. Los datos existentes se conservaron.';
+    if (next.doNotContact) {
+      loadOpportunities()
+        .items.filter((item) => item.clientId === next.id && item.nextAction?.status === 'pending')
+        .forEach((item) => {
+          const cancelled = transitionNextAction(
+            item,
+            'cancelled',
+            next.doNotContact!.recordedBy,
+            `Pedido de no contacto: ${next.doNotContact!.reason}`,
+            next.doNotContact!.recordedAt,
+          );
+          if (saveOpportunity(cancelled) && cancelled.nextAction)
+            recordNextActionActivity(
+              cancelled.id,
+              cancelled.nextAction.id,
+              'cancelled',
+              'Recordatorio cancelado por pedido de no contacto.',
+            );
+        });
+    }
     const activitySaved =
       existing ||
       recordAutomaticActivity({ kind: 'client', clientId: next.id }, 'created', 'Cliente creado.');
@@ -114,6 +136,23 @@ export function QuoteCommercialContext({
       clientLoad.items.find((item) => item.id === id),
       undefined,
     );
+  }
+  function persistNextAction(next: Opportunity, event: string): boolean {
+    if (readOnly || !saveOpportunity(next)) return false;
+    const action = next.nextAction;
+    if (
+      !action ||
+      (event !== 'created' &&
+        !recordNextActionActivity(
+          next.id,
+          action.id,
+          event as 'completed' | 'rescheduled' | 'cancelled' | 'notRelevant',
+          `Próxima acción ${event === 'completed' ? 'completada' : event === 'rescheduled' ? 'reprogramada' : event === 'cancelled' ? 'cancelada' : 'declarada no relevante'}.`,
+        ))
+    )
+      return false;
+    refresh();
+    return true;
   }
   return (
     <section className="summary-panel commercial-context" aria-label="Cliente y oportunidad">
@@ -272,16 +311,8 @@ export function QuoteCommercialContext({
           <dt>Vendedor responsable actual</dt>
           <dd>{opportunity?.responsibleSeller || 'Sin asignar'}</dd>
         </div>
-        {opportunity?.nextAction && (
-          <div>
-            <dt>Próxima acción</dt>
-            <dd>
-              {opportunity.nextAction.description} · {opportunity.nextAction.dueDate} ·{' '}
-              {opportunity.nextAction.responsible} · {opportunity.nextAction.status}
-            </dd>
-          </div>
-        )}
       </dl>
+      {opportunity && <NextActionCard opportunity={opportunity} onSave={persistNextAction} />}
       {opportunityQuotes.length > 0 && (
         <div className="opportunity-quotes">
           <h3>Presupuestos asociados</h3>

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getOpportunityValidationError, isOpportunity } from './opportunityValidation';
+import {
+  getOpportunityValidationError,
+  isOpportunity,
+  recoverOpportunity,
+} from './opportunityValidation';
 
 const input = {
   clientId: 'client',
@@ -30,8 +34,14 @@ describe('opportunity validation', () => {
       getOpportunityValidationError({
         ...input,
         nextAction: {
+          id: 'action',
+          type: 'call',
           description: 'Llamar para confirmar visita',
-          dueDate: '2026-10-20',
+          dueAt: '2026-10-20T12:00:00.000Z',
+          priority: 'medium',
+          createdAt: '2026-10-14T00:00:00.000Z',
+          updatedAt: '2026-10-14T00:00:00.000Z',
+          history: [],
           responsible: 'Daniel',
           status: 'pending',
         },
@@ -40,7 +50,18 @@ describe('opportunity validation', () => {
     expect(
       getOpportunityValidationError({
         ...input,
-        nextAction: { description: '', dueDate: '', responsible: '', status: 'pending' },
+        nextAction: {
+          id: '',
+          type: 'call',
+          description: '',
+          dueAt: '',
+          responsible: '',
+          priority: 'medium',
+          status: 'pending',
+          createdAt: '',
+          updatedAt: '',
+          history: [],
+        },
       }),
     ).not.toBeNull();
   });
@@ -50,5 +71,26 @@ describe('opportunity validation', () => {
     expect(
       isOpportunity({ ...input, id: 'opportunity', createdAt: 'invalid', updatedAt: 'invalid' }),
     ).toBe(false);
+  });
+  it('migrates the SCRUM-48 action at 09:00 Argentina without writing it', () => {
+    const legacy = {
+      ...input,
+      id: 'opportunity',
+      createdAt: '2026-10-14T00:00:00.000Z',
+      updatedAt: '2026-10-14T00:00:00.000Z',
+      nextAction: {
+        description: 'Llamar',
+        dueDate: '2026-10-20',
+        responsible: 'Daniel',
+        status: 'pending',
+      },
+    };
+    const migrated = recoverOpportunity(legacy);
+    expect(migrated?.nextAction).toMatchObject({
+      id: 'legacy-next-action:opportunity',
+      dueAt: '2026-10-20T12:00:00.000Z',
+      priority: 'medium',
+    });
+    expect(recoverOpportunity(legacy)).toEqual(migrated);
   });
 });

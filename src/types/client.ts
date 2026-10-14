@@ -1,5 +1,11 @@
 export type PreferredChannel = '' | 'phone' | 'whatsapp' | 'email';
 
+export interface DoNotContactRecord {
+  reason: string;
+  recordedAt: string;
+  recordedBy: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -7,6 +13,7 @@ export interface Client {
   email: string;
   preferredChannel: PreferredChannel;
   contactConsent: boolean;
+  doNotContact?: DoNotContactRecord;
   createdAt: string;
   updatedAt: string;
 }

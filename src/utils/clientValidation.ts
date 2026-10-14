@@ -19,6 +19,13 @@ export function getClientValidationError(input: ClientInput): string | null {
   ) {
     return 'Ingresá un teléfono de 7 a 15 dígitos o 1111111111 si está pendiente.';
   }
+  if (
+    input.doNotContact &&
+    (!input.doNotContact.reason.trim() ||
+      !input.doNotContact.recordedBy.trim() ||
+      !Number.isFinite(Date.parse(input.doNotContact.recordedAt)))
+  )
+    return 'Ingresá motivo, fecha y autor del pedido de no contacto.';
   if (!isPendingEmail(input.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
     return 'Ingresá un email válido o none si está pendiente.';
   }
@@ -38,6 +45,15 @@ export function normalizeClientInput(input: ClientInput): ClientInput {
     email: isPendingEmail(input.email) ? PENDING_EMAIL : input.email.trim(),
     preferredChannel: input.preferredChannel,
     contactConsent: input.contactConsent,
+    ...(input.doNotContact
+      ? {
+          doNotContact: {
+            ...input.doNotContact,
+            reason: input.doNotContact.reason.trim(),
+            recordedBy: input.doNotContact.recordedBy.trim(),
+          },
+        }
+      : {}),
   };
 }
 

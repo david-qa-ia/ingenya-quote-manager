@@ -13,10 +13,27 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
     client ?? { name: '', phone: '', email: '', preferredChannel: '', contactConsent: false },
   );
   const [error, setError] = useState<string | null>(null);
+  const [doNotContact, setDoNotContact] = useState(Boolean(client?.doNotContact));
+  const [doNotContactReason, setDoNotContactReason] = useState(client?.doNotContact?.reason ?? '');
+  const [doNotContactAuthor, setDoNotContactAuthor] = useState(
+    client?.doNotContact?.recordedBy ?? '',
+  );
   function submit(event: FormEvent) {
     event.preventDefault();
-    const validation = getClientValidationError(input);
-    setError(validation ?? onSave(normalizeClientInput(input)));
+    const next = {
+      ...input,
+      ...(doNotContact
+        ? {
+            doNotContact: {
+              reason: doNotContactReason,
+              recordedAt: new Date().toISOString(),
+              recordedBy: doNotContactAuthor,
+            },
+          }
+        : {}),
+    };
+    const validation = getClientValidationError(next);
+    setError(validation ?? onSave(normalizeClientInput(next)));
   }
   return (
     <form className="commercial-form" onSubmit={submit} noValidate>
@@ -72,6 +89,32 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
         />
         El cliente autorizó el contacto
       </label>
+      <label className="commercial-consent">
+        <input
+          type="checkbox"
+          checked={doNotContact}
+          onChange={(event) => setDoNotContact(event.target.checked)}
+        />
+        El cliente solicitó no recibir más contactos
+      </label>
+      {doNotContact && (
+        <>
+          <label className="field">
+            <span>Motivo del no contacto</span>
+            <textarea
+              value={doNotContactReason}
+              onChange={(event) => setDoNotContactReason(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Registrado por</span>
+            <input
+              value={doNotContactAuthor}
+              onChange={(event) => setDoNotContactAuthor(event.target.value)}
+            />
+          </label>
+        </>
+      )}
       {error && (
         <p className="commercial-warning" role="alert">
           {error}
