@@ -17,8 +17,8 @@ export const commercialReasonLabels = {
 export const commercialOutcomeLabels: Record<CommercialOutcomeType, string> = {
   accepted: 'Presupuesto aceptado',
   rejected: 'Presupuesto rechazado',
-  lost: 'Oportunidad perdida',
-  reopened: 'Oportunidad reabierta',
+  lost: 'Obra o trabajo perdida',
+  reopened: 'Obra o trabajo reabierta',
   corrected: 'Resultado corregido',
 };
 
@@ -64,7 +64,7 @@ export function applyCommercialOutcome(
   outcome: CommercialOutcome,
 ): Opportunity {
   if (outcome.opportunityId !== opportunity.id)
-    throw new Error('El resultado no pertenece a la oportunidad.');
+    throw new Error('El resultado no pertenece a la obra o trabajo.');
   return {
     ...opportunity,
     commercialState: getOpportunityCommercialState(outcome),

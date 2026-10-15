@@ -14,28 +14,35 @@ export function QuoteActivityPanel({ quote }: Props) {
   );
 
   return (
-    <div className="sidebar-tab-stack">
+    <section
+      className="commercial-follow-up-activities"
+      aria-labelledby="activities-follow-up-title"
+    >
+      <div className="summary-panel-heading">
+        <h3 id="activities-follow-up-title">Actividades y seguimiento</h3>
+      </div>
       <ActivityTimeline
-        subject={{ kind: 'quote', quoteId: quote.id }}
-        title="Presupuesto"
-        contactContext={{ client, opportunity, quote }}
+        entrySubject={{ kind: 'quote', quoteId: quote.id }}
+        subjects={[
+          { subject: { kind: 'quote', quoteId: quote.id }, label: 'Presupuesto' },
+          ...(client
+            ? [
+                {
+                  subject: { kind: 'client' as const, clientId: client.id },
+                  label: 'Cliente' as const,
+                },
+              ]
+            : []),
+          ...(opportunity
+            ? [
+                {
+                  subject: { kind: 'opportunity' as const, opportunityId: opportunity.id },
+                  label: 'Obra o trabajo' as const,
+                },
+              ]
+            : []),
+        ]}
       />
-      {client && (
-        <ActivityTimeline
-          subject={{ kind: 'client', clientId: client.id }}
-          title="Cliente"
-          showAuthor={false}
-          contactContext={{ client, opportunity, quote }}
-        />
-      )}
-      {opportunity && (
-        <ActivityTimeline
-          subject={{ kind: 'opportunity', opportunityId: opportunity.id }}
-          title="Oportunidad"
-          showAuthor={false}
-          contactContext={{ client, opportunity, quote }}
-        />
-      )}
-    </div>
+    </section>
   );
 }

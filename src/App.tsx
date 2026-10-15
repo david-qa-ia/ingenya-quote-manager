@@ -3,7 +3,6 @@ import './App.css';
 import { QuoteCommercialContext } from './components/QuoteCommercialContext';
 import { QuoteCommercialStatus } from './components/QuoteCommercialStatus';
 import { QuoteActivityPanel } from './components/QuoteActivityPanel';
-import { QuoteSidebar } from './components/QuoteSidebar';
 import { ContactAssistant } from './components/ContactAssistant';
 import type { Client } from './types/client';
 import type { FollowUpInboxItem } from './types/followUpInbox';
@@ -175,10 +174,6 @@ function App() {
     filterSavedQuotes(savedQuotes, savedQuoteFilter),
     savedQuoteCommercialFilter,
   );
-  const currentOpportunity = opportunities.find(
-    (opportunity) => opportunity.id === opportunityId && opportunity.clientId === clientId,
-  );
-
   useEffect(() => {
     if (isFinalizationConfirmationOpen) {
       finalizationCancelRef.current?.focus();
@@ -499,7 +494,7 @@ function App() {
     setSaveFeedback({
       type: 'error',
       message:
-        'No hay un presupuesto asociado para abrir este contexto. La oportunidad sigue disponible en el seguimiento.',
+        'No hay un presupuesto asociado para abrir este contexto. La obra o trabajo sigue disponible en el seguimiento.',
     });
   }
 
@@ -1042,7 +1037,7 @@ function App() {
                     <tr>
                       <th>ID</th>
                       <th>Cliente</th>
-                      <th>Obra / Oportunidad</th>
+                      <th>Obra / trabajo en seguimiento</th>
                       <th>Estado</th>
                       <th>Estado comercial</th>
                       <th>Fecha</th>
@@ -1059,11 +1054,11 @@ function App() {
                         <td data-label="Cliente">
                           {savedQuote.clientName.trim() || 'Sin cliente'}
                         </td>
-                        <td data-label="Obra / Oportunidad">
+                        <td data-label="Obra / trabajo en seguimiento">
                           {savedQuote.projectName.trim() || 'Sin obra'}
                           {savedQuote.opportunityId && (
                             <small>
-                              Oportunidad:{' '}
+                              Obra o trabajo:{' '}
                               {opportunities.find(
                                 (item) =>
                                   item.id === savedQuote.opportunityId &&
@@ -1254,66 +1249,61 @@ function App() {
                     {pdfFeedback.message}
                   </p>
                 )}
-                <div className="optional-data-disclosure">
-                  <button
-                    className="optional-data-toggle"
-                    type="button"
-                    aria-expanded={isOptionalDataOpen}
-                    aria-controls="optional-quote-data"
-                    onClick={() => setIsOptionalDataOpen((isOpen) => !isOpen)}
-                  >
-                    <span>Datos opcionales</span>
-                    <span aria-hidden="true">{isOptionalDataOpen ? '−' : '+'}</span>
-                  </button>
-                  {isOptionalDataOpen && (
-                    <div id="optional-quote-data" className="optional-data-content">
-                      <p className="commercial-note">
-                        Estos textos se conservan aunque cambien el cliente o la oportunidad.
-                      </p>
-                      {quoteStatus === 'draft' ? (
-                        <>
-                          <label className="field">
-                            <span>Cliente</span>
-                            <input
-                              type="text"
-                              value={clientName}
-                              onChange={(event) => setClientName(event.target.value)}
-                              placeholder="Nombre del cliente"
-                            />
-                            <small>Podés dejar este campo vacío.</small>
-                          </label>
-                          <label className="field">
-                            <span>Oportunidad</span>
-                            <input
-                              type="text"
-                              value={projectName}
-                              onChange={(event) => setProjectName(event.target.value)}
-                              placeholder="Nombre o ubicación de la obra"
-                            />
-                            <small>Podés dejar este campo vacío.</small>
-                          </label>
-                        </>
-                      ) : (
-                        <dl className="summary-read-only-data">
-                          <div>
-                            <dt>Cliente</dt>
-                            <dd>{clientName.trim() || 'Sin cliente'}</dd>
-                          </div>
-                          <div>
-                            <dt>Oportunidad</dt>
-                            <dd>{projectName.trim() || 'Sin oportunidad'}</dd>
-                          </div>
-                        </dl>
-                      )}
-                      <dl className="summary-read-only-data">
-                        <div>
-                          <dt>Vendedor responsable</dt>
-                          <dd>{currentOpportunity?.responsibleSeller || 'Sin asignar'}</dd>
-                        </div>
-                      </dl>
+                <section className="document-data-card" aria-labelledby="document-data-title">
+                  <div className="summary-panel-heading">
+                    <p className="eyebrow">Datos del documento</p>
+                    <h2 id="document-data-title">¿Para quién es este presupuesto?</h2>
+                  </div>
+                  <p className="commercial-note">
+                    Estos datos aparecen en el presupuesto y PDF. Quedan congelados al finalizarlo y
+                    no cambian al vincular una ficha comercial.
+                  </p>
+                  <dl className="summary-read-only-data">
+                    <div>
+                      <dt>Cliente en el presupuesto</dt>
+                      <dd>{clientName.trim() || 'Sin especificar'}</dd>
+                    </div>
+                    <div>
+                      <dt>Obra / referencia</dt>
+                      <dd>{projectName.trim() || 'Sin especificar'}</dd>
+                    </div>
+                  </dl>
+                  {quoteStatus === 'draft' && (
+                    <button
+                      className="button button-line"
+                      type="button"
+                      aria-expanded={isOptionalDataOpen}
+                      aria-controls="document-data-edit"
+                      onClick={() => setIsOptionalDataOpen((isOpen) => !isOpen)}
+                    >
+                      {isOptionalDataOpen ? 'Cerrar edición' : 'Editar datos del documento'}
+                    </button>
+                  )}
+                  {quoteStatus === 'draft' && isOptionalDataOpen && (
+                    <div id="document-data-edit" className="document-data-edit">
+                      <label className="field">
+                        <span>Cliente en el presupuesto</span>
+                        <input
+                          type="text"
+                          value={clientName}
+                          onChange={(event) => setClientName(event.target.value)}
+                          placeholder="Nombre que figurará en el presupuesto"
+                        />
+                        <small>Podés dejar este campo vacío.</small>
+                      </label>
+                      <label className="field">
+                        <span>Obra / referencia</span>
+                        <input
+                          type="text"
+                          value={projectName}
+                          onChange={(event) => setProjectName(event.target.value)}
+                          placeholder="Nombre o ubicación de la obra"
+                        />
+                        <small>Podés dejar este campo vacío.</small>
+                      </label>
                     </div>
                   )}
-                </div>
+                </section>
               </section>
 
               <section className="quote-card summary-lines" aria-labelledby="summary-lines-title">
@@ -1371,31 +1361,34 @@ function App() {
               </section>
             </div>
 
-            <aside className="summary-sidebar" aria-label="Datos y acciones del presupuesto">
-              <QuoteSidebar
-                summary={
-                  <QuoteCommercialContext
-                    key={quoteId}
-                    quote={getCurrentQuote()}
-                    savedQuotes={savedQuotes}
-                    onAssociate={handleAssociation}
-                    onEntitiesChange={() => setOpportunities(loadOpportunities().items)}
-                    onQuoteResult={handleCommercialStatusChange}
-                  />
-                }
-                activities={<QuoteActivityPanel quote={getCurrentQuote()} />}
-                commercialStatus={
-                  <QuoteCommercialStatus
-                    documentStatus={quoteStatus}
-                    commercialStatus={commercialStatus}
-                    commercialStatusAudit={commercialStatusAudit}
-                    sentAudit={sentAudit}
-                    hasOpportunity={Boolean(opportunityId)}
-                    onChange={handleCommercialStatusChange}
-                  />
-                }
+            <section className="quote-commercial-sections" aria-label="Seguimiento comercial">
+              <QuoteCommercialContext
+                key={quoteId}
+                quote={getCurrentQuote()}
+                savedQuotes={savedQuotes}
+                onAssociate={handleAssociation}
+                onEntitiesChange={() => setOpportunities(loadOpportunities().items)}
+                onQuoteResult={handleCommercialStatusChange}
               />
-            </aside>
+              <section
+                className="summary-panel commercial-follow-up"
+                aria-labelledby="commercial-follow-up-title"
+              >
+                <div className="summary-panel-heading">
+                  <p className="eyebrow">Seguimiento comercial</p>
+                  <h2 id="commercial-follow-up-title">Seguimiento comercial</h2>
+                </div>
+                <QuoteCommercialStatus
+                  documentStatus={quoteStatus}
+                  commercialStatus={commercialStatus}
+                  commercialStatusAudit={commercialStatusAudit}
+                  sentAudit={sentAudit}
+                  hasOpportunity={Boolean(opportunityId)}
+                  onChange={handleCommercialStatusChange}
+                />
+                <QuoteActivityPanel quote={getCurrentQuote()} />
+              </section>
+            </section>
           </div>
           {isFinalizationConfirmationOpen && (
             <div className="modal-backdrop">

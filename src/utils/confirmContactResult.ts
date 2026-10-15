@@ -69,7 +69,7 @@ export function confirmContactResult({
           (item) => item.id === updated.currentStepExecutionId,
         )?.nextAction;
         if (!saveOpportunity({ ...context.opportunity, nextAction, updatedAt: now }))
-          throw new Error('No se pudo actualizar la oportunidad.');
+          throw new Error('No se pudo actualizar la obra o trabajo.');
       }
       return { activitySaved: true, transitionApplied: true };
     }

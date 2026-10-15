@@ -7,15 +7,15 @@ export function MetricsFunnel({ metrics }: { metrics: CommercialMetrics }) {
       <h2 id="metrics-funnel">Embudo comercial</h2>
       <dl className="metrics-funnel">
         <div>
-          <dt>Oportunidades con resultado definitivo</dt>
+          <dt>Obras o trabajos con resultado definitivo</dt>
           <dd>{metrics.opportunityConversion.denominator}</dd>
         </div>
         <div>
-          <dt>Oportunidades ganadas</dt>
+          <dt>Obras o trabajos ganados</dt>
           <dd>{metrics.opportunityConversion.numerator}</dd>
         </div>
         <div>
-          <dt>Conversión por oportunidad</dt>
+          <dt>Conversión por obra o trabajo</dt>
           <dd>{rate(metrics.opportunityConversion.rate)}</dd>
         </div>
         <div>

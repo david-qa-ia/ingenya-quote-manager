@@ -13,9 +13,12 @@ import {
   saveActivity,
   saveActivityAuthor,
 } from '../utils/activityStorage';
-import { getTimelineActivities, type ActivityFilter } from '../utils/activityTimeline';
-import type { ContactContext } from '../utils/contactAssistant';
-import { ContactAssistant } from './ContactAssistant';
+import {
+  getTimelineActivitiesForSubjects,
+  getTimelineSubjectLabel,
+  type ActivityFilter,
+  type TimelineSubject,
+} from '../utils/activityTimeline';
 
 const typeLabels: Record<ActivityType, string> = {
   call: 'Llamada',
@@ -34,10 +37,8 @@ const callResultLabels: Record<CallResult, string> = {
 const activityTypes = Object.keys(typeLabels) as ActivityType[];
 
 interface Props {
-  subject: ActivitySubject;
-  title: string;
-  showAuthor?: boolean;
-  contactContext?: ContactContext;
+  entrySubject: ActivitySubject;
+  subjects: readonly TimelineSubject[];
 }
 
 function toLocalDateTime(isoDate: string): string {
@@ -46,7 +47,7 @@ function toLocalDateTime(isoDate: string): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
-export function ActivityTimeline({ subject, title, showAuthor = true, contactContext }: Props) {
+export function ActivityTimeline({ entrySubject, subjects }: Props) {
   const [activities, setActivities] = useState(() => loadActivities().items);
   const [filter, setFilter] = useState<ActivityFilter>('all');
   const [author, setAuthor] = useState(loadActivityAuthor);
@@ -61,10 +62,14 @@ export function ActivityTimeline({ subject, title, showAuthor = true, contactCon
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedNote, setEditedNote] = useState('');
   const [feedback, setFeedback] = useState('');
-  const [contactChannel, setContactChannel] = useState<'call' | 'whatsapp' | null>(null);
   const visibleActivities = useMemo(
-    () => getTimelineActivities(activities, subject, filter),
-    [activities, filter, subject],
+    () =>
+      getTimelineActivitiesForSubjects(
+        activities,
+        subjects.map(({ subject }) => subject),
+        filter,
+      ),
+    [activities, filter, subjects],
   );
 
   function refresh() {
@@ -99,7 +104,7 @@ export function ActivityTimeline({ subject, title, showAuthor = true, contactCon
       author: normalizedAuthor,
       result: input.result,
       note: input.note.trim(),
-      subject,
+      subject: entrySubject,
       source: 'manual',
       noteRevisions: [],
     };
@@ -107,6 +112,7 @@ export function ActivityTimeline({ subject, title, showAuthor = true, contactCon
       setFeedback('No se pudo guardar la actividad.');
       return;
     }
+    setAuthor(normalizedAuthor);
     refresh();
     setInput({
       type: 'note',
@@ -140,12 +146,9 @@ export function ActivityTimeline({ subject, title, showAuthor = true, contactCon
   }
 
   return (
-    <section className="summary-panel activity-timeline" aria-label={title}>
-      <div className="summary-panel-heading">
-        <p className="eyebrow">Seguimiento</p>
-        <h2>{title}</h2>
-      </div>
-      {showAuthor && (
+    <div className="activity-timeline" aria-label="Historial de actividades">
+      <details className="activity-advanced-tools">
+        <summary>Preferencias de actividad</summary>
         <div className="activity-author">
           <label className="field">
             <span>Autor actual</span>
@@ -155,45 +158,14 @@ export function ActivityTimeline({ subject, title, showAuthor = true, contactCon
             Guardar autor
           </button>
         </div>
-      )}
-      <div className="saved-quote-filters" aria-label="Filtrar actividades">
-        {(['all', ...activityTypes] as ActivityFilter[]).map((item) => (
-          <button
-            key={item}
-            className={`saved-quote-filter ${filter === item ? 'saved-quote-filter-active' : ''}`}
-            type="button"
-            aria-pressed={filter === item}
-            onClick={() => setFilter(item)}
-          >
-            {item === 'all' ? 'Todas' : typeLabels[item]}
-          </button>
-        ))}
-      </div>
+      </details>
       <button
-        className="button button-line"
+        className={isFormOpen ? 'button button-line' : 'button button-primary'}
         type="button"
         onClick={() => setIsFormOpen((open) => !open)}
       >
         {isFormOpen ? 'Cancelar actividad' : 'Registrar actividad'}
       </button>
-      {contactContext && (
-        <div className="commercial-actions">
-          <button
-            className="button button-line"
-            type="button"
-            onClick={() => setContactChannel('call')}
-          >
-            Preparar llamada
-          </button>
-          <button
-            className="button button-line"
-            type="button"
-            onClick={() => setContactChannel('whatsapp')}
-          >
-            Preparar WhatsApp
-          </button>
-        </div>
-      )}
       {isFormOpen && (
         <form className="commercial-form" onSubmit={submit} noValidate>
           <label className="field">
@@ -234,13 +206,16 @@ export function ActivityTimeline({ subject, title, showAuthor = true, contactCon
               }
             />
           </label>
-          {input.type === 'call' && (
+          {input.type === 'call' ? (
             <label className="field">
               <span>Resultado</span>
               <select
                 value={input.result}
                 onChange={(event) =>
-                  setInput((current) => ({ ...current, result: event.target.value as CallResult }))
+                  setInput((current) => ({
+                    ...current,
+                    result: event.target.value as CallResult,
+                  }))
                 }
               >
                 <option value="">Seleccionar resultado</option>
@@ -251,8 +226,7 @@ export function ActivityTimeline({ subject, title, showAuthor = true, contactCon
                 ))}
               </select>
             </label>
-          )}
-          {input.type !== 'call' && (
+          ) : (
             <label className="field">
               <span>Resultado</span>
               <input
@@ -288,6 +262,7 @@ export function ActivityTimeline({ subject, title, showAuthor = true, contactCon
             <strong>{typeLabels[activity.type]}</strong> ·{' '}
             {new Date(activity.occurredAt).toLocaleString('es-AR')}
             <small>
+              <span className="activity-source">{getTimelineSubjectLabel(activity, subjects)}</span>{' '}
               {activity.source === 'automatic' ? 'Sistema local' : activity.author} ·{' '}
               {activity.type === 'call'
                 ? callResultLabels[activity.result as CallResult]
@@ -335,17 +310,24 @@ export function ActivityTimeline({ subject, title, showAuthor = true, contactCon
         ))}
       </ol>
       {visibleActivities.length === 0 && (
-        <p className="commercial-note">Todavía no hay actividades para este contexto.</p>
+        <p className="commercial-note">Todavía no hay actividades para este presupuesto.</p>
       )}
-      {contactChannel && contactContext && (
-        <ContactAssistant
-          context={contactContext}
-          subject={subject}
-          initialChannel={contactChannel}
-          onClose={() => setContactChannel(null)}
-          onRecorded={refresh}
-        />
-      )}
-    </section>
+      <details className="activity-advanced-tools">
+        <summary>Filtros avanzados</summary>
+        <div className="saved-quote-filters" aria-label="Filtrar actividades">
+          {(['all', ...activityTypes] as ActivityFilter[]).map((item) => (
+            <button
+              key={item}
+              className={`saved-quote-filter ${filter === item ? 'saved-quote-filter-active' : ''}`}
+              type="button"
+              aria-pressed={filter === item}
+              onClick={() => setFilter(item)}
+            >
+              {item === 'all' ? 'Todas' : typeLabels[item]}
+            </button>
+          ))}
+        </div>
+      </details>
+    </div>
   );
 }

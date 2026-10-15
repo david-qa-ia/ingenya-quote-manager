@@ -145,7 +145,7 @@ export function OpportunityNextActionsInbox({
           <input
             value={filters.search}
             onChange={(event) => set('search', event.target.value)}
-            placeholder="Cliente, oportunidad o presupuesto"
+            placeholder="Contacto, obra o trabajo, o presupuesto"
           />
         </label>
         <label className="field">
