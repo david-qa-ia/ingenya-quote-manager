@@ -79,7 +79,8 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
       </p>
       {relatedQuotes.length > 1 && (
         <p className="commercial-warning">
-          Hay {relatedQuotes.length} presupuestos asociados. Rechazar uno no cierra la oportunidad.
+          Hay {relatedQuotes.length} presupuestos asociados. Rechazar uno no cierra la obra o
+          trabajo.
         </p>
       )}
       <form className="commercial-form" onSubmit={submit} noValidate>
@@ -91,8 +92,8 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
           >
             <option value="accepted">Aceptar este presupuesto</option>
             <option value="rejected">Rechazar este presupuesto</option>
-            <option value="lost">Marcar oportunidad como perdida</option>
-            <option value="reopened">Reabrir oportunidad</option>
+            <option value="lost">Marcar obra o trabajo como perdida</option>
+            <option value="reopened">Reabrir obra o trabajo</option>
             <option value="corrected">Corregir último resultado</option>
           </select>
         </label>
@@ -128,7 +129,7 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
               checked={closeAsWon}
               onChange={(event) => setCloseAsWon(event.target.checked)}
             />
-            <span>Cerrar oportunidad como ganada</span>
+            <span>Cerrar obra o trabajo como ganada</span>
           </label>
         )}
         {error && (

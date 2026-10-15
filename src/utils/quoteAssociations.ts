@@ -11,7 +11,7 @@ export function associateQuote(
   if (quote.status === 'finalized')
     throw new Error('Un presupuesto finalizado no se puede modificar.');
   if (opportunity && (!client || opportunity.clientId !== client.id)) {
-    throw new Error('La oportunidad debe pertenecer al cliente seleccionado.');
+    throw new Error('La obra o trabajo debe pertenecer al contacto seleccionado.');
   }
   return {
     ...quote,

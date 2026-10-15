@@ -29,9 +29,9 @@ export function OpportunityForm({ clientId, opportunity, onSave, onCancel }: Pro
   }
   return (
     <form className="commercial-form" onSubmit={submit} noValidate>
-      <h3>{opportunity ? 'Editar oportunidad' : 'Nueva oportunidad'}</h3>
+      <h3>{opportunity ? 'Editar obra o trabajo' : 'Nueva obra o trabajo'}</h3>
       <label className="field">
-        <span>Nombre de la oportunidad</span>
+        <span>Nombre de la obra o trabajo</span>
         <input
           value={input.name}
           onChange={(e) => setInput({ ...input, name: e.target.value })}
@@ -67,7 +67,7 @@ export function OpportunityForm({ clientId, opportunity, onSave, onCancel }: Pro
       )}
       <div className="commercial-actions">
         <button className="button button-line" type="submit">
-          Guardar oportunidad
+          Guardar obra o trabajo
         </button>
         <button className="button button-line" type="button" onClick={onCancel}>
           Cancelar

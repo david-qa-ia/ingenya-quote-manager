@@ -173,8 +173,8 @@ export function recoverOpportunity(value: unknown): Opportunity | null {
 }
 
 export function getOpportunityValidationError(input: OpportunityInput): string | null {
-  if (!input.clientId.trim()) return 'Seleccioná un cliente para la oportunidad.';
-  if (!input.name.trim()) return 'Ingresá el nombre de la oportunidad.';
+  if (!input.clientId.trim()) return 'Seleccioná un contacto para la obra o trabajo.';
+  if (!input.name.trim()) return 'Ingresá el nombre de la obra o trabajo.';
   if (input.estimatedStartDate && !isValidDate(input.estimatedStartDate))
     return 'Ingresá una fecha estimada válida.';
   if (input.nextAction && !isNextAction(input.nextAction))

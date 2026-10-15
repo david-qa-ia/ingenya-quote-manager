@@ -1,11 +1,11 @@
 import type { CommercialMetrics } from '../types/commercialMetrics';
 const labels = {
-  opportunitiesCreated: 'Oportunidades creadas',
+  opportunitiesCreated: 'Obras o trabajos creados',
   quotesSent: 'Presupuestos enviados',
   quotesAccepted: 'Presupuestos aceptados',
   quotesRejected: 'Presupuestos rechazados',
-  opportunitiesLost: 'Oportunidades perdidas',
-  opportunitiesReopened: 'Oportunidades reabiertas',
+  opportunitiesLost: 'Obras o trabajos perdidos',
+  opportunitiesReopened: 'Obras o trabajos reabiertos',
   followUpsCompleted: 'Seguimientos completados',
   followUpsOverdue: 'Seguimientos vencidos',
   followUpsRescheduled: 'Seguimientos reprogramados',

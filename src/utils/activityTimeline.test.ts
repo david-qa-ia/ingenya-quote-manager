@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Activity } from '../types/activity';
-import { getTimelineActivities } from './activityTimeline';
+import { getTimelineActivities, getTimelineActivitiesForSubjects } from './activityTimeline';
 
 const activities: Activity[] = [
   {
@@ -55,5 +55,19 @@ describe('activity timeline', () => {
         (item) => item.id,
       ),
     ).toEqual(['a']);
+  });
+
+  it('combines quote, client and opportunity activities in one chronological timeline', () => {
+    expect(
+      getTimelineActivitiesForSubjects(
+        activities,
+        [
+          { kind: 'quote', quoteId: 'quote' },
+          { kind: 'client', clientId: 'client' },
+          { kind: 'opportunity', opportunityId: 'opportunity' },
+        ],
+        'all',
+      ).map((item) => item.id),
+    ).toEqual(['c', 'b', 'a']);
   });
 });

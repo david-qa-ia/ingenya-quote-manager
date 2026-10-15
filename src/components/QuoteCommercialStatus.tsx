@@ -52,10 +52,9 @@ export function QuoteCommercialStatus({
   }
 
   return (
-    <section className="summary-panel" aria-label="Estado comercial">
+    <section className="commercial-follow-up-status" aria-labelledby="commercial-status-title">
       <div className="summary-panel-heading">
-        <p className="eyebrow">Seguimiento comercial</p>
-        <h2>Estado comercial</h2>
+        <h3 id="commercial-status-title">Estado comercial</h3>
       </div>
       <p>
         <span className={`status-badge commercial-status-badge status-badge-${commercialStatus}`}>
@@ -102,7 +101,7 @@ export function QuoteCommercialStatus({
       ) : (
         <p className="commercial-note">
           {hasOpportunity && ['sent', 'followingUp'].includes(commercialStatus)
-            ? 'Registrá aceptación o rechazo desde Resultado comercial para conservar el historial de la oportunidad.'
+            ? 'Registrá aceptación o rechazo desde Resultado comercial para conservar el historial de la obra o trabajo.'
             : 'Este estado está cerrado. La reapertura se resolverá en una operación posterior auditada.'}
         </p>
       )}

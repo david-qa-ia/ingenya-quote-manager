@@ -9,7 +9,7 @@ export function MetricsTrend({ metrics }: { metrics: CommercialMetrics }) {
         <div className="table-scroll">
           <table>
             <caption className="visually-hidden">
-              Evolución diaria de oportunidades y presupuestos
+              Evolución diaria de obras o trabajos y presupuestos
             </caption>
             <thead>
               <tr>

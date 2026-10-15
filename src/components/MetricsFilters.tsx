@@ -124,7 +124,7 @@ export function MetricsFilters({
         </select>
       </label>
       <label className="field">
-        <span>Oportunidad</span>
+        <span>Obra o trabajo</span>
         <select
           value={filters.opportunityId}
           onChange={(event) => set('opportunityId', event.target.value)}

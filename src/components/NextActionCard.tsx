@@ -255,7 +255,7 @@ function CreateAction({ opportunity, onSave }: Props) {
       <p className={opportunity.noNextActionException ? 'commercial-note' : 'commercial-warning'}>
         {opportunity.noNextActionException
           ? `Excepción justificada: ${opportunity.noNextActionException.reason}`
-          : 'Esta oportunidad activa no tiene próxima acción.'}
+          : 'Esta obra o trabajo activa no tiene próxima acción.'}
       </p>
       <button className="button button-line" type="button" onClick={() => setOpen(true)}>
         Programar acción
