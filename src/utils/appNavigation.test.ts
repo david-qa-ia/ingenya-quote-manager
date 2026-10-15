@@ -23,6 +23,7 @@ describe('resolveActiveNavigationSection', () => {
   it('identifies saved quotes and catalog sections', () => {
     expect(resolveActiveNavigationSection('savedQuotes')).toBe('savedQuotes');
     expect(resolveActiveNavigationSection('catalog')).toBe('catalog');
+    expect(resolveActiveNavigationSection('metrics')).toBe('metrics');
   });
 });
 

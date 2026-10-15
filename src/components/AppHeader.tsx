@@ -10,6 +10,7 @@ interface AppHeaderProps {
   onShowCatalog: () => void;
   onShowNextActions: () => void;
   onShowCadences: () => void;
+  onShowMetrics: () => void;
 }
 
 const focusableSelector = 'button:not([disabled]), a[href]';
@@ -21,6 +22,7 @@ export function AppHeader({
   onShowCatalog,
   onShowNextActions,
   onShowCadences,
+  onShowMetrics,
 }: AppHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -150,6 +152,14 @@ export function AppHeader({
             aria-modal={isMenuOpen ? 'true' : undefined}
             role={isMenuOpen ? 'dialog' : undefined}
           >
+            <button
+              className="navigation-link"
+              type="button"
+              aria-current={activeSection === 'metrics' ? 'page' : undefined}
+              onClick={() => navigate(onShowMetrics)}
+            >
+              Métricas
+            </button>
             <button
               className="navigation-link"
               type="button"
