@@ -12,9 +12,11 @@ import { recordCadenceActivity } from '../utils/activityStorage';
 export function CadencePanel({
   opportunity,
   onChange,
+  onPrepareContact,
 }: {
   opportunity: Opportunity;
   onChange: () => void;
+  onPrepareContact?: (channel: 'call' | 'whatsapp') => void;
 }) {
   const [actor, setActor] = useState('');
   const [reason, setReason] = useState('');
@@ -126,6 +128,20 @@ export function CadencePanel({
             <input value={reason} onChange={(event) => setReason(event.target.value)} />
           </label>
           <div className="commercial-actions">
+            {(execution.stepExecutions.at(-1)?.channel === 'call' ||
+              execution.stepExecutions.at(-1)?.channel === 'whatsapp') && (
+              <button
+                className="button button-line"
+                type="button"
+                onClick={() =>
+                  onPrepareContact?.(
+                    execution.stepExecutions.at(-1)!.channel as 'call' | 'whatsapp',
+                  )
+                }
+              >
+                Preparar contacto
+              </button>
+            )}
             <button
               className="button button-line"
               type="button"

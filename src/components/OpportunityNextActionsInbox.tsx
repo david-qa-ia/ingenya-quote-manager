@@ -20,6 +20,7 @@ interface Props {
   activities: readonly Activity[];
   issues: readonly string[];
   onOpen: (item: FollowUpInboxItem) => void;
+  onPrepareContact: (item: FollowUpInboxItem) => void;
   onAction: (item: FollowUpInboxItem, event: InboxActionEvent, input: InboxActionInput) => boolean;
 }
 export type InboxActionEvent = 'completed' | 'rescheduled' | 'cancelled' | 'notRelevant';
@@ -53,6 +54,7 @@ export function OpportunityNextActionsInbox({
   activities,
   issues,
   onOpen,
+  onPrepareContact,
   onAction,
 }: Props) {
   const [filters, setFilters] = useState<FollowUpFilters>(defaultFollowUpFilters);
@@ -283,6 +285,15 @@ export function OpportunityNextActionsInbox({
                       </button>
                       {item.action && !item.contactRestricted && (
                         <>
+                          {(item.channel === 'call' || item.channel === 'whatsapp') && (
+                            <button
+                              className="button button-line"
+                              type="button"
+                              onClick={() => onPrepareContact(item)}
+                            >
+                              Preparar contacto
+                            </button>
+                          )}
                           <button
                             className="button button-line"
                             type="button"

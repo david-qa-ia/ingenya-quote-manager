@@ -14,6 +14,8 @@ import {
   saveActivityAuthor,
 } from '../utils/activityStorage';
 import { getTimelineActivities, type ActivityFilter } from '../utils/activityTimeline';
+import type { ContactContext } from '../utils/contactAssistant';
+import { ContactAssistant } from './ContactAssistant';
 
 const typeLabels: Record<ActivityType, string> = {
   call: 'Llamada',
@@ -35,6 +37,7 @@ interface Props {
   subject: ActivitySubject;
   title: string;
   showAuthor?: boolean;
+  contactContext?: ContactContext;
 }
 
 function toLocalDateTime(isoDate: string): string {
@@ -43,7 +46,7 @@ function toLocalDateTime(isoDate: string): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
-export function ActivityTimeline({ subject, title, showAuthor = true }: Props) {
+export function ActivityTimeline({ subject, title, showAuthor = true, contactContext }: Props) {
   const [activities, setActivities] = useState(() => loadActivities().items);
   const [filter, setFilter] = useState<ActivityFilter>('all');
   const [author, setAuthor] = useState(loadActivityAuthor);
@@ -58,6 +61,7 @@ export function ActivityTimeline({ subject, title, showAuthor = true }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedNote, setEditedNote] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [contactChannel, setContactChannel] = useState<'call' | 'whatsapp' | null>(null);
   const visibleActivities = useMemo(
     () => getTimelineActivities(activities, subject, filter),
     [activities, filter, subject],
@@ -172,6 +176,24 @@ export function ActivityTimeline({ subject, title, showAuthor = true }: Props) {
       >
         {isFormOpen ? 'Cancelar actividad' : 'Registrar actividad'}
       </button>
+      {contactContext && (
+        <div className="commercial-actions">
+          <button
+            className="button button-line"
+            type="button"
+            onClick={() => setContactChannel('call')}
+          >
+            Preparar llamada
+          </button>
+          <button
+            className="button button-line"
+            type="button"
+            onClick={() => setContactChannel('whatsapp')}
+          >
+            Preparar WhatsApp
+          </button>
+        </div>
+      )}
       {isFormOpen && (
         <form className="commercial-form" onSubmit={submit} noValidate>
           <label className="field">
@@ -314,6 +336,15 @@ export function ActivityTimeline({ subject, title, showAuthor = true }: Props) {
       </ol>
       {visibleActivities.length === 0 && (
         <p className="commercial-note">Todavía no hay actividades para este contexto.</p>
+      )}
+      {contactChannel && contactContext && (
+        <ContactAssistant
+          context={contactContext}
+          subject={subject}
+          initialChannel={contactChannel}
+          onClose={() => setContactChannel(null)}
+          onRecorded={refresh}
+        />
       )}
     </section>
   );

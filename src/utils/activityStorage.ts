@@ -6,6 +6,7 @@ import type {
   AutomaticActivityEvent,
   CallResult,
 } from '../types/activity';
+import type { ContactCommunicationSnapshot, WhatsAppResult } from '../types/contactScript';
 import { hasRecordId, loadCollection, readCollection } from './localCollectionStorage';
 
 export const ACTIVITIES_STORAGE_KEY = 'ingenya.activities.v1';
@@ -22,6 +23,14 @@ const callResults: CallResult[] = [
   'callBack',
   'notInterested',
   'invalidNumber',
+];
+const whatsappResults: WhatsAppResult[] = [
+  'messagePrepared',
+  'messageCopied',
+  'responseReceived',
+  'noResponse',
+  'invalidNumber',
+  'notInterested',
 ];
 const automaticEvents: AutomaticActivityEvent[] = [
   'created',
@@ -59,13 +68,37 @@ function isNoteRevision(value: unknown): value is ActivityNoteRevision {
     typeof revision.note === 'string'
   );
 }
+function isCommunication(value: unknown): value is ContactCommunicationSnapshot {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const item = value as Record<string, unknown>;
+  const origin = item.origin as Record<string, unknown> | undefined;
+  return (
+    (item.channel === 'call' || item.channel === 'whatsapp') &&
+    typeof item.preparedContent === 'string' &&
+    typeof item.finalContent === 'string' &&
+    (item.copyState === 'copied' || item.copyState === 'notCopied') &&
+    (item.templateId === undefined || isNonEmptyString(item.templateId)) &&
+    (item.templateName === undefined || isNonEmptyString(item.templateName)) &&
+    (item.templateVersion === undefined ||
+      (Number.isInteger(item.templateVersion) && (item.templateVersion as number) > 0)) &&
+    !!origin &&
+    (origin.kind === 'manual' ||
+      (origin.kind === 'cadence' &&
+        isNonEmptyString(origin.cadenceExecutionId) &&
+        isNonEmptyString(origin.stepExecutionId) &&
+        isNonEmptyString(origin.templateStepId)))
+  );
+}
 
 export function isActivity(value: unknown): value is Activity {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const activity = value as Record<string, unknown>;
   const hasValidResult =
     isNonEmptyString(activity.result) &&
-    (activity.type !== 'call' || callResults.includes(activity.result as CallResult));
+    (activity.type !== 'call' || callResults.includes(activity.result as CallResult)) &&
+    (activity.type !== 'whatsapp' ||
+      activity.communication === undefined ||
+      whatsappResults.includes(activity.result as WhatsAppResult));
   return (
     isNonEmptyString(activity.id) &&
     typeof activity.type === 'string' &&
@@ -80,7 +113,8 @@ export function isActivity(value: unknown): value is Activity {
       (typeof activity.event === 'string' &&
         automaticEvents.includes(activity.event as AutomaticActivityEvent))) &&
     Array.isArray(activity.noteRevisions) &&
-    activity.noteRevisions.every(isNoteRevision)
+    activity.noteRevisions.every(isNoteRevision) &&
+    (activity.communication === undefined || isCommunication(activity.communication))
   );
 }
 

@@ -96,4 +96,24 @@ describe('activity storage', () => {
     ).toBe(true);
     expect(loadActivities().items).toHaveLength(1);
   });
+  it('preserves the communication snapshot with its final content', () => {
+    const communicated: Activity = {
+      ...activity,
+      id: 'communication-1',
+      type: 'whatsapp',
+      result: 'messageCopied',
+      communication: {
+        channel: 'whatsapp',
+        templateId: 'script',
+        templateVersion: 2,
+        templateName: 'Seguimiento',
+        preparedContent: 'Hola Ana',
+        finalContent: 'Hola Ana, ¿cómo estás?',
+        copyState: 'copied',
+        origin: { kind: 'manual' },
+      },
+    };
+    expect(saveActivity(communicated)).toBe(true);
+    expect(loadActivities().items[0].communication?.finalContent).toBe('Hola Ana, ¿cómo estás?');
+  });
 });

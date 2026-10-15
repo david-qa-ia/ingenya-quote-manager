@@ -78,6 +78,7 @@ export function canContactClient(
 ): boolean {
   return (
     client.contactConsent &&
+    !client.doNotContact &&
     getClientValidationError(client) === null &&
     (channel === 'email' ? !isPendingEmail(client.email) : !isPendingPhone(client.phone))
   );

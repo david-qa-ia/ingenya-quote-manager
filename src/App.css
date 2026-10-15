@@ -974,6 +974,40 @@ td small {
   color: var(--text-heading);
   font-size: 1.4rem;
 }
+.contact-assistant {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+.contact-tabs {
+  display: flex;
+  gap: 8px;
+}
+.contact-tabs .button[aria-selected='true'] {
+  color: white;
+  background: var(--accent-dark);
+}
+.contact-context {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface-subtle);
+}
+.contact-assistant textarea {
+  resize: vertical;
+}
+@media (max-width: 640px) {
+  .modal-backdrop {
+    padding: 12px;
+  }
+  .contact-tabs .button,
+  .contact-assistant .confirmation-actions .button {
+    min-height: 44px;
+  }
+  .contact-assistant .confirmation-actions {
+    flex-direction: column;
+  }
+}
 .confirmation-modal p {
   margin: 14px 0 24px;
   color: var(--text-muted);

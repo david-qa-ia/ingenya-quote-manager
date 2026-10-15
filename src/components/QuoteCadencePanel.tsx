@@ -7,7 +7,13 @@ import {
 } from '../utils/cadenceStorage';
 import { setCadencePaused, startCadence, updateCadenceAction } from '../utils/cadenceTransitions';
 
-export function QuoteCadencePanel({ quote }: { quote: Quote }) {
+export function QuoteCadencePanel({
+  quote,
+  onPrepareContact,
+}: {
+  quote: Quote;
+  onPrepareContact?: (channel: 'call' | 'whatsapp') => void;
+}) {
   const [actor, setActor] = useState('');
   const [reason, setReason] = useState('');
   const [message, setMessage] = useState('');
@@ -74,6 +80,20 @@ export function QuoteCadencePanel({ quote }: { quote: Quote }) {
             <input value={reason} onChange={(event) => setReason(event.target.value)} />
           </label>
           <div className="commercial-actions">
+            {(execution.stepExecutions.at(-1)?.channel === 'call' ||
+              execution.stepExecutions.at(-1)?.channel === 'whatsapp') && (
+              <button
+                className="button button-line"
+                type="button"
+                onClick={() =>
+                  onPrepareContact?.(
+                    execution.stepExecutions.at(-1)!.channel as 'call' | 'whatsapp',
+                  )
+                }
+              >
+                Preparar contacto
+              </button>
+            )}
             <button
               className="button button-line"
               type="button"

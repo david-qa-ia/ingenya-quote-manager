@@ -1,3 +1,5 @@
+import type { ContactCommunicationSnapshot, WhatsAppResult } from './contactScript';
+
 export type ActivityType = 'call' | 'whatsapp' | 'email' | 'note' | 'relevantChange';
 
 export type CallResult =
@@ -33,7 +35,10 @@ export interface Activity {
   source: 'manual' | 'automatic';
   event?: AutomaticActivityEvent;
   noteRevisions: ActivityNoteRevision[];
+  communication?: ContactCommunicationSnapshot;
 }
+
+export type CommunicationResult = CallResult | WhatsAppResult;
 
 export interface ActivityInput {
   type: ActivityType;
