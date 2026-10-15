@@ -641,7 +641,7 @@ function App() {
       if (['accepted', 'rejected', 'expired'].includes(nextStatus)) {
         const cadenceCancelled = cancelCadencesForCommercialClose(
           quote.id,
-          quote.opportunityId,
+          undefined,
           audit.changedBy,
           `Presupuesto ${commercialStatusLabels[nextStatus].toLowerCase()}.`,
           audit.changedAt,
@@ -1347,6 +1347,7 @@ function App() {
                     savedQuotes={savedQuotes}
                     onAssociate={handleAssociation}
                     onEntitiesChange={() => setOpportunities(loadOpportunities().items)}
+                    onQuoteResult={handleCommercialStatusChange}
                   />
                 }
                 activities={<QuoteActivityPanel quote={getCurrentQuote()} />}
@@ -1356,6 +1357,7 @@ function App() {
                     commercialStatus={commercialStatus}
                     commercialStatusAudit={commercialStatusAudit}
                     sentAudit={sentAudit}
+                    hasOpportunity={Boolean(opportunityId)}
                     onChange={handleCommercialStatusChange}
                   />
                 }

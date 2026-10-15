@@ -2,6 +2,7 @@ import type { CadenceExecution, CadenceTemplate } from '../types/cadence';
 import { loadCollection, saveCollectionItem } from './localCollectionStorage';
 import { updateCadenceAction } from './cadenceTransitions';
 import { loadOpportunities, saveOpportunity } from './opportunityStorage';
+import { recordCadenceActivity } from './activityStorage';
 
 export const CADENCE_TEMPLATES_STORAGE_KEY = 'ingenya.cadenceTemplates.v1';
 export const CADENCE_EXECUTIONS_STORAGE_KEY = 'ingenya.cadenceExecutions.v1';
@@ -156,7 +157,7 @@ export function cancelCadencesForCommercialClose(
 ): boolean {
   const matching = loadCadenceExecutions().items.filter(
     (item) =>
-      item.status === 'active' &&
+      (item.status === 'active' || item.status === 'paused') &&
       ((item.target.kind === 'sentQuote' && item.target.quoteId === quoteId) ||
         (opportunityId &&
           item.target.kind === 'opportunity' &&
@@ -166,6 +167,11 @@ export function cancelCadencesForCommercialClose(
     try {
       const cancelled = updateCadenceAction(execution, 'cancelled', actor, reason, now);
       if (!saveCadenceExecution(cancelled)) return false;
+      const subject =
+        cancelled.target.kind === 'opportunity'
+          ? { kind: 'opportunity' as const, opportunityId: cancelled.target.opportunityId }
+          : { kind: 'quote' as const, quoteId: cancelled.target.quoteId };
+      if (!recordCadenceActivity(subject, `${cancelled.id}:commercial-close`, reason)) return false;
       if (cancelled.target.kind === 'opportunity') {
         const targetOpportunityId = cancelled.target.opportunityId;
         const opportunity = loadOpportunities().items.find(

@@ -2,11 +2,16 @@ import { useState } from 'react';
 import type { Client, ClientInput } from '../types/client';
 import type { Opportunity, OpportunityInput } from '../types/opportunity';
 import type { Quote, SavedQuote } from '../types/quote';
+import type { CommercialOutcome } from '../types/commercialOutcome';
 import { commercialStatusLabels } from '../utils/quoteCommercialStatus';
 import { loadClients, saveClient } from '../utils/clientStorage';
 import { loadOpportunities, saveOpportunity } from '../utils/opportunityStorage';
 import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
-import { recordAutomaticActivity, recordNextActionActivity } from '../utils/activityStorage';
+import {
+  recordAutomaticActivity,
+  recordCommercialOutcomeActivity,
+  recordNextActionActivity,
+} from '../utils/activityStorage';
 import { ClientForm } from './ClientForm';
 import { OpportunityForm } from './OpportunityForm';
 import { NextActionCard } from './NextActionCard';
@@ -15,14 +20,25 @@ import { QuoteCadencePanel } from './QuoteCadencePanel';
 import { ContactAssistant } from './ContactAssistant';
 import { ContactScriptsPanel } from './ContactScriptsPanel';
 import { transitionNextAction } from '../utils/opportunityNextAction';
-import { loadCadenceExecutions, saveCadenceExecution } from '../utils/cadenceStorage';
+import {
+  cancelCadencesForCommercialClose,
+  loadCadenceExecutions,
+  saveCadenceExecution,
+} from '../utils/cadenceStorage';
 import { completeCadenceAction, updateCadenceAction } from '../utils/cadenceTransitions';
+import { appendCommercialOutcome } from '../utils/commercialOutcomeStorage';
+import { applyCommercialOutcome, commercialOutcomeLabels } from '../utils/commercialOutcome';
+import { CommercialOutcomePanel } from './CommercialOutcomePanel';
 
 interface Props {
   quote: Quote;
   savedQuotes: readonly SavedQuote[];
   onAssociate: (client: Client | undefined, opportunity: Opportunity | undefined) => void;
   onEntitiesChange: () => void;
+  onQuoteResult: (
+    status: 'accepted' | 'rejected',
+    audit: Quote['commercialStatusAudit'],
+  ) => string | null;
 }
 
 export function QuoteCommercialContext({
@@ -30,6 +46,7 @@ export function QuoteCommercialContext({
   savedQuotes,
   onAssociate,
   onEntitiesChange,
+  onQuoteResult,
 }: Props) {
   const [clientLoad, setClientLoad] = useState(loadClients);
   const [opportunityLoad, setOpportunityLoad] = useState(loadOpportunities);
@@ -195,6 +212,73 @@ export function QuoteCommercialContext({
     refresh();
     return true;
   }
+  function recordCommercialOutcome(outcome: CommercialOutcome, closeAsWon: boolean): string | null {
+    if (!opportunity) return 'Seleccioná una oportunidad antes de registrar el resultado.';
+    if (!appendCommercialOutcome(outcome))
+      return 'No se pudo guardar el resultado. No se modificó la oportunidad.';
+    const reason = outcome.note?.trim() || commercialOutcomeLabels[outcome.type];
+    if (outcome.type === 'accepted' || outcome.type === 'rejected') {
+      const quoteError = onQuoteResult(outcome.type, {
+        changedAt: outcome.occurredAt,
+        changedBy: outcome.author,
+        reason,
+      });
+      if (quoteError) return `El resultado se conservó, pero ${quoteError}`;
+    }
+    let next =
+      outcome.type === 'lost' ||
+      outcome.type === 'reopened' ||
+      (outcome.type === 'accepted' && closeAsWon)
+        ? applyCommercialOutcome(opportunity, outcome)
+        : {
+            ...opportunity,
+            currentCommercialOutcomeId: outcome.id,
+            updatedAt: outcome.occurredAt,
+          };
+    if (
+      (outcome.type === 'lost' || (outcome.type === 'accepted' && closeAsWon)) &&
+      next.nextAction?.status === 'pending'
+    ) {
+      next = transitionNextAction(next, 'cancelled', outcome.author, reason, outcome.occurredAt);
+      if (
+        !recordNextActionActivity(
+          next.id,
+          next.nextAction!.id,
+          'cancelled',
+          'Acción cancelada por cierre comercial.',
+        )
+      )
+        return 'El resultado se conservó, pero no se pudo registrar la cancelación de la acción.';
+    }
+    if (!saveOpportunity(next))
+      return 'El resultado se conservó, pero no se pudo actualizar la oportunidad.';
+    if (outcome.type === 'lost' || (outcome.type === 'accepted' && closeAsWon)) {
+      const quoteIds =
+        outcome.type === 'lost' ? opportunityQuotes.map((item) => item.id) : [quote.id];
+      if (
+        !quoteIds.every((id) =>
+          cancelCadencesForCommercialClose(
+            id,
+            opportunity.id,
+            outcome.author,
+            reason,
+            outcome.occurredAt,
+          ),
+        )
+      )
+        return 'El resultado se conservó, pero no se pudieron cancelar todas las cadencias.';
+    }
+    if (
+      !recordCommercialOutcomeActivity(
+        opportunity.id,
+        outcome.id,
+        commercialOutcomeLabels[outcome.type],
+      )
+    )
+      return 'El resultado se guardó, pero no se pudo registrar su actividad.';
+    refresh();
+    return null;
+  }
   return (
     <section className="summary-panel commercial-context" aria-label="Cliente y oportunidad">
       <div className="summary-panel-heading">
@@ -353,6 +437,14 @@ export function QuoteCommercialContext({
           <dd>{opportunity?.responsibleSeller || 'Sin asignar'}</dd>
         </div>
       </dl>
+      {opportunity && (
+        <CommercialOutcomePanel
+          opportunity={opportunity}
+          quote={quote}
+          savedQuotes={savedQuotes}
+          onRecord={recordCommercialOutcome}
+        />
+      )}
       {opportunity && (
         <NextActionCard
           opportunity={opportunity}

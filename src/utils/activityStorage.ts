@@ -39,6 +39,7 @@ const automaticEvents: AutomaticActivityEvent[] = [
   'commercialStatusChanged',
   'nextActionChanged',
   'cadenceChanged',
+  'commercialOutcomeChanged',
 ];
 
 function isNonEmptyString(value: unknown): value is string {
@@ -153,6 +154,32 @@ export function recordAutomaticActivity(
     event,
     noteRevisions: [],
   });
+}
+
+export function recordCommercialOutcomeActivity(
+  opportunityId: string,
+  outcomeId: string,
+  note: string,
+): boolean {
+  const id = `commercial-outcome:${outcomeId}`;
+  try {
+    const records = readCollection(ACTIVITIES_STORAGE_KEY);
+    if (records.some((record) => hasRecordId(record, id))) return true;
+    return saveActivity({
+      id,
+      type: 'relevantChange',
+      occurredAt: new Date().toISOString(),
+      author: 'Sistema local',
+      result: 'Resultado comercial registrado',
+      note,
+      subject: { kind: 'opportunity', opportunityId },
+      source: 'automatic',
+      event: 'commercialOutcomeChanged',
+      noteRevisions: [],
+    });
+  } catch {
+    return false;
+  }
 }
 
 export function recordNextActionActivity(

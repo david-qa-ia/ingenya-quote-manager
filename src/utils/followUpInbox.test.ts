@@ -70,6 +70,16 @@ describe('follow-up inbox', () => {
     expect(
       deriveFollowUpInbox([{ ...opportunity, status: 'closed' }], [client], [], [], [], new Date()),
     ).toEqual([]);
+    expect(
+      deriveFollowUpInbox(
+        [{ ...opportunity, commercialState: 'lost' }],
+        [client],
+        [],
+        [],
+        [],
+        new Date(),
+      ),
+    ).toEqual([]);
   });
   it('explains priority and supports combined filters and stable sorting', () => {
     const priority = calculateFollowUpPriority(

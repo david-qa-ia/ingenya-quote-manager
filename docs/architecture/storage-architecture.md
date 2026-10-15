@@ -212,3 +212,20 @@ are shown as unavailable context rather than being removed.
 `ingenya.activityAuthor.v1` stores the locally configured current author. It is a browser-local
 preference, not a user account or authorization system. A note revision is accepted only when its
 author matches the original manual activity author; every prior revision remains persisted.
+
+## SCRUM-53 Compatible Extension
+
+`ingenya.commercialOutcomes.v1` is an append-only collection of commercial outcome records.
+Each record has an ID, result type, optional typed reason and note, timestamp, author, origin,
+opportunity reference, optional quote reference and optional reference to the result it corrects.
+Results are never edited or deleted; corrections and reopenings are new records.
+
+Opportunities retain only `commercialState` (`open`, `won` or `lost`) and
+`currentCommercialOutcomeId`. Reason, author, note and timestamp remain in the outcome collection.
+Legacy opportunities recover as `open`; the pre-existing operational `status` is preserved and is
+not mapped automatically.
+
+Commercial outcomes may update only commercial metadata of a finalized quote through the existing
+dedicated operation. They never change quote lines, prices, totals, document snapshots,
+associations or document status. Closing a won opportunity or marking one lost cancels associated
+active and paused cadences and pending actions; every cancellation records an automatic activity.

@@ -10,6 +10,7 @@ interface Props {
   commercialStatus: CommercialStatus;
   commercialStatusAudit: CommercialStatusAudit;
   sentAudit?: CommercialStatusAudit;
+  hasOpportunity?: boolean;
   onChange: (status: CommercialStatus, audit: CommercialStatusAudit) => string | null;
 }
 
@@ -18,13 +19,16 @@ export function QuoteCommercialStatus({
   commercialStatus,
   commercialStatusAudit,
   sentAudit,
+  hasOpportunity = false,
   onChange,
 }: Props) {
   const [target, setTarget] = useState<CommercialStatus | null>(null);
   const [changedBy, setChangedBy] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
-  const targets = getCommercialTransitionTargets(commercialStatus, documentStatus);
+  const targets = getCommercialTransitionTargets(commercialStatus, documentStatus).filter(
+    (status) => !hasOpportunity || !['accepted', 'rejected'].includes(status),
+  );
 
   function close() {
     setTarget(null);
@@ -97,7 +101,9 @@ export function QuoteCommercialStatus({
         </div>
       ) : (
         <p className="commercial-note">
-          Este estado está cerrado. La reapertura se resolverá en una operación posterior auditada.
+          {hasOpportunity && ['sent', 'followingUp'].includes(commercialStatus)
+            ? 'Registrá aceptación o rechazo desde Resultado comercial para conservar el historial de la oportunidad.'
+            : 'Este estado está cerrado. La reapertura se resolverá en una operación posterior auditada.'}
         </p>
       )}
       {target && (
