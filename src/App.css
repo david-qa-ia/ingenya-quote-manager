@@ -1514,6 +1514,57 @@ td small {
 .activity-list small {
   color: var(--text-muted);
 }
+.follow-up-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.follow-up-summary-card {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text-heading);
+  background: var(--surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.follow-up-summary-card:focus-visible {
+  outline: 3px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+.follow-up-summary-card strong {
+  font-size: 1.5rem;
+}
+.follow-up-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.follow-up-item {
+  grid-template-columns: minmax(0, 1fr);
+}
+.follow-up-item .button {
+  width: fit-content;
+  min-height: 40px;
+}
+@media (max-width: 640px) {
+  .follow-up-summary,
+  .follow-up-tools {
+    grid-template-columns: 1fr;
+  }
+  .follow-up-summary-card {
+    min-height: 56px;
+  }
+  .follow-up-item .button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
 @media (max-width: 640px) {
   .quote-sidebar-tab-list {
     justify-content: flex-start;

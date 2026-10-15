@@ -5,9 +5,12 @@ import { QuoteCommercialStatus } from './components/QuoteCommercialStatus';
 import { QuoteActivityPanel } from './components/QuoteActivityPanel';
 import { QuoteSidebar } from './components/QuoteSidebar';
 import type { Client } from './types/client';
+import type { FollowUpInboxItem } from './types/followUpInbox';
 import type { Opportunity } from './types/opportunity';
+import { loadClients } from './utils/clientStorage';
 import { associateQuote } from './utils/quoteAssociations';
 import { loadOpportunities } from './utils/opportunityStorage';
+import { saveOpportunity } from './utils/opportunityStorage';
 import { AppHeader } from './components/AppHeader';
 import { LaborCatalogView } from './components/LaborCatalogView';
 import { workUnitLabels, workUnitSymbols } from './data/workUnits';
@@ -51,10 +54,25 @@ import {
 import { createCatalogQuoteLine } from './utils/quoteLineFactory';
 import { addQuickService } from './utils/quickServiceAddition';
 import { resolveActiveNavigationSection, type AppView } from './utils/appNavigation';
-import { recordAutomaticActivity } from './utils/activityStorage';
-import { OpportunityNextActionsInbox } from './components/OpportunityNextActionsInbox';
+import {
+  loadActivities,
+  recordAutomaticActivity,
+  recordCadenceActivity,
+  recordNextActionActivity,
+} from './utils/activityStorage';
+import {
+  OpportunityNextActionsInbox,
+  type InboxActionEvent,
+  type InboxActionInput,
+} from './components/OpportunityNextActionsInbox';
 import { CadenceView } from './components/CadenceView';
-import { cancelCadencesForCommercialClose } from './utils/cadenceStorage';
+import {
+  cancelCadencesForCommercialClose,
+  loadCadenceExecutions,
+  saveCadenceExecution,
+} from './utils/cadenceStorage';
+import { transitionNextAction } from './utils/opportunityNextAction';
+import { completeCadenceAction, updateCadenceAction } from './utils/cadenceTransitions';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -466,6 +484,101 @@ function App() {
     setCurrentView(savedQuote.status === 'draft' ? 'editor' : 'summary');
   }
 
+  function handleFollowUpOpen(item: FollowUpInboxItem) {
+    const target = item.quoteId
+      ? savedQuotes.find((quote) => quote.id === item.quoteId)
+      : savedQuotes.find((quote) => quote.opportunityId === item.opportunityId);
+    if (target) {
+      handleSavedQuoteOpen(target);
+      return;
+    }
+    setSaveFeedback({
+      type: 'error',
+      message:
+        'No hay un presupuesto asociado para abrir este contexto. La oportunidad sigue disponible en el seguimiento.',
+    });
+  }
+
+  function handleFollowUpAction(
+    item: FollowUpInboxItem,
+    event: InboxActionEvent,
+    input: InboxActionInput,
+  ): boolean {
+    const now = new Date().toISOString();
+    try {
+      if (item.cadenceStep) {
+        const execution = loadCadenceExecutions().items.find(
+          (value) => value.id === item.cadenceStep?.executionId,
+        );
+        if (!execution || event === 'notRelevant') return false;
+        const updated =
+          event === 'completed'
+            ? completeCadenceAction(execution, input.actor, input.result, now)
+            : updateCadenceAction(
+                execution,
+                event === 'rescheduled' ? 'rescheduled' : 'cancelled',
+                input.actor,
+                input.reason,
+                now,
+                event === 'rescheduled' ? input.dueAt : undefined,
+              );
+        if (!saveCadenceExecution(updated)) return false;
+        if (execution.target.kind === 'opportunity') {
+          const targetOpportunityId = execution.target.opportunityId;
+          const opportunity = loadOpportunities().items.find(
+            (value) => value.id === targetOpportunityId,
+          );
+          const action = updated.stepExecutions.find(
+            (step) => step.id === updated.currentStepExecutionId,
+          )?.nextAction;
+          if (
+            opportunity &&
+            !saveOpportunity({ ...opportunity, nextAction: action, updatedAt: now })
+          )
+            return false;
+        }
+        recordCadenceActivity(
+          execution.target.kind === 'opportunity'
+            ? { kind: 'opportunity', opportunityId: execution.target.opportunityId }
+            : { kind: 'quote', quoteId: execution.target.quoteId },
+          `${execution.id}:${item.action?.id ?? item.cadenceStep.stepExecutionId}:${event}`,
+          `Cadencia actualizada desde la bandeja.`,
+        );
+        setOpportunities(loadOpportunities().items);
+        return true;
+      }
+      if (!item.opportunityId) return false;
+      const current = loadOpportunities().items.find((value) => value.id === item.opportunityId);
+      if (!current) return false;
+      const next = transitionNextAction(
+        current,
+        event,
+        input.actor,
+        event === 'completed' ? 'Completada desde la bandeja.' : input.reason,
+        now,
+        {
+          dueAt: event === 'rescheduled' ? input.dueAt : undefined,
+          result: event === 'completed' ? input.result : undefined,
+        },
+      );
+      if (
+        !saveOpportunity(next) ||
+        !next.nextAction ||
+        !recordNextActionActivity(
+          current.id,
+          next.nextAction.id,
+          event,
+          `Próxima acción actualizada desde la bandeja.`,
+        )
+      )
+        return false;
+      setOpportunities(loadOpportunities().items);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   function handleDraftSave() {
     const draft = getCurrentQuote();
 
@@ -723,7 +836,20 @@ function App() {
     return (
       <>
         {appHeader}
-        <OpportunityNextActionsInbox opportunities={opportunities} />
+        <OpportunityNextActionsInbox
+          opportunities={opportunities}
+          clients={loadClients().items}
+          quotes={savedQuotes}
+          executions={loadCadenceExecutions().items}
+          activities={loadActivities().items}
+          issues={
+            [loadClients().issue, loadCadenceExecutions().issue, loadActivities().issue].filter(
+              (issue) => issue !== null,
+            ) as string[]
+          }
+          onOpen={handleFollowUpOpen}
+          onAction={handleFollowUpAction}
+        />
       </>
     );
   }
