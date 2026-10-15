@@ -12,6 +12,8 @@ import { OpportunityForm } from './OpportunityForm';
 import { NextActionCard } from './NextActionCard';
 import { CadencePanel } from './CadencePanel';
 import { QuoteCadencePanel } from './QuoteCadencePanel';
+import { ContactAssistant } from './ContactAssistant';
+import { ContactScriptsPanel } from './ContactScriptsPanel';
 import { transitionNextAction } from '../utils/opportunityNextAction';
 import { loadCadenceExecutions, saveCadenceExecution } from '../utils/cadenceStorage';
 import { completeCadenceAction, updateCadenceAction } from '../utils/cadenceTransitions';
@@ -35,6 +37,7 @@ export function QuoteCommercialContext({
     'newClient' | 'editClient' | 'newOpportunity' | 'editOpportunity' | null
   >(null);
   const [feedback, setFeedback] = useState('');
+  const [contactChannel, setContactChannel] = useState<'call' | 'whatsapp' | null>(null);
   const client = clientLoad.items.find((item) => item.id === quote.clientId);
   const opportunity = opportunityLoad.items.find(
     (item) => item.id === quote.opportunityId && item.clientId === client?.id,
@@ -350,9 +353,41 @@ export function QuoteCommercialContext({
           <dd>{opportunity?.responsibleSeller || 'Sin asignar'}</dd>
         </div>
       </dl>
-      {opportunity && <NextActionCard opportunity={opportunity} onSave={persistNextAction} />}
-      {opportunity && <CadencePanel opportunity={opportunity} onChange={refresh} />}
-      {!opportunity && quote.status === 'finalized' && <QuoteCadencePanel quote={quote} />}
+      {opportunity && (
+        <NextActionCard
+          opportunity={opportunity}
+          onSave={persistNextAction}
+          onPrepareContact={setContactChannel}
+        />
+      )}
+      {client && (
+        <div className="commercial-actions">
+          <button
+            className="button button-line"
+            type="button"
+            onClick={() => setContactChannel('call')}
+          >
+            Preparar llamada
+          </button>
+          <button
+            className="button button-line"
+            type="button"
+            onClick={() => setContactChannel('whatsapp')}
+          >
+            Preparar WhatsApp
+          </button>
+        </div>
+      )}
+      {opportunity && (
+        <CadencePanel
+          opportunity={opportunity}
+          onChange={refresh}
+          onPrepareContact={setContactChannel}
+        />
+      )}
+      {!opportunity && quote.status === 'finalized' && (
+        <QuoteCadencePanel quote={quote} onPrepareContact={setContactChannel} />
+      )}
       {opportunityQuotes.length > 0 && (
         <div className="opportunity-quotes">
           <h3>Presupuestos asociados</h3>
@@ -377,6 +412,20 @@ export function QuoteCommercialContext({
         <p className="commercial-note" role="status">
           {feedback}
         </p>
+      )}
+      <ContactScriptsPanel />
+      {contactChannel && (
+        <ContactAssistant
+          context={{ client, opportunity, quote: quote as SavedQuote }}
+          subject={
+            opportunity
+              ? { kind: 'opportunity', opportunityId: opportunity.id }
+              : { kind: 'quote', quoteId: quote.id }
+          }
+          initialChannel={contactChannel}
+          onClose={() => setContactChannel(null)}
+          onRecorded={() => refresh()}
+        />
       )}
     </section>
   );

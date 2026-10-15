@@ -19,6 +19,7 @@ const priorities = { high: 'Alta', medium: 'Media', low: 'Baja' } as const;
 interface Props {
   opportunity: Opportunity;
   onSave: (opportunity: Opportunity, event: string) => boolean;
+  onPrepareContact?: (channel: 'call' | 'whatsapp') => void;
 }
 
 function localValue(iso: string) {
@@ -38,7 +39,7 @@ function inputToIso(value: string) {
   return value ? new Date(`${value}:00-03:00`).toISOString() : '';
 }
 
-export function NextActionCard({ opportunity, onSave }: Props) {
+export function NextActionCard({ opportunity, onSave, onPrepareContact }: Props) {
   const action = opportunity.nextAction;
   const [mode, setMode] = useState<'complete' | 'reschedule' | 'cancel' | 'notRelevant' | null>(
     null,
@@ -101,6 +102,15 @@ export function NextActionCard({ opportunity, onSave }: Props) {
         · {action.description}
       </p>
       <div className="commercial-actions">
+        {(action.type === 'call' || action.type === 'whatsapp') && (
+          <button
+            className="button button-line"
+            type="button"
+            onClick={() => onPrepareContact?.(action.type as 'call' | 'whatsapp')}
+          >
+            Preparar contacto
+          </button>
+        )}
         <button className="button button-line" type="button" onClick={() => setMode('complete')}>
           Completar
         </button>

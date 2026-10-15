@@ -15,12 +15,17 @@ export function QuoteActivityPanel({ quote }: Props) {
 
   return (
     <div className="sidebar-tab-stack">
-      <ActivityTimeline subject={{ kind: 'quote', quoteId: quote.id }} title="Presupuesto" />
+      <ActivityTimeline
+        subject={{ kind: 'quote', quoteId: quote.id }}
+        title="Presupuesto"
+        contactContext={{ client, opportunity, quote }}
+      />
       {client && (
         <ActivityTimeline
           subject={{ kind: 'client', clientId: client.id }}
           title="Cliente"
           showAuthor={false}
+          contactContext={{ client, opportunity, quote }}
         />
       )}
       {opportunity && (
@@ -28,6 +33,7 @@ export function QuoteActivityPanel({ quote }: Props) {
           subject={{ kind: 'opportunity', opportunityId: opportunity.id }}
           title="Oportunidad"
           showAuthor={false}
+          contactContext={{ client, opportunity, quote }}
         />
       )}
     </div>

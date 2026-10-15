@@ -4,6 +4,7 @@ import { QuoteCommercialContext } from './components/QuoteCommercialContext';
 import { QuoteCommercialStatus } from './components/QuoteCommercialStatus';
 import { QuoteActivityPanel } from './components/QuoteActivityPanel';
 import { QuoteSidebar } from './components/QuoteSidebar';
+import { ContactAssistant } from './components/ContactAssistant';
 import type { Client } from './types/client';
 import type { FollowUpInboxItem } from './types/followUpInbox';
 import type { Opportunity } from './types/opportunity';
@@ -111,6 +112,7 @@ function App() {
     message: string;
   } | null>(null);
   const [currentView, setCurrentView] = useState<AppView>('editor');
+  const [inboxContact, setInboxContact] = useState<FollowUpInboxItem | null>(null);
   const [clientId, setClientId] = useState<string | undefined>();
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [opportunities, setOpportunities] = useState(() => loadOpportunities().items);
@@ -848,8 +850,42 @@ function App() {
             ) as string[]
           }
           onOpen={handleFollowUpOpen}
+          onPrepareContact={setInboxContact}
           onAction={handleFollowUpAction}
         />
+        {inboxContact && (
+          <ContactAssistant
+            context={{
+              client: loadClients().items.find((item) => item.id === inboxContact.clientId),
+              opportunity: opportunities.find((item) => item.id === inboxContact.opportunityId),
+              quote: savedQuotes.find((item) => item.id === inboxContact.quoteId),
+            }}
+            subject={
+              inboxContact.opportunityId
+                ? { kind: 'opportunity', opportunityId: inboxContact.opportunityId }
+                : { kind: 'quote', quoteId: inboxContact.quoteId! }
+            }
+            initialChannel={inboxContact.channel as 'call' | 'whatsapp'}
+            restrictedChannel={inboxContact.channel as 'call' | 'whatsapp'}
+            origin={
+              inboxContact.cadenceStep
+                ? {
+                    kind: 'cadence',
+                    cadenceExecutionId: inboxContact.cadenceStep.executionId,
+                    stepExecutionId: inboxContact.cadenceStep.stepExecutionId,
+                    templateStepId:
+                      inboxContact.action?.cadenceOrigin?.templateStepId ??
+                      inboxContact.cadenceStep.stepExecutionId,
+                  }
+                : { kind: 'manual' }
+            }
+            onClose={() => setInboxContact(null)}
+            onRecorded={() => {
+              setInboxContact(null);
+              setOpportunities(loadOpportunities().items);
+            }}
+          />
+        )}
       </>
     );
   }
