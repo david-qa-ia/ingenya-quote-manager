@@ -49,7 +49,8 @@ export function NextActionCard({ opportunity, onSave, onPrepareContact }: Props)
   const [result, setResult] = useState('');
   const [dueAt, setDueAt] = useState(action ? localValue(action.dueAt) : '');
   const [error, setError] = useState('');
-  if (!action) return <CreateAction opportunity={opportunity} onSave={onSave} />;
+  if (!action || action.status !== 'pending')
+    return <CreateAction opportunity={opportunity} onSave={onSave} />;
   const bucket = getActionBucket(action);
   function submit(event: FormEvent) {
     event.preventDefault();

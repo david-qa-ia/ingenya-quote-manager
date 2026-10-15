@@ -16,7 +16,8 @@ export type AutomaticActivityEvent =
   | 'pdfGenerated'
   | 'commercialStatusChanged'
   | 'nextActionChanged'
-  | 'cadenceChanged';
+  | 'cadenceChanged'
+  | 'commercialOutcomeChanged';
 
 export interface ActivityNoteRevision {
   editedAt: string;

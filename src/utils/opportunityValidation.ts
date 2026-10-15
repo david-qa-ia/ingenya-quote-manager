@@ -156,6 +156,15 @@ export function recoverOpportunity(value: unknown): Opportunity | null {
     estimatedStartDate: record.estimatedStartDate as string,
     responsibleSeller: record.responsibleSeller as string,
     status: (record.status as Opportunity['status']) ?? 'active',
+    commercialState:
+      record.commercialState === 'open' ||
+      record.commercialState === 'won' ||
+      record.commercialState === 'lost'
+        ? record.commercialState
+        : 'open',
+    ...(isNonEmpty(record.currentCommercialOutcomeId)
+      ? { currentCommercialOutcomeId: record.currentCommercialOutcomeId }
+      : {}),
     ...(nextAction ? { nextAction } : {}),
     ...(noNextActionException ? { noNextActionException } : {}),
     createdAt: record.createdAt as string,
@@ -184,6 +193,10 @@ export function normalizeOpportunityInput(input: OpportunityInput): OpportunityI
     address: input.address.trim(),
     estimatedStartDate: input.estimatedStartDate,
     responsibleSeller: input.responsibleSeller.trim(),
+    commercialState: input.commercialState ?? 'open',
+    ...(input.currentCommercialOutcomeId
+      ? { currentCommercialOutcomeId: input.currentCommercialOutcomeId }
+      : {}),
     ...(input.nextAction ? { nextAction: structuredClone(input.nextAction) } : {}),
     ...(input.noNextActionException
       ? {

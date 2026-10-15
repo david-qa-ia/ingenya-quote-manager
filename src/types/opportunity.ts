@@ -1,6 +1,7 @@
 export type NextActionType =
   'call' | 'whatsapp' | 'email' | 'meeting' | 'waitForResponse' | 'other';
 export type OpportunityStatus = 'active' | 'cancelled' | 'converted' | 'closed';
+export type OpportunityCommercialState = 'open' | 'won' | 'lost';
 
 export type NextActionStatus = 'pending' | 'completed' | 'cancelled' | 'notRelevant';
 export type NextActionPriority = 'low' | 'medium' | 'high';
@@ -45,6 +46,8 @@ export interface Opportunity {
   estimatedStartDate: string;
   responsibleSeller: string;
   status?: OpportunityStatus;
+  commercialState?: OpportunityCommercialState;
+  currentCommercialOutcomeId?: string;
   nextAction?: NextAction;
   noNextActionException?: NoNextActionException;
   createdAt: string;

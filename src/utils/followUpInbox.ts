@@ -101,6 +101,7 @@ export function deriveFollowUpInbox(
   const seenCadences = new Set<string>();
   for (const opportunity of opportunities) {
     if ((opportunity.status ?? 'active') !== 'active') continue;
+    if ((opportunity.commercialState ?? 'open') !== 'open') continue;
     const client = clientsById.get(opportunity.clientId);
     const action = opportunity.nextAction;
     if (action?.status === 'pending') {
