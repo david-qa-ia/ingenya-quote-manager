@@ -67,6 +67,7 @@ import {
   type InboxActionInput,
 } from './components/OpportunityNextActionsInbox';
 import { CadenceView } from './components/CadenceView';
+import { MetricsDashboard } from './components/MetricsDashboard';
 import {
   cancelCadencesForCommercialClose,
   loadCadenceExecutions,
@@ -74,6 +75,7 @@ import {
 } from './utils/cadenceStorage';
 import { transitionNextAction } from './utils/opportunityNextAction';
 import { completeCadenceAction, updateCadenceAction } from './utils/cadenceTransitions';
+import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -815,6 +817,7 @@ function App() {
       onShowCatalog={() => setCurrentView('catalog')}
       onShowNextActions={() => setCurrentView('nextActions')}
       onShowCadences={() => setCurrentView('cadences')}
+      onShowMetrics={() => setCurrentView('metrics')}
     />
   );
 
@@ -895,6 +898,36 @@ function App() {
       <>
         {appHeader}
         <CadenceView onBack={() => setCurrentView('editor')} />
+      </>
+    );
+  }
+
+  if (currentView === 'metrics') {
+    const clientLoad = loadClients();
+    const opportunityLoad = loadOpportunities();
+    const activityLoad = loadActivities();
+    const executionLoad = loadCadenceExecutions();
+    const outcomeLoad = loadCommercialOutcomes();
+    return (
+      <>
+        <>{appHeader}</>
+        <MetricsDashboard
+          sources={{
+            clients: clientLoad.items,
+            opportunities: opportunityLoad.items,
+            quotes: savedQuotes,
+            activities: activityLoad.items,
+            executions: executionLoad.items,
+            outcomes: outcomeLoad.items,
+            issues: [
+              clientLoad.issue,
+              opportunityLoad.issue,
+              activityLoad.issue,
+              executionLoad.issue,
+              outcomeLoad.issue,
+            ],
+          }}
+        />
       </>
     );
   }
