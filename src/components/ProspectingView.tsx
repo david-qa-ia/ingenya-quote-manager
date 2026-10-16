@@ -57,10 +57,10 @@ type DueGroup = 'overdue' | 'today' | 'upcoming';
 interface Props {
   initialFilters: ProspectFilters;
   onFiltersChange: (filters: ProspectFilters) => void;
-  onShowNextActions: () => void;
+  onOpenOpportunity: (id: string) => void;
 }
 
-export function ProspectingView({ initialFilters, onFiltersChange, onShowNextActions }: Props) {
+export function ProspectingView({ initialFilters, onFiltersChange, onOpenOpportunity }: Props) {
   const [prospects, setProspects] = useState(() => loadProspects().items);
   const [filters, setFilters] = useState(initialFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -209,7 +209,7 @@ export function ProspectingView({ initialFilters, onFiltersChange, onShowNextAct
         }}
         onReload={refresh}
         feedback={feedback}
-        onShowNextActions={onShowNextActions}
+        onOpenOpportunity={onOpenOpportunity}
       />
     );
   if (selected)
@@ -221,7 +221,7 @@ export function ProspectingView({ initialFilters, onFiltersChange, onShowNextAct
         onSave={save}
         onReload={refresh}
         feedback={feedback}
-        onShowNextActions={onShowNextActions}
+        onOpenOpportunity={onOpenOpportunity}
       />
     );
   const grouped = (group: DueGroup) =>
@@ -381,7 +381,7 @@ export function ProspectingView({ initialFilters, onFiltersChange, onShowNextAct
                 setActionProspect(inboxSelected);
               }}
               onQualify={() => setConversionTarget(inboxSelected)}
-              onShowNextActions={onShowNextActions}
+              onOpenOpportunity={onOpenOpportunity}
             />
           )}
         </div>
@@ -720,7 +720,7 @@ function ProspectInboxDetail({
   onOpen,
   onRegister,
   onQualify,
-  onShowNextActions,
+  onOpenOpportunity,
 }: {
   prospect: Prospect;
   onClose: () => void;
@@ -728,7 +728,7 @@ function ProspectInboxDetail({
   onOpen: () => void;
   onRegister: (result?: ProspectContactResult) => void;
   onQualify: () => void;
-  onShowNextActions: () => void;
+  onOpenOpportunity: (id: string) => void;
 }) {
   const initials = prospect.name
     .split(/\s+/)
@@ -831,7 +831,11 @@ function ProspectInboxDetail({
               )}
             </p>
           )}
-          <button className="button button-line" type="button" onClick={onShowNextActions}>
+          <button
+            className="button button-line"
+            type="button"
+            onClick={() => onOpenOpportunity(prospect.conversion!.draft.opportunityId)}
+          >
             Ir a seguimiento de oportunidad
           </button>
         </section>
@@ -1037,7 +1041,7 @@ function ProspectDetail({
   onBack,
   onSave,
   feedback,
-  onShowNextActions,
+  onOpenOpportunity,
   onReload,
 }: {
   prospect: Prospect;
@@ -1046,7 +1050,7 @@ function ProspectDetail({
   onBack: () => void;
   onSave: (prospect: Prospect) => boolean;
   feedback: string;
-  onShowNextActions: () => void;
+  onOpenOpportunity: (id: string) => void;
   onReload: () => void;
 }) {
   const [draft, setDraft] = useState(prospect);
@@ -1295,7 +1299,11 @@ function ProspectDetail({
                 <strong>Próximo paso:</strong> {prospect.conversion.draft.nextStep} ·{' '}
                 {new Date(prospect.conversion.draft.nextStepAt).toLocaleString('es-AR')}
               </p>
-              <button className="button button-line" type="button" onClick={onShowNextActions}>
+              <button
+                className="button button-line"
+                type="button"
+                onClick={() => onOpenOpportunity(prospect.conversion!.draft.opportunityId)}
+              >
                 Ir a seguimiento de oportunidad
               </button>
             </section>

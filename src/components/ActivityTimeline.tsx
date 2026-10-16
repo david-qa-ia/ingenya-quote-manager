@@ -39,6 +39,10 @@ const activityTypes = Object.keys(typeLabels) as ActivityType[];
 interface Props {
   entrySubject: ActivitySubject;
   subjects: readonly TimelineSubject[];
+  initialFilter?: ActivityFilter;
+  hideFilters?: boolean;
+  emptyMessage?: string;
+  registerLabel?: string;
 }
 
 function toLocalDateTime(isoDate: string): string {
@@ -47,9 +51,16 @@ function toLocalDateTime(isoDate: string): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
-export function ActivityTimeline({ entrySubject, subjects }: Props) {
+export function ActivityTimeline({
+  entrySubject,
+  subjects,
+  initialFilter = 'all',
+  hideFilters = false,
+  emptyMessage = 'Todavía no hay actividades para este presupuesto.',
+  registerLabel = 'Registrar actividad',
+}: Props) {
   const [activities, setActivities] = useState(() => loadActivities().items);
-  const [filter, setFilter] = useState<ActivityFilter>('all');
+  const [filter, setFilter] = useState<ActivityFilter>(initialFilter);
   const [author, setAuthor] = useState(loadActivityAuthor);
   const [input, setInput] = useState<ActivityInput>({
     type: 'note',
@@ -164,7 +175,7 @@ export function ActivityTimeline({ entrySubject, subjects }: Props) {
         type="button"
         onClick={() => setIsFormOpen((open) => !open)}
       >
-        {isFormOpen ? 'Cancelar actividad' : 'Registrar actividad'}
+        {isFormOpen ? 'Cancelar' : registerLabel}
       </button>
       {isFormOpen && (
         <form className="commercial-form" onSubmit={submit} noValidate>
@@ -309,25 +320,25 @@ export function ActivityTimeline({ entrySubject, subjects }: Props) {
           </li>
         ))}
       </ol>
-      {visibleActivities.length === 0 && (
-        <p className="commercial-note">Todavía no hay actividades para este presupuesto.</p>
+      {visibleActivities.length === 0 && <p className="commercial-note">{emptyMessage}</p>}
+      {!hideFilters && (
+        <details className="activity-advanced-tools">
+          <summary>Filtros avanzados</summary>
+          <div className="saved-quote-filters" aria-label="Filtrar actividades">
+            {(['all', ...activityTypes] as ActivityFilter[]).map((item) => (
+              <button
+                key={item}
+                className={`saved-quote-filter ${filter === item ? 'saved-quote-filter-active' : ''}`}
+                type="button"
+                aria-pressed={filter === item}
+                onClick={() => setFilter(item)}
+              >
+                {item === 'all' ? 'Todas' : typeLabels[item]}
+              </button>
+            ))}
+          </div>
+        </details>
       )}
-      <details className="activity-advanced-tools">
-        <summary>Filtros avanzados</summary>
-        <div className="saved-quote-filters" aria-label="Filtrar actividades">
-          {(['all', ...activityTypes] as ActivityFilter[]).map((item) => (
-            <button
-              key={item}
-              className={`saved-quote-filter ${filter === item ? 'saved-quote-filter-active' : ''}`}
-              type="button"
-              aria-pressed={filter === item}
-              onClick={() => setFilter(item)}
-            >
-              {item === 'all' ? 'Todas' : typeLabels[item]}
-            </button>
-          ))}
-        </div>
-      </details>
     </div>
   );
 }

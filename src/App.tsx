@@ -68,6 +68,7 @@ import {
 import { CadenceView } from './components/CadenceView';
 import { MetricsDashboard } from './components/MetricsDashboard';
 import { ProspectingView } from './components/ProspectingView';
+import { OpportunityDetailView } from './components/OpportunityDetailView';
 import { defaultProspectFilters, type ProspectFilters } from './utils/prospectWorkflow';
 import { PROSPECT_FILTERS_STORAGE_KEY } from './utils/prospectStorage';
 import {
@@ -131,6 +132,7 @@ function App() {
   const [inboxContact, setInboxContact] = useState<FollowUpInboxItem | null>(null);
   const [clientId, setClientId] = useState<string | undefined>();
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
+  const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
   const [opportunities, setOpportunities] = useState(() => loadOpportunities().items);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -499,6 +501,11 @@ function App() {
   }
 
   function handleFollowUpOpen(item: FollowUpInboxItem) {
+    if (item.opportunityId) {
+      setDetailOpportunityId(item.opportunityId);
+      setCurrentView('opportunityDetail');
+      return;
+    }
     const target = item.quoteId
       ? savedQuotes.find((quote) => quote.id === item.quoteId)
       : savedQuotes.find((quote) => quote.opportunityId === item.opportunityId);
@@ -511,6 +518,27 @@ function App() {
       message:
         'No hay un presupuesto asociado para abrir este contexto. La obra o trabajo sigue disponible en el seguimiento.',
     });
+  }
+
+  function saveOpportunityFromDetail(next: Opportunity, event: string): boolean {
+    if (!saveOpportunity(next)) return false;
+    const eventMap = {
+      complete: 'completed',
+      reschedule: 'rescheduled',
+      cancel: 'cancelled',
+      notRelevant: 'notRelevant',
+    } as const;
+    const activityEvent = eventMap[event as keyof typeof eventMap];
+    if (activityEvent && next.nextAction) {
+      recordNextActionActivity(
+        next.id,
+        next.nextAction.id,
+        activityEvent,
+        'Próxima acción actualizada desde la ficha de oportunidad.',
+      );
+    }
+    setOpportunities(loadOpportunities().items);
+    return true;
   }
 
   function handleFollowUpAction(
@@ -846,9 +874,10 @@ function App() {
               // Filter persistence is a convenience; navigation remains usable when storage is unavailable.
             }
           }}
-          onShowNextActions={() => {
+          onOpenOpportunity={(id) => {
             setOpportunities(loadOpportunities().items);
-            setCurrentView('nextActions');
+            setDetailOpportunityId(id);
+            setCurrentView('opportunityDetail');
           }}
         />
       </>
@@ -922,6 +951,81 @@ function App() {
               setOpportunities(loadOpportunities().items);
             }}
           />
+        )}
+      </>
+    );
+  }
+
+  if (currentView === 'opportunityDetail') {
+    const opportunity = opportunities.find((item) => item.id === detailOpportunityId);
+    return (
+      <>
+        {opportunity ? (
+          <>
+            <OpportunityDetailView
+              opportunity={opportunity}
+              client={loadClients().items.find((item) => item.id === opportunity.clientId)}
+              quotes={savedQuotes}
+              onBack={() => setCurrentView('nextActions')}
+              onSaveOpportunity={saveOpportunityFromDetail}
+              onPrepareContact={(channel) => {
+                setInboxContact({
+                  id: `opportunity:${opportunity.id}`,
+                  opportunityId: opportunity.id,
+                  clientId: opportunity.clientId,
+                  opportunityName: opportunity.name,
+                  clientName:
+                    loadClients().items.find((item) => item.id === opportunity.clientId)?.name ??
+                    '',
+                  clientCompany: loadClients().items.find(
+                    (item) => item.id === opportunity.clientId,
+                  )?.company,
+                  action: opportunity.nextAction,
+                  channel,
+                  responsible: opportunity.nextAction?.responsible ?? opportunity.responsibleSeller,
+                  priority: {
+                    score: 0,
+                    level: opportunity.nextAction?.priority ?? 'medium',
+                    reasons: [],
+                  },
+                  rescheduleCount: 0,
+                  bucket: 'upcoming',
+                  source: 'manual',
+                  contactRestricted: false,
+                });
+              }}
+              onOpenQuote={handleSavedQuoteOpen}
+            />
+            {inboxContact && (
+              <ContactAssistant
+                context={{
+                  client: loadClients().items.find((item) => item.id === opportunity.clientId),
+                  opportunity,
+                }}
+                subject={{ kind: 'opportunity', opportunityId: opportunity.id }}
+                initialChannel={inboxContact.channel as 'call' | 'whatsapp'}
+                restrictedChannel={inboxContact.channel as 'call' | 'whatsapp'}
+                onClose={() => setInboxContact(null)}
+                onRecorded={() => {
+                  setInboxContact(null);
+                  setOpportunities(loadOpportunities().items);
+                }}
+              />
+            )}
+          </>
+        ) : (
+          <main className="app-shell">
+            <p className="commercial-warning" role="alert">
+              No se encontró la oportunidad solicitada.
+            </p>
+            <button
+              className="button button-line"
+              type="button"
+              onClick={() => setCurrentView('nextActions')}
+            >
+              Volver a seguimiento
+            </button>
+          </main>
         )}
       </>
     );
