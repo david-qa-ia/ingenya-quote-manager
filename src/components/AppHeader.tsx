@@ -101,23 +101,7 @@ export function AppHeader({
   }
 
   return (
-    <header className="site-header">
-      {contactItems.length > 0 && (
-        <div className="information-bar">
-          <div className="header-container information-bar-content">
-            {contactItems.map((item) =>
-              item.href ? (
-                <a key={item.href} href={item.href}>
-                  {item.label}
-                </a>
-              ) : (
-                <span key={item.label}>{item.label}</span>
-              ),
-            )}
-          </div>
-        </div>
-      )}
-
+    <header className="site-header app-sidebar-header">
       <div className="main-header">
         <div className="header-container main-header-content">
           <div className="brand-name" aria-label={`Aplicación de ${deploymentBrand.companyName}`}>
@@ -160,7 +144,7 @@ export function AppHeader({
               aria-current={activeSection === 'prospects' ? 'page' : undefined}
               onClick={() => navigate(onShowProspects)}
             >
-              Prospectos
+              <span aria-hidden="true">♧</span> Prospectos
             </button>
             <button
               className="navigation-link"
@@ -168,7 +152,7 @@ export function AppHeader({
               aria-current={activeSection === 'metrics' ? 'page' : undefined}
               onClick={() => navigate(onShowMetrics)}
             >
-              Métricas
+              <span aria-hidden="true">▥</span> Métricas
             </button>
             <button
               className="navigation-link"
@@ -176,7 +160,7 @@ export function AppHeader({
               aria-current={activeSection === 'nextActions' ? 'page' : undefined}
               onClick={() => navigate(onShowNextActions)}
             >
-              Seguimiento
+              <span aria-hidden="true">▣</span> Seguimiento
             </button>
             <button
               className="navigation-link"
@@ -184,7 +168,7 @@ export function AppHeader({
               aria-current={activeSection === 'cadences' ? 'page' : undefined}
               onClick={() => navigate(onShowCadences)}
             >
-              Cadencias
+              <span aria-hidden="true">➤</span> Cadencias
             </button>
             <button
               className="navigation-link"
@@ -192,7 +176,7 @@ export function AppHeader({
               aria-current={activeSection === 'savedQuotes' ? 'page' : undefined}
               onClick={() => navigate(onShowSavedQuotes)}
             >
-              Mis presupuestos
+              <span aria-hidden="true">▤</span> Mis presupuestos
             </button>
             <button
               className="navigation-link"
@@ -200,7 +184,7 @@ export function AppHeader({
               aria-current={activeSection === 'catalog' ? 'page' : undefined}
               onClick={() => navigate(onShowCatalog)}
             >
-              Mano de obra
+              <span aria-hidden="true">⌂</span> Mano de obra
             </button>
             <button
               className="button button-primary header-new-quote"
@@ -212,6 +196,19 @@ export function AppHeader({
               Nuevo presupuesto
             </button>
           </nav>
+          <div className="sidebar-footer">
+            {contactItems.map((item) =>
+              item.href ? (
+                <a key={item.href} href={item.href}>
+                  {item.label}
+                </a>
+              ) : (
+                <span key={item.label}>{item.label}</span>
+              ),
+            )}
+            <span>⚙ Configuración</span>
+            <span>ⓘ Ayuda</span>
+          </div>
         </div>
       </div>
     </header>
