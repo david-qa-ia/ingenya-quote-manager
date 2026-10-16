@@ -67,6 +67,9 @@ import {
 } from './components/OpportunityNextActionsInbox';
 import { CadenceView } from './components/CadenceView';
 import { MetricsDashboard } from './components/MetricsDashboard';
+import { ProspectingView } from './components/ProspectingView';
+import { defaultProspectFilters, type ProspectFilters } from './utils/prospectWorkflow';
+import { PROSPECT_FILTERS_STORAGE_KEY } from './utils/prospectStorage';
 import {
   cancelCadencesForCommercialClose,
   loadCadenceExecutions,
@@ -88,6 +91,17 @@ function createLineId(): string {
 
 function createQuoteId(): string {
   return `PRES-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+}
+
+function loadProspectFilters(): ProspectFilters {
+  try {
+    const stored = localStorage.getItem(PROSPECT_FILTERS_STORAGE_KEY);
+    if (!stored) return defaultProspectFilters;
+    const value = JSON.parse(stored) as Partial<ProspectFilters>;
+    return { ...defaultProspectFilters, ...value };
+  } catch {
+    return defaultProspectFilters;
+  }
 }
 
 function App() {
@@ -113,6 +127,7 @@ function App() {
     message: string;
   } | null>(null);
   const [currentView, setCurrentView] = useState<AppView>('editor');
+  const [prospectFilters, setProspectFilters] = useState(loadProspectFilters);
   const [inboxContact, setInboxContact] = useState<FollowUpInboxItem | null>(null);
   const [clientId, setClientId] = useState<string | undefined>();
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
@@ -813,8 +828,28 @@ function App() {
       onShowNextActions={() => setCurrentView('nextActions')}
       onShowCadences={() => setCurrentView('cadences')}
       onShowMetrics={() => setCurrentView('metrics')}
+      onShowProspects={() => setCurrentView('prospects')}
     />
   );
+
+  if (currentView === 'prospects') {
+    return (
+      <>
+        {appHeader}
+        <ProspectingView
+          initialFilters={prospectFilters}
+          onFiltersChange={(filters) => {
+            setProspectFilters(filters);
+            try {
+              localStorage.setItem(PROSPECT_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+            } catch {
+              // Filter persistence is a convenience; navigation remains usable when storage is unavailable.
+            }
+          }}
+        />
+      </>
+    );
+  }
 
   if (currentView === 'catalog') {
     return (
