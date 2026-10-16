@@ -1,6 +1,7 @@
 import type { DeploymentBrandConfig } from '../types/branding';
 
 export type AppView =
+  | 'dailyDashboard'
   | 'editor'
   | 'summary'
   | 'savedQuotes'
@@ -20,6 +21,7 @@ export interface ContactItem {
 }
 
 export function resolveActiveNavigationSection(view: AppView): NavigationSection {
+  if (view === 'dailyDashboard') return 'nextActions';
   if (view === 'savedQuotes') return 'savedQuotes';
   if (view === 'catalog') return 'catalog';
   if (view === 'nextActions') return 'nextActions';

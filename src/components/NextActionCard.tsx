@@ -14,6 +14,11 @@ const labels = {
   waitForResponse: 'Esperar respuesta',
   other: 'Otra',
 } as const;
+const kindLabels = {
+  followUp: 'Seguimiento',
+  sendQuote: 'Enviar presupuesto',
+  other: 'Otra acción',
+} as const;
 const priorities = { high: 'Alta', medium: 'Media', low: 'Baja' } as const;
 
 interface Props {
@@ -89,7 +94,7 @@ export function NextActionCard({ opportunity, onSave, onPrepareContact }: Props)
         <h2>Próxima acción</h2>
       </div>
       <p>
-        <strong>{labels[action.type]}</strong> ·{' '}
+        <strong>{kindLabels[action.kind ?? 'followUp']}</strong> · {labels[action.type]} ·{' '}
         {new Intl.DateTimeFormat('es-AR', {
           dateStyle: 'short',
           timeStyle: 'short',
@@ -206,6 +211,7 @@ function CreateAction({ opportunity, onSave }: Props) {
   const [description, setDescription] = useState('');
   const [responsible, setResponsible] = useState('');
   const [dueAt, setDueAt] = useState('');
+  const [kind, setKind] = useState<NonNullable<NextAction['kind']>>('followUp');
   const [type, setType] = useState<NextAction['type']>('call');
   const [priority, setPriority] = useState<NextAction['priority']>('medium');
   const [error, setError] = useState('');
@@ -223,7 +229,9 @@ function CreateAction({ opportunity, onSave }: Props) {
       noNextActionException: undefined,
       nextAction: {
         id,
+        kind,
         type,
+        ...(kind === 'sendQuote' ? { suggestedChannel: type } : {}),
         description: description.trim(),
         dueAt: instant,
         responsible: responsible.trim(),
@@ -265,7 +273,20 @@ function CreateAction({ opportunity, onSave }: Props) {
           <form className="confirmation-modal commercial-form" onSubmit={submit}>
             <h2>Programar próxima acción</h2>
             <label className="field">
-              <span>Tipo</span>
+              <span>Intención</span>
+              <select
+                value={kind}
+                onChange={(event) => setKind(event.target.value as NonNullable<NextAction['kind']>)}
+              >
+                {Object.entries(kindLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>{kind === 'sendQuote' ? 'Canal sugerido' : 'Canal'}</span>
               <select
                 value={type}
                 onChange={(event) => setType(event.target.value as NextAction['type'])}

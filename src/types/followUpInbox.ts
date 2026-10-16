@@ -6,6 +6,8 @@ export type FollowUpSort = 'priority' | 'date';
 
 export interface FollowUpInboxItem {
   id: string;
+  subjectType?: 'prospect' | 'opportunity' | 'quote';
+  prospectId?: string;
   bucket: FollowUpBucket;
   source: FollowUpSource;
   action?: NextAction;
