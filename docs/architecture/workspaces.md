@@ -16,6 +16,10 @@ can be validated before the backend environment is configured. When `VITE_WORKSP
 present, the adapter uses authenticated `/api/workspaces` and `/api/workspaces/active` requests;
 the server remains authoritative.
 
+The persistence contract, transactional RPCs, migration fingerprints and recovery rules are defined
+in [`persistence-architecture.md`](./persistence-architecture.md). SCRUM-79 must implement that
+contract before replacing these local adapters as the source of truth.
+
 Changing workspaces invalidates all local collection keys through the workspace namespace. Forms,
 filters, search results, metrics and detail context are reset only after the server confirms the
 new active workspace. A failed switch keeps the previous workspace and form unchanged.
