@@ -2,6 +2,14 @@ export type NextActionType =
   'call' | 'whatsapp' | 'email' | 'meeting' | 'waitForResponse' | 'other';
 export type OpportunityStatus = 'active' | 'cancelled' | 'converted' | 'closed';
 export type OpportunityCommercialState = 'open' | 'won' | 'lost';
+export type OpportunityInterestLevel = 'high' | 'medium' | 'low';
+
+export interface OpportunityQualification {
+  serviceOfInterest: string;
+  interestLevel: OpportunityInterestLevel;
+  detectedNeed: string;
+  estimatedValue?: number;
+}
 
 export type NextActionStatus = 'pending' | 'completed' | 'cancelled' | 'notRelevant';
 export type NextActionPriority = 'low' | 'medium' | 'high';
@@ -48,6 +56,7 @@ export interface Opportunity {
   status?: OpportunityStatus;
   commercialState?: OpportunityCommercialState;
   currentCommercialOutcomeId?: string;
+  qualification?: OpportunityQualification;
   nextAction?: NextAction;
   noNextActionException?: NoNextActionException;
   createdAt: string;

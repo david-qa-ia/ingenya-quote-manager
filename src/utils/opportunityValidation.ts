@@ -2,6 +2,7 @@ import type {
   NextAction,
   NextActionHistoryEntry,
   NoNextActionException,
+  OpportunityQualification,
   Opportunity,
   OpportunityInput,
 } from '../types/opportunity';
@@ -76,6 +77,20 @@ function isException(value: unknown): value is NoNextActionException {
     isNonEmpty(exception.reason) && isIso(exception.recordedAt) && isNonEmpty(exception.recordedBy)
   );
 }
+function isQualification(value: unknown): value is OpportunityQualification {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const qualification = value as Record<string, unknown>;
+  return (
+    isNonEmpty(qualification.serviceOfInterest) &&
+    typeof qualification.interestLevel === 'string' &&
+    ['high', 'medium', 'low'].includes(qualification.interestLevel) &&
+    isNonEmpty(qualification.detectedNeed) &&
+    (qualification.estimatedValue === undefined ||
+      (typeof qualification.estimatedValue === 'number' &&
+        Number.isFinite(qualification.estimatedValue) &&
+        qualification.estimatedValue >= 0))
+  );
+}
 
 function migrateLegacyNextAction(
   value: Record<string, unknown>,
@@ -142,6 +157,7 @@ export function recoverOpportunity(value: unknown): Opportunity | null {
     ? record.noNextActionException
     : undefined;
   if (record.nextAction !== undefined && !nextAction) return null;
+  if (record.qualification !== undefined && !isQualification(record.qualification)) return null;
   if (nextAction?.status === 'pending' && noNextActionException) return null;
   if (
     record.status !== undefined &&
@@ -165,6 +181,7 @@ export function recoverOpportunity(value: unknown): Opportunity | null {
     ...(isNonEmpty(record.currentCommercialOutcomeId)
       ? { currentCommercialOutcomeId: record.currentCommercialOutcomeId }
       : {}),
+    ...(isQualification(record.qualification) ? { qualification: record.qualification } : {}),
     ...(nextAction ? { nextAction } : {}),
     ...(noNextActionException ? { noNextActionException } : {}),
     createdAt: record.createdAt as string,
@@ -183,6 +200,8 @@ export function getOpportunityValidationError(input: OpportunityInput): string |
     return 'Ingresá una excepción válida.';
   if (input.nextAction?.status === 'pending' && input.noNextActionException)
     return 'No puede haber una acción pendiente y una excepción a la vez.';
+  if (input.qualification && !isQualification(input.qualification))
+    return 'Ingresá una calificación de oportunidad válida.';
   return null;
 }
 
@@ -194,6 +213,15 @@ export function normalizeOpportunityInput(input: OpportunityInput): OpportunityI
     estimatedStartDate: input.estimatedStartDate,
     responsibleSeller: input.responsibleSeller.trim(),
     commercialState: input.commercialState ?? 'open',
+    ...(input.qualification
+      ? {
+          qualification: {
+            ...input.qualification,
+            serviceOfInterest: input.qualification.serviceOfInterest.trim(),
+            detectedNeed: input.qualification.detectedNeed.trim(),
+          },
+        }
+      : {}),
     ...(input.currentCommercialOutcomeId
       ? { currentCommercialOutcomeId: input.currentCommercialOutcomeId }
       : {}),

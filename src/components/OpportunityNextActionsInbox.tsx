@@ -236,6 +236,7 @@ export function OpportunityNextActionsInbox({
                   <li key={item.id} className="follow-up-item">
                     <div>
                       <strong>{item.clientName}</strong>
+                      {item.clientCompany && <small>Empresa: {item.clientCompany}</small>}
                       <span>
                         {item.opportunityName ?? item.quoteName ?? 'Sin contexto disponible'}
                       </span>
@@ -249,6 +250,15 @@ export function OpportunityNextActionsInbox({
                         }).format(new Date(item.action.dueAt))}{' '}
                         · {channelLabels[item.channel!]}
                       </span>
+                    )}
+                    {item.estimatedValue !== undefined && (
+                      <small>
+                        Valor estimado:{' '}
+                        {new Intl.NumberFormat('es-AR', {
+                          style: 'currency',
+                          currency: 'ARS',
+                        }).format(item.estimatedValue)}
+                      </small>
                     )}
                     <small>
                       Responsable: {item.responsible} · Prioridad{' '}

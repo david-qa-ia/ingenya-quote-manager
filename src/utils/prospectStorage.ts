@@ -1,4 +1,9 @@
-import type { Prospect, ProspectInput, ProspectStatus } from '../types/prospect';
+import type {
+  Prospect,
+  ProspectConversion,
+  ProspectInput,
+  ProspectStatus,
+} from '../types/prospect';
 import { isPendingEmail, isPendingPhone } from './clientValidation';
 import { hasRecordId, loadCollection } from './localCollectionStorage';
 import { getLocalDateKeyFromFollowUp } from './prospectFollowUp';
@@ -18,6 +23,41 @@ const statuses: ProspectStatus[] = [
 
 const text = (value: unknown) => typeof value === 'string';
 const iso = (value: unknown) => text(value) && Number.isFinite(Date.parse(value));
+function isConversion(value: unknown): value is ProspectConversion {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const conversion = value as Record<string, unknown>;
+  const draft = conversion.draft as Record<string, unknown> | undefined;
+  return (
+    (conversion.state === 'pending' || conversion.state === 'completed') &&
+    iso(conversion.startedAt) &&
+    (conversion.completedAt === undefined || iso(conversion.completedAt)) &&
+    !!draft &&
+    [
+      'clientId',
+      'clientName',
+      'clientCompany',
+      'clientPhone',
+      'clientEmail',
+      'opportunityId',
+      'opportunityName',
+      'serviceOfInterest',
+      'detectedNeed',
+      'nextStep',
+      'nextStepAt',
+      'responsible',
+    ].every((key) => text(draft[key]) && (draft[key] as string).trim().length > 0) &&
+    ['', 'phone', 'whatsapp', 'email'].includes(draft.clientPreferredChannel as string) &&
+    ['call', 'whatsapp', 'email', 'meeting', 'waitForResponse', 'other'].includes(
+      draft.nextStepChannel as string,
+    ) &&
+    ['high', 'medium', 'low'].includes(draft.interestLevel as string) &&
+    iso(draft.nextStepAt) &&
+    (draft.estimatedValue === undefined ||
+      (typeof draft.estimatedValue === 'number' &&
+        Number.isFinite(draft.estimatedValue) &&
+        draft.estimatedValue >= 0))
+  );
+}
 
 export function createNewProspect(): Prospect {
   const now = new Date().toISOString();
@@ -96,6 +136,9 @@ export function isProspect(value: unknown): value is Prospect {
   return (
     !!item.id &&
     getProspectValidationError(input) === null &&
+    (item.conversion === undefined || isConversion(item.conversion)) &&
+    (item.status !== 'converted' ||
+      (isConversion(item.conversion) && item.conversion.state === 'completed')) &&
     item.activities.every((activity) => {
       if (!activity || typeof activity !== 'object') return false;
       const record = activity as Record<string, unknown>;
@@ -105,6 +148,13 @@ export function isProspect(value: unknown): value is Prospect {
         (record.prospectId === undefined || text(record.prospectId)) &&
         (record.createdAt === undefined || iso(record.createdAt)) &&
         text(record.type) &&
+        [
+          'statusChanged',
+          'contactPrepared',
+          'contactResult',
+          'note',
+          'conversionCompleted',
+        ].includes(record.type) &&
         text(record.description) &&
         (record.author === undefined || text(record.author)) &&
         (record.result === undefined ||
