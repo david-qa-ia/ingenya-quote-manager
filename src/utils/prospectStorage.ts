@@ -7,6 +7,7 @@ import type {
 import { isPendingEmail, isPendingPhone } from './clientValidation';
 import { hasRecordId, loadCollection } from './localCollectionStorage';
 import { getLocalDateKeyFromFollowUp } from './prospectFollowUp';
+import { workspaceStorageKey } from './workspaceStorage';
 
 export const PROSPECTS_STORAGE_KEY = 'ingenya.prospects.v1';
 export const PROSPECT_FILTERS_STORAGE_KEY = 'ingenya.prospectFilters.v1';
@@ -195,7 +196,7 @@ export function saveProspectWithResult(prospect: Prospect): SaveResult {
 
   let stored: string | null;
   try {
-    stored = localStorage.getItem(PROSPECTS_STORAGE_KEY);
+    stored = localStorage.getItem(workspaceStorageKey(PROSPECTS_STORAGE_KEY));
   } catch (error) {
     return { ok: false, reason: 'storage_unavailable', error: describeError(error) };
   }
@@ -226,7 +227,7 @@ export function saveProspectWithResult(prospect: Prospect): SaveResult {
   if (index < 0) records.push(normalized);
   else records[index] = normalized;
   try {
-    localStorage.setItem(PROSPECTS_STORAGE_KEY, JSON.stringify(records));
+    localStorage.setItem(workspaceStorageKey(PROSPECTS_STORAGE_KEY), JSON.stringify(records));
     return { ok: true };
   } catch (error) {
     return { ok: false, reason: 'storage_write_failed', error: describeError(error) };

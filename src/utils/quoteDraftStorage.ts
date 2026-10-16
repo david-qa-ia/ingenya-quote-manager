@@ -1,4 +1,5 @@
 import { hasRecordId, readCollection } from './localCollectionStorage';
+import { workspaceStorageKey } from './workspaceStorage';
 import type {
   CommercialStatus,
   CommercialStatusAudit,
@@ -146,7 +147,7 @@ export function parseSavedQuotes(storedValue: string | null): SavedQuote[] {
 
 export function loadSavedQuotes(): SavedQuote[] {
   try {
-    return parseSavedQuotes(localStorage.getItem(SAVED_QUOTES_STORAGE_KEY));
+    return parseSavedQuotes(localStorage.getItem(workspaceStorageKey(SAVED_QUOTES_STORAGE_KEY)));
   } catch {
     return [];
   }
@@ -187,7 +188,10 @@ export function saveQuote(quote: Quote): boolean {
       savedQuotes[existingIndex] = savedQuote;
     }
 
-    localStorage.setItem(SAVED_QUOTES_STORAGE_KEY, JSON.stringify(savedQuotes));
+    localStorage.setItem(
+      workspaceStorageKey(SAVED_QUOTES_STORAGE_KEY),
+      JSON.stringify(savedQuotes),
+    );
     return true;
   } catch {
     return false;
@@ -218,7 +222,10 @@ export function saveFinalizedQuoteCommercialState(
       commercialStatusAudit,
       ...(sentAudit ? { sentAudit } : {}),
     };
-    localStorage.setItem(SAVED_QUOTES_STORAGE_KEY, JSON.stringify(savedQuotes));
+    localStorage.setItem(
+      workspaceStorageKey(SAVED_QUOTES_STORAGE_KEY),
+      JSON.stringify(savedQuotes),
+    );
     return true;
   } catch {
     return false;

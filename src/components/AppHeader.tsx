@@ -5,6 +5,7 @@ import type { NavigationSection } from '../utils/appNavigation';
 import { getCircularFocusIndex, getVisibleContactItems } from '../utils/appNavigation';
 import { GlobalSearchPanel } from './GlobalSearchPanel';
 import type { GlobalSearchResult } from '../types/globalSearch';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 
 interface AppHeaderProps {
   activeSection: NavigationSection;
@@ -22,6 +23,8 @@ interface AppHeaderProps {
   onSearchQueryChange: (value: string) => void;
   onSearchSelect: (result: GlobalSearchResult) => void;
   onSearchClose: () => void;
+  hasUnsavedChanges: boolean;
+  onResetWorkspaceContext: () => void;
 }
 
 const focusableSelector = 'button:not([disabled]), a[href]';
@@ -42,6 +45,8 @@ export function AppHeader({
   onSearchQueryChange,
   onSearchSelect,
   onSearchClose,
+  hasUnsavedChanges,
+  onResetWorkspaceContext,
 }: AppHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -136,6 +141,10 @@ export function AppHeader({
           <div className="brand-name" aria-label={`Aplicación de ${deploymentBrand.companyName}`}>
             {deploymentBrand.companyName}
           </div>
+          <WorkspaceSwitcher
+            hasUnsavedChanges={hasUnsavedChanges}
+            onResetWorkspaceContext={onResetWorkspaceContext}
+          />
 
           <button
             ref={menuButtonRef}

@@ -86,6 +86,10 @@ import { deriveFollowUpInbox } from './utils/followUpInbox';
 import { loadProspects } from './utils/prospectStorage';
 import { deriveGlobalSearchResults, isQuoteWithoutResponse } from './utils/globalSearch';
 import type { GlobalSearchResult } from './types/globalSearch';
+import { useWorkspace } from './context/useWorkspace';
+import { WorkspaceAccessState } from './components/WorkspaceAccessState';
+import { UiIcon } from './components/UiIcon';
+import { workspaceStorageKey } from './utils/workspaceStorage';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -103,7 +107,7 @@ function createQuoteId(): string {
 
 function loadProspectFilters(): ProspectFilters {
   try {
-    const stored = localStorage.getItem(PROSPECT_FILTERS_STORAGE_KEY);
+    const stored = localStorage.getItem(workspaceStorageKey(PROSPECT_FILTERS_STORAGE_KEY));
     if (!stored) return defaultProspectFilters;
     const value = JSON.parse(stored) as Partial<ProspectFilters>;
     return { ...defaultProspectFilters, ...value };
@@ -113,6 +117,7 @@ function loadProspectFilters(): ProspectFilters {
 }
 
 function App() {
+  const workspaceContext = useWorkspace();
   const [initialCatalogLoad] = useState(loadLaborCatalog);
   const [catalogJobs, setCatalogJobs] = useState<CatalogJob[]>(initialCatalogLoad.jobs);
   const [catalogLoadIssue, setCatalogLoadIssue] = useState(initialCatalogLoad.issue);
@@ -143,6 +148,7 @@ function App() {
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
+  const [prospectHasUnsavedChanges, setProspectHasUnsavedChanges] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [opportunities, setOpportunities] = useState(() => loadOpportunities().items);
@@ -193,6 +199,9 @@ function App() {
   const [editUnitPrice, setEditUnitPrice] = useState('');
   const [editError, setEditError] = useState('');
 
+  const hasUnsavedWorkspaceChanges =
+    (currentView === 'editor' && quoteLines.length > 0) || prospectHasUnsavedChanges;
+
   const activeCatalogJobs = catalogJobs.filter((job) => job.isActive);
   const visibleActiveCatalogJobs = activeCatalogJobs.filter((job) =>
     `${job.name} ${job.description ?? ''}`
@@ -212,6 +221,20 @@ function App() {
     opportunities,
     savedQuotes,
   );
+
+  function resetWorkspaceContext() {
+    setProspectHasUnsavedChanges(false);
+    setCurrentView('dailyDashboard');
+    setProspectFilters(defaultProspectFilters);
+    setInboxContact(null);
+    setDashboardResult(null);
+    setDetailOpportunityId(null);
+    setDetailQuoteId(null);
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    setOpportunities(loadOpportunities().items);
+    setSavedQuotes(loadSavedQuotes());
+  }
   useEffect(() => {
     if (isFinalizationConfirmationOpen) {
       finalizationCancelRef.current?.focus();
@@ -1047,8 +1070,36 @@ function App() {
         setIsSearchOpen(false);
         setSearchQuery('');
       }}
+      hasUnsavedChanges={hasUnsavedWorkspaceChanges}
+      onResetWorkspaceContext={resetWorkspaceContext}
     />
   );
+
+  if (workspaceContext.isLoading) {
+    return (
+      <>
+        {appHeader}
+        <main className="workspace-access-state">
+          <div className="workspace-access-card">
+            <UiIcon name="clock" />
+            <p>Cargando espacios de trabajo...</p>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (workspaceContext.accessError || !workspaceContext.activeMembership) {
+    return (
+      <>
+        {appHeader}
+        <WorkspaceAccessState
+          error={workspaceContext.accessError ?? 'no-workspaces'}
+          onRetry={workspaceContext.retry}
+        />
+      </>
+    );
+  }
   const currentOpportunities = loadOpportunities().items;
 
   if (currentView === 'dailyDashboard') {
@@ -1104,7 +1155,10 @@ function App() {
           onFiltersChange={(filters) => {
             setProspectFilters(filters);
             try {
-              localStorage.setItem(PROSPECT_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+              localStorage.setItem(
+                workspaceStorageKey(PROSPECT_FILTERS_STORAGE_KEY),
+                JSON.stringify(filters),
+              );
             } catch {
               // Filter persistence is a convenience; navigation remains usable when storage is unavailable.
             }
@@ -1114,6 +1168,7 @@ function App() {
             setDetailOpportunityId(id);
             setCurrentView('opportunityDetail');
           }}
+          onDirtyChange={setProspectHasUnsavedChanges}
         />
       </>
     );

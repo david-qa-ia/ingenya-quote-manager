@@ -58,9 +58,15 @@ interface Props {
   initialFilters: ProspectFilters;
   onFiltersChange: (filters: ProspectFilters) => void;
   onOpenOpportunity: (id: string) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function ProspectingView({ initialFilters, onFiltersChange, onOpenOpportunity }: Props) {
+export function ProspectingView({
+  initialFilters,
+  onFiltersChange,
+  onOpenOpportunity,
+  onDirtyChange,
+}: Props) {
   const [prospects, setProspects] = useState(() => loadProspects().items);
   const [filters, setFilters] = useState(initialFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -210,6 +216,7 @@ export function ProspectingView({ initialFilters, onFiltersChange, onOpenOpportu
         onReload={refresh}
         feedback={feedback}
         onOpenOpportunity={onOpenOpportunity}
+        onDirtyChange={onDirtyChange}
       />
     );
   if (selected)
@@ -222,6 +229,7 @@ export function ProspectingView({ initialFilters, onFiltersChange, onOpenOpportu
         onReload={refresh}
         feedback={feedback}
         onOpenOpportunity={onOpenOpportunity}
+        onDirtyChange={onDirtyChange}
       />
     );
   const grouped = (group: DueGroup) =>
@@ -1043,6 +1051,7 @@ function ProspectDetail({
   feedback,
   onOpenOpportunity,
   onReload,
+  onDirtyChange,
 }: {
   prospect: Prospect;
   initialContactChannel: ProspectChannel;
@@ -1052,6 +1061,7 @@ function ProspectDetail({
   feedback: string;
   onOpenOpportunity: (id: string) => void;
   onReload: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [draft, setDraft] = useState(prospect);
   const [isEditing, setIsEditing] = useState(isNew);
@@ -1064,6 +1074,14 @@ function ProspectDetail({
   const [isConversionOpen, setIsConversionOpen] = useState(false);
   const [conversionFeedback, setConversionFeedback] = useState('');
   const [pendingConversion, setPendingConversion] = useState<Prospect | null>(null);
+  useEffect(() => {
+    onDirtyChange?.(
+      isNew
+        ? JSON.stringify(draft) !== JSON.stringify(prospect)
+        : isEditing && JSON.stringify(draft) !== JSON.stringify(prospect),
+    );
+    return () => onDirtyChange?.(false);
+  }, [draft, isEditing, isNew, onDirtyChange, prospect]);
   const defaultScript = `Hola ${draft.name}, soy Daniel. Te contacto por ${draft.potentialService || 'el servicio que necesitás'}. ¿Te parece si coordinamos una breve conversación?`;
   function field<K extends keyof Prospect>(key: K, value: Prospect[K]) {
     setDraft((current) => ({ ...current, [key]: value, updatedAt: new Date().toISOString() }));

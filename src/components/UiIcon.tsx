@@ -8,11 +8,13 @@ export type UiIconName =
   | 'activity'
   | 'arrow-left'
   | 'bar-chart'
+  | 'building'
   | 'calendar'
   | 'calendar-check'
   | 'check'
   | 'check-circle'
   | 'chevron-right'
+  | 'chevron-down'
   | 'clock'
   | 'copy'
   | 'document'
@@ -164,6 +166,13 @@ const paths: Record<UiIconName, ReactNode> = {
       <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
     </>
   ),
+  building: (
+    <>
+      <path d="M4 21V6l8-3 8 3v15" />
+      <path d="M2 21h20M8 9h1M8 13h1M8 17h1M15 9h1M15 13h1M15 17h1" />
+    </>
+  ),
+  'chevron-down': <path d="m6 9 6 6 6-6" />,
   activity: <path d="m3 12 4-4 4 8 4-6 3 3 3-3" />,
   clock: (
     <>
