@@ -229,3 +229,16 @@ Commercial outcomes may update only commercial metadata of a finalized quote thr
 dedicated operation. They never change quote lines, prices, totals, document snapshots,
 associations or document status. Closing a won opportunity or marking one lost cancels associated
 active and paused cadences and pending actions; every cancellation records an automatic activity.
+
+## SCRUM-56 to SCRUM-60 Compatible Extension
+
+`ingenya.prospects.v1` is an independent local collection for pre-first-contact prospects. It is
+not a client, contact, opportunity or saved quote collection, and an `interested` prospect stays
+there until the explicitly separate SCRUM-61 conversion work. Its validated records retain
+identity, contact fields, commercial source/service context, explicit priority and reason,
+next-action data, state and an append-only prospect activity history. Pending contact values use
+the same rules as clients and are never usable destinations.
+
+`ingenya.prospectFilters.v1` is a browser-local navigation preference for the prospect list; it
+contains no business record. Both keys recover missing data as empty/default state and never
+replace malformed roots during a write.
