@@ -63,6 +63,11 @@ El rol `collaborator` solo queda preparado en el modelo; no agrega permisos en e
 React no encadena escrituras críticas. Cada caso de uso se resuelve con una función PostgreSQL
 `security definer`, que valida `auth.uid()`, membresía, rol, `workspace_id` y versión esperada.
 
+Las tablas comerciales no exponen `insert`, `update`, `delete` ni `truncate` al navegador. El
+cliente autenticado solo tiene `select`, restringido por RLS a filas del espacio activo y a roles
+`owner`/`admin`. Toda creación, edición, archivado, resultado, conversión, presupuesto, cadencia y
+migración debe pasar por una RPC `security definer`.
+
 - `convert_prospect_to_opportunity`
 - `register_contact_result`
 - `complete_or_reschedule_next_action`

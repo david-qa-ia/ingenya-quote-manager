@@ -456,7 +456,8 @@ $$;
 revoke all on function public.list_audit_event_summaries(uuid, integer) from public;
 grant execute on function public.list_audit_event_summaries(uuid, integer) to authenticated;
 
--- Every commercial table is isolated by the same server-side membership check.
+-- Browser clients can read commercial rows, but cannot write them directly. All DML is reserved
+-- for security-definer RPCs that enforce expected_version, idempotency and audit in one transaction.
 do $$
 declare table_name text;
 begin
@@ -468,9 +469,11 @@ begin
   ] loop
     execute format('alter table public.%I enable row level security', table_name);
     execute format(
-      'create policy %I on public.%I for all using (public.has_workspace_role(workspace_id, array[''owner'', ''admin''])) with check (public.has_workspace_role(workspace_id, array[''owner'', ''admin'']))',
+      'create policy %I on public.%I for select using (public.has_workspace_role(workspace_id, array[''owner'', ''admin'']))',
       table_name || '_workspace_isolation', table_name
     );
+    execute format('grant select on public.%I to authenticated', table_name);
+    execute format('revoke insert, update, delete, truncate, references, trigger on public.%I from anon, authenticated', table_name);
   end loop;
 end $$;
 
@@ -478,16 +481,17 @@ alter table public.migration_runs enable row level security;
 alter table public.migration_items enable row level security;
 alter table public.migration_quarantine enable row level security;
 
-create policy "migration owners can operate runs"
-  on public.migration_runs for all
+create policy "migration owners can read runs"
+  on public.migration_runs for select
   using (
     public.has_workspace_role(source_workspace_id, array['owner'])
     and public.has_workspace_role(destination_workspace_id, array['owner'])
-  )
-  with check (
-    public.has_workspace_role(source_workspace_id, array['owner'])
-    and public.has_workspace_role(destination_workspace_id, array['owner'])
   );
+
+grant select on public.migration_runs, public.migration_items, public.migration_quarantine to authenticated;
+revoke insert, update, delete, truncate, references, trigger
+  on public.migration_runs, public.migration_items, public.migration_quarantine
+  from anon, authenticated;
 
 create policy "migration owners can read items"
   on public.migration_items for select
