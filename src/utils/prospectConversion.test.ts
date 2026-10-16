@@ -9,6 +9,7 @@ import {
   resumeProspectConversion,
 } from './prospectConversion';
 import { loadProspects, PROSPECTS_STORAGE_KEY, saveProspectWithResult } from './prospectStorage';
+import { localDateTimeToIso } from './prospectFollowUp';
 import { getDueGroup } from './prospectWorkflow';
 
 const stored = new Map<string, string>();
@@ -76,6 +77,8 @@ describe('prospect conversion', () => {
     ).toBeTruthy();
   });
   it('converts with a persisted client, qualified opportunity, ISO next action and history', () => {
+    const expectedDueAt = localDateTimeToIso(input.nextStepAt);
+    if (!expectedDueAt.ok) throw new Error(expectedDueAt.error);
     const pending = createPendingProspectConversion(prospect, input, '2026-10-16T00:00:00.000Z');
     expect(saveProspectWithResult(pending).ok).toBe(true);
     const result = resumeProspectConversion(pending, '2026-10-16T01:00:00.000Z');
@@ -88,7 +91,7 @@ describe('prospect conversion', () => {
     expect(loadOpportunities().items[0]).toMatchObject({
       name: 'Reforma cocina',
       qualification: { estimatedValue: 0 },
-      nextAction: { dueAt: '2026-10-20T13:30:00.000Z', type: 'whatsapp' },
+      nextAction: { dueAt: expectedDueAt.value, type: 'whatsapp' },
     });
     expect(loadProspects().items[0]).toMatchObject({
       status: 'converted',
