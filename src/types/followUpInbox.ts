@@ -11,6 +11,8 @@ export interface FollowUpInboxItem {
   action?: NextAction;
   clientId?: string;
   clientName: string;
+  clientCompany?: string;
+  estimatedValue?: number;
   phone?: string;
   email?: string;
   contactRestricted: boolean;

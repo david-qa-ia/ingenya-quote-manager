@@ -41,6 +41,7 @@ export function getClientValidationError(input: ClientInput): string | null {
 export function normalizeClientInput(input: ClientInput): ClientInput {
   return {
     name: input.name.trim(),
+    ...(input.company?.trim() ? { company: input.company.trim() } : {}),
     phone: isPendingPhone(input.phone) ? PENDING_PHONE : input.phone.trim(),
     email: isPendingEmail(input.email) ? PENDING_EMAIL : input.email.trim(),
     preferredChannel: input.preferredChannel,

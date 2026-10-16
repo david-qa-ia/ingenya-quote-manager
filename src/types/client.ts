@@ -9,6 +9,7 @@ export interface DoNotContactRecord {
 export interface Client {
   id: string;
   name: string;
+  company?: string;
   phone: string;
   email: string;
   preferredChannel: PreferredChannel;

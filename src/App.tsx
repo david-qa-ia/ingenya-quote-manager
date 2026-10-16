@@ -846,6 +846,10 @@ function App() {
               // Filter persistence is a convenience; navigation remains usable when storage is unavailable.
             }
           }}
+          onShowNextActions={() => {
+            setOpportunities(loadOpportunities().items);
+            setCurrentView('nextActions');
+          }}
         />
       </>
     );

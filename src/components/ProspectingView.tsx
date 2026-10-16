@@ -29,6 +29,14 @@ import {
   transitionProspect,
   type ProspectFilters,
 } from '../utils/prospectWorkflow';
+import {
+  canQualifyProspect,
+  createPendingProspectConversion,
+  getProspectConversionValidationError,
+  resumeProspectConversion,
+  startProspectConversion,
+  type ProspectConversionInput,
+} from '../utils/prospectConversion';
 
 const statuses = Object.keys(prospectStatusLabels) as ProspectStatus[];
 const priorities = Object.keys(prospectPriorityLabels) as ProspectPriority[];
@@ -42,15 +50,17 @@ const activityTypeLabels = {
   contactPrepared: 'Contacto preparado',
   contactResult: 'Contacto registrado',
   note: 'Nota',
+  conversionCompleted: 'Conversión completada',
 } as const;
 type DueGroup = 'overdue' | 'today' | 'upcoming';
 
 interface Props {
   initialFilters: ProspectFilters;
   onFiltersChange: (filters: ProspectFilters) => void;
+  onShowNextActions: () => void;
 }
 
-export function ProspectingView({ initialFilters, onFiltersChange }: Props) {
+export function ProspectingView({ initialFilters, onFiltersChange, onShowNextActions }: Props) {
   const [prospects, setProspects] = useState(() => loadProspects().items);
   const [filters, setFilters] = useState(initialFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -66,6 +76,7 @@ export function ProspectingView({ initialFilters, onFiltersChange }: Props) {
     useState<ProspectContactResult>('contacted');
   const [inboxSelectedId, setInboxSelectedId] = useState<string | null>(null);
   const [inboxGroup, setInboxGroup] = useState<DueGroup>('today');
+  const [conversionTarget, setConversionTarget] = useState<Prospect | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const selected = prospects.find((item) => item.id === selectedId);
   const inboxSelected = prospects.find((item) => item.id === inboxSelectedId);
@@ -104,6 +115,17 @@ export function ProspectingView({ initialFilters, onFiltersChange }: Props) {
     if (openDetail) setSelectedId(next.id);
     setFeedback('Prospecto guardado localmente.');
     return true;
+  }
+  function convertFromPanel(input: ProspectConversionInput) {
+    if (!conversionTarget) return;
+    const result = startProspectConversion(conversionTarget, input);
+    if (!result.ok) {
+      refresh();
+      return setFeedback(result.error);
+    }
+    refresh();
+    setConversionTarget(null);
+    setFeedback('Oportunidad creada. Revisá el próximo paso en Seguimiento.');
   }
   function importRows() {
     let saved = 0;
@@ -185,7 +207,9 @@ export function ProspectingView({ initialFilters, onFiltersChange }: Props) {
           if (saved) setCreationDraft(null);
           return saved;
         }}
+        onReload={refresh}
         feedback={feedback}
+        onShowNextActions={onShowNextActions}
       />
     );
   if (selected)
@@ -195,7 +219,9 @@ export function ProspectingView({ initialFilters, onFiltersChange }: Props) {
         initialContactChannel={initialContactChannel}
         onBack={() => setSelectedId(null)}
         onSave={save}
+        onReload={refresh}
         feedback={feedback}
+        onShowNextActions={onShowNextActions}
       />
     );
   const grouped = (group: DueGroup) =>
@@ -354,6 +380,8 @@ export function ProspectingView({ initialFilters, onFiltersChange }: Props) {
                 setActionInitialResult(result);
                 setActionProspect(inboxSelected);
               }}
+              onQualify={() => setConversionTarget(inboxSelected)}
+              onShowNextActions={onShowNextActions}
             />
           )}
         </div>
@@ -463,6 +491,13 @@ export function ProspectingView({ initialFilters, onFiltersChange }: Props) {
             setActionProspect(null);
             setToast('Acción registrada.');
           }}
+        />
+      )}
+      {conversionTarget && (
+        <ProspectConversionModal
+          prospect={conversionTarget}
+          onClose={() => setConversionTarget(null)}
+          onSave={convertFromPanel}
         />
       )}
     </main>
@@ -684,12 +719,16 @@ function ProspectInboxDetail({
   onCopy,
   onOpen,
   onRegister,
+  onQualify,
+  onShowNextActions,
 }: {
   prospect: Prospect;
   onClose: () => void;
   onCopy: (value: string, label: string) => void;
   onOpen: () => void;
   onRegister: (result?: ProspectContactResult) => void;
+  onQualify: () => void;
+  onShowNextActions: () => void;
 }) {
   const initials = prospect.name
     .split(/\s+/)
@@ -755,6 +794,11 @@ function ProspectInboxDetail({
         </div>
       </div>
       <div className="prospect-panel-actions">
+        {canQualifyProspect(prospect) && (
+          <button className="button button-primary" type="button" onClick={onQualify}>
+            Calificar oportunidad
+          </button>
+        )}
         <button className="button button-line" type="button" onClick={() => onRegister()}>
           <span aria-hidden="true">✓</span> Registrar acción
         </button>
@@ -762,6 +806,36 @@ function ProspectInboxDetail({
           Ver ficha completa <span aria-hidden="true">→</span>
         </button>
       </div>
+      {prospect.conversion?.state === 'completed' && (
+        <section className="prospect-panel-section">
+          <h3>Oportunidad creada</h3>
+          <p>
+            <strong>Oportunidad:</strong> {prospect.conversion.draft.opportunityName}
+          </p>
+          <p>
+            <strong>Contacto:</strong> {prospect.conversion.draft.clientName}
+          </p>
+          {prospect.conversion.draft.clientCompany && (
+            <p>
+              <strong>Empresa:</strong> {prospect.conversion.draft.clientCompany}
+            </p>
+          )}
+          <p>
+            <strong>Servicio:</strong> {prospect.conversion.draft.serviceOfInterest}
+          </p>
+          {prospect.conversion.draft.estimatedValue !== undefined && (
+            <p>
+              <strong>Valor estimado:</strong>{' '}
+              {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
+                prospect.conversion.draft.estimatedValue,
+              )}
+            </p>
+          )}
+          <button className="button button-line" type="button" onClick={onShowNextActions}>
+            Ir a seguimiento de oportunidad
+          </button>
+        </section>
+      )}
       <section className="prospect-panel-section">
         <h3>Historial de acciones</h3>
         {contactActivities.length ? (
@@ -963,6 +1037,8 @@ function ProspectDetail({
   onBack,
   onSave,
   feedback,
+  onShowNextActions,
+  onReload,
 }: {
   prospect: Prospect;
   initialContactChannel: ProspectChannel;
@@ -970,6 +1046,8 @@ function ProspectDetail({
   onBack: () => void;
   onSave: (prospect: Prospect) => boolean;
   feedback: string;
+  onShowNextActions: () => void;
+  onReload: () => void;
 }) {
   const [draft, setDraft] = useState(prospect);
   const [isEditing, setIsEditing] = useState(isNew);
@@ -979,9 +1057,47 @@ function ProspectDetail({
   const [author, setAuthor] = useState('');
   const [contactFeedback, setContactFeedback] = useState('');
   const [detailFollowUpAt, setDetailFollowUpAt] = useState('');
+  const [isConversionOpen, setIsConversionOpen] = useState(false);
+  const [conversionFeedback, setConversionFeedback] = useState('');
+  const [pendingConversion, setPendingConversion] = useState<Prospect | null>(null);
   const defaultScript = `Hola ${draft.name}, soy Daniel. Te contacto por ${draft.potentialService || 'el servicio que necesitás'}. ¿Te parece si coordinamos una breve conversación?`;
   function field<K extends keyof Prospect>(key: K, value: Prospect[K]) {
     setDraft((current) => ({ ...current, [key]: value, updatedAt: new Date().toISOString() }));
+  }
+  function beginConversion(input: ProspectConversionInput) {
+    try {
+      const pending = createPendingProspectConversion(prospect, input);
+      const pendingSave = saveProspectWithResult(pending);
+      if (!pendingSave.ok) {
+        setConversionFeedback(
+          'No se pudo iniciar la conversión. No se creó cliente ni oportunidad.',
+        );
+        return;
+      }
+      setPendingConversion(pending);
+      const result = resumeProspectConversion(pending);
+      if (!result.ok) {
+        setConversionFeedback(result.error);
+        return;
+      }
+      onReload();
+      setPendingConversion(null);
+      setIsConversionOpen(false);
+      setConversionFeedback(
+        'Oportunidad creada. Revisá su contexto y próximo paso en Seguimiento.',
+      );
+    } catch (error) {
+      setConversionFeedback(
+        error instanceof Error ? error.message : 'No se pudo iniciar la conversión.',
+      );
+    }
+  }
+  function retryConversion() {
+    const result = resumeProspectConversion(pendingConversion ?? prospect);
+    if (!result.ok) return setConversionFeedback(result.error);
+    onReload();
+    setPendingConversion(null);
+    setConversionFeedback('Oportunidad creada. Revisá su contexto y próximo paso en Seguimiento.');
   }
   function recordResult(event: FormEvent) {
     event.preventDefault();
@@ -1125,6 +1241,70 @@ function ProspectDetail({
               </button>
             )}
           </div>
+          {!isNew && canQualifyProspect(prospect) && (
+            <button
+              className="button button-primary"
+              type="button"
+              onClick={() => setIsConversionOpen(true)}
+            >
+              Calificar oportunidad
+            </button>
+          )}
+          {!isNew && (pendingConversion ?? prospect).conversion?.state === 'pending' && (
+            <div className="commercial-warning" role="alert">
+              <p>
+                Hay una conversión pendiente para{' '}
+                {(pendingConversion ?? prospect).conversion!.draft.opportunityName}.
+              </p>
+              <button className="button button-primary" type="button" onClick={retryConversion}>
+                Reintentar conversión
+              </button>
+            </div>
+          )}
+          {!isNew && prospect.conversion?.state === 'completed' && (
+            <section className="commercial-note" aria-label="Oportunidad creada">
+              <h3>Oportunidad creada</h3>
+              <p>
+                <strong>Oportunidad / obra:</strong> {prospect.conversion.draft.opportunityName}
+              </p>
+              <p>
+                <strong>Contacto:</strong> {prospect.conversion.draft.clientName}
+              </p>
+              {prospect.conversion.draft.clientCompany && (
+                <p>
+                  <strong>Empresa:</strong> {prospect.conversion.draft.clientCompany}
+                </p>
+              )}
+              <p>
+                <strong>Servicio:</strong> {prospect.conversion.draft.serviceOfInterest} ·{' '}
+                <strong>Interés:</strong>{' '}
+                {prospectPriorityLabels[prospect.conversion.draft.interestLevel]}
+              </p>
+              <p>
+                <strong>Necesidad:</strong> {prospect.conversion.draft.detectedNeed}
+              </p>
+              {prospect.conversion.draft.estimatedValue !== undefined && (
+                <p>
+                  <strong>Valor estimado:</strong>{' '}
+                  {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
+                    prospect.conversion.draft.estimatedValue,
+                  )}
+                </p>
+              )}
+              <p>
+                <strong>Próximo paso:</strong> {prospect.conversion.draft.nextStep} ·{' '}
+                {new Date(prospect.conversion.draft.nextStepAt).toLocaleString('es-AR')}
+              </p>
+              <button className="button button-line" type="button" onClick={onShowNextActions}>
+                Ir a seguimiento de oportunidad
+              </button>
+            </section>
+          )}
+          {conversionFeedback && (
+            <p className="commercial-note" role="status">
+              {conversionFeedback}
+            </p>
+          )}
         </section>
         {!isNew && (
           <section className="quote-card prospect-contact-card">
@@ -1225,6 +1405,155 @@ function ProspectDetail({
           )}
         </section>
       </div>
+      {isConversionOpen && (
+        <ProspectConversionModal
+          prospect={prospect}
+          onClose={() => setIsConversionOpen(false)}
+          onSave={beginConversion}
+        />
+      )}
     </main>
+  );
+}
+
+function ProspectConversionModal({
+  prospect,
+  onClose,
+  onSave,
+}: {
+  prospect: Prospect;
+  onClose: () => void;
+  onSave: (input: ProspectConversionInput) => void;
+}) {
+  const [input, setInput] = useState<ProspectConversionInput>({
+    opportunityName: '',
+    serviceOfInterest: prospect.potentialService,
+    interestLevel: 'medium',
+    detectedNeed: '',
+    estimatedValue: '',
+    nextStep: '',
+    nextStepAt: '',
+    nextStepChannel: (() => {
+      const channel = [...prospect.activities]
+        .reverse()
+        .find((item) => item.type === 'contactResult')?.channel;
+      return channel === 'phone' ? 'call' : (channel ?? 'call');
+    })(),
+    responsible: prospect.responsible,
+  });
+  const [error, setError] = useState('');
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const validation = getProspectConversionValidationError(input);
+    if (validation) return setError(validation);
+    onSave(input);
+  }
+  const set = <K extends keyof ProspectConversionInput>(
+    key: K,
+    value: ProspectConversionInput[K],
+  ) => setInput((current) => ({ ...current, [key]: value }));
+  return (
+    <div className="modal-backdrop">
+      <form
+        className="confirmation-modal commercial-form"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="conversion-title"
+        onSubmit={submit}
+      >
+        <h2 id="conversion-title">Calificar oportunidad</h2>
+        <p>{prospect.name}</p>
+        <label className="field">
+          <span>Nombre de oportunidad / obra</span>
+          <input
+            value={input.opportunityName}
+            onChange={(e) => set('opportunityName', e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Servicio de interés</span>
+          <input
+            value={input.serviceOfInterest}
+            onChange={(e) => set('serviceOfInterest', e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Nivel de interés</span>
+          <select
+            value={input.interestLevel}
+            onChange={(e) =>
+              set('interestLevel', e.target.value as ProspectConversionInput['interestLevel'])
+            }
+          >
+            <option value="high">Alto</option>
+            <option value="medium">Medio</option>
+            <option value="low">Bajo</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>Necesidad detectada</span>
+          <textarea
+            value={input.detectedNeed}
+            onChange={(e) => set('detectedNeed', e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Valor estimado (opcional)</span>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value={input.estimatedValue}
+            onChange={(e) => set('estimatedValue', e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Próximo paso</span>
+          <input value={input.nextStep} onChange={(e) => set('nextStep', e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Canal del próximo paso</span>
+          <select
+            value={input.nextStepChannel}
+            onChange={(e) =>
+              set('nextStepChannel', e.target.value as ProspectConversionInput['nextStepChannel'])
+            }
+          >
+            <option value="">Seleccionar canal</option>
+            <option value="call">Llamada</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="email">Email</option>
+            <option value="meeting">Reunión</option>
+            <option value="waitForResponse">Esperar respuesta</option>
+            <option value="other">Otra</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>Fecha y hora del próximo paso</span>
+          <input
+            type="datetime-local"
+            value={input.nextStepAt}
+            onChange={(e) => set('nextStepAt', e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Responsable</span>
+          <input value={input.responsible} onChange={(e) => set('responsible', e.target.value)} />
+        </label>
+        {error && (
+          <p className="commercial-warning" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="confirmation-actions">
+          <button className="button button-line" type="button" onClick={onClose}>
+            Seguir como prospecto
+          </button>
+          <button className="button button-primary" type="submit">
+            Crear oportunidad
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

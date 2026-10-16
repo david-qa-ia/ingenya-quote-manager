@@ -242,3 +242,13 @@ the same rules as clients and are never usable destinations.
 `ingenya.prospectFilters.v1` is a browser-local navigation preference for the prospect list; it
 contains no business record. Both keys recover missing data as empty/default state and never
 replace malformed roots during a write.
+
+## SCRUM-66 Compatible Extension
+
+A prospect conversion journal is stored inside its existing `ingenya.prospects.v1` record; no new
+storage key is introduced. Before creating a client or opportunity, a validated `pending` journal
+stores stable target IDs and the validated conversion payload. The journal survives reloads and is
+only resumed after the user explicitly selects retry. Client, then opportunity, then the completed
+prospect are written independently. A later write failure leaves the journal pending and never
+claims conversion success; retry upserts the same IDs instead of creating duplicates. A completed
+journal retains only the conversion provenance and the prospect history records the completion.
