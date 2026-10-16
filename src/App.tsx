@@ -84,6 +84,8 @@ import { completeCadenceAction, updateCadenceAction } from './utils/cadenceTrans
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
 import { deriveFollowUpInbox } from './utils/followUpInbox';
 import { loadProspects } from './utils/prospectStorage';
+import { deriveGlobalSearchResults, isQuoteWithoutResponse } from './utils/globalSearch';
+import type { GlobalSearchResult } from './types/globalSearch';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -141,6 +143,8 @@ function App() {
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [opportunities, setOpportunities] = useState(() => loadOpportunities().items);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -201,6 +205,12 @@ function App() {
   const visibleSavedQuotes = filterSavedQuotesByCommercialStatus(
     filterSavedQuotes(savedQuotes, savedQuoteFilter),
     savedQuoteCommercialFilter,
+  );
+  const globalSearchResults = deriveGlobalSearchResults(
+    searchQuery,
+    loadClients().items,
+    opportunities,
+    savedQuotes,
   );
   useEffect(() => {
     if (isFinalizationConfirmationOpen) {
@@ -578,6 +588,23 @@ function App() {
       message:
         'No hay un presupuesto asociado para abrir este contexto. La obra o trabajo sigue disponible en el seguimiento.',
     });
+  }
+
+  function handleGlobalSearchSelect(result: GlobalSearchResult) {
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    if (result.opportunity) {
+      setOpportunities(loadOpportunities().items);
+      setDetailOpportunityId(result.opportunity.id);
+      setCurrentView('opportunityDetail');
+      return;
+    }
+    if (result.quote) {
+      handleQuoteDetailOpen(result.quote);
+      return;
+    }
+    setProspectFilters((current) => ({ ...current, search: result.client?.name ?? '' }));
+    setCurrentView('prospects');
   }
 
   function handleDashboardQuoteIntent(item: FollowUpInboxItem, mode: 'new' | 'existing') {
@@ -1010,6 +1037,16 @@ function App() {
       onShowCadences={() => setCurrentView('cadences')}
       onShowMetrics={() => setCurrentView('metrics')}
       onShowProspects={() => setCurrentView('prospects')}
+      searchQuery={searchQuery}
+      searchResults={globalSearchResults}
+      isSearchOpen={isSearchOpen}
+      onSearchOpen={() => setIsSearchOpen(true)}
+      onSearchQueryChange={setSearchQuery}
+      onSearchSelect={handleGlobalSearchSelect}
+      onSearchClose={() => {
+        setIsSearchOpen(false);
+        setSearchQuery('');
+      }}
     />
   );
   const currentOpportunities = loadOpportunities().items;
@@ -1032,6 +1069,7 @@ function App() {
         {appHeader}
         <DailyWorkDashboard
           items={items}
+          quoteNoResponseCount={savedQuotes.filter((quote) => isQuoteWithoutResponse(quote)).length}
           onShowFollowUp={() => setCurrentView('nextActions')}
           onOpen={(item) => setDashboardResult(item)}
         />
