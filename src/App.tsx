@@ -69,6 +69,7 @@ import { CadenceView } from './components/CadenceView';
 import { MetricsDashboard } from './components/MetricsDashboard';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
+import { QuoteDetailView } from './components/QuoteDetailView';
 import { defaultProspectFilters, type ProspectFilters } from './utils/prospectWorkflow';
 import { PROSPECT_FILTERS_STORAGE_KEY } from './utils/prospectStorage';
 import {
@@ -133,6 +134,7 @@ function App() {
   const [clientId, setClientId] = useState<string | undefined>();
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
+  const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
   const [opportunities, setOpportunities] = useState(() => loadOpportunities().items);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
@@ -500,6 +502,21 @@ function App() {
     setCurrentView(savedQuote.status === 'draft' ? 'editor' : 'summary');
   }
 
+  function handleQuoteDetailOpen(savedQuote: SavedQuote) {
+    setQuoteId(savedQuote.id);
+    setQuoteStatus(savedQuote.status);
+    setCommercialStatus(savedQuote.commercialStatus);
+    setCommercialStatusAudit(savedQuote.commercialStatusAudit);
+    setSentAudit(savedQuote.sentAudit);
+    setQuoteLines(savedQuote.lines);
+    setClientId(savedQuote.clientId);
+    setOpportunityId(savedQuote.opportunityId);
+    setClientName(savedQuote.clientName);
+    setProjectName(savedQuote.projectName);
+    setDetailQuoteId(savedQuote.id);
+    setCurrentView('quoteDetail');
+  }
+
   function handleFollowUpOpen(item: FollowUpInboxItem) {
     if (item.opportunityId) {
       setDetailOpportunityId(item.opportunityId);
@@ -847,6 +864,25 @@ function App() {
     }
   }
 
+  async function handleQuoteDetailPdfDownload(savedQuote: SavedQuote): Promise<string | null> {
+    try {
+      await downloadQuotePdf(savedQuote);
+      if (
+        !recordAutomaticActivity(
+          { kind: 'quote', quoteId: savedQuote.id },
+          'pdfGenerated',
+          'PDF generado desde el detalle comercial.',
+        )
+      )
+        return 'El PDF se descargó, pero no se pudo registrar la actividad.';
+      return null;
+    } catch (error) {
+      return error instanceof QuotePdfValidationError
+        ? error.message
+        : 'No se pudo generar el PDF. Intentá nuevamente.';
+    }
+  }
+
   const appHeader = (
     <AppHeader
       activeSection={resolveActiveNavigationSection(currentView)}
@@ -994,7 +1030,7 @@ function App() {
                   contactRestricted: false,
                 });
               }}
-              onOpenQuote={handleSavedQuoteOpen}
+              onOpenQuote={handleQuoteDetailOpen}
             />
             {inboxContact && (
               <ContactAssistant
@@ -1028,6 +1064,44 @@ function App() {
           </main>
         )}
       </>
+    );
+  }
+
+  if (currentView === 'quoteDetail') {
+    const quote = savedQuotes.find((item) => item.id === detailQuoteId);
+    const opportunity = opportunities.find(
+      (item) => item.id === quote?.opportunityId && item.clientId === quote?.clientId,
+    );
+    if (!quote) {
+      return (
+        <main className="app-shell">
+          <p className="commercial-warning" role="alert">
+            No se encontró el presupuesto solicitado.
+          </p>
+          <button
+            className="button button-line"
+            type="button"
+            onClick={() => setCurrentView('nextActions')}
+          >
+            Volver a seguimiento
+          </button>
+        </main>
+      );
+    }
+    return (
+      <QuoteDetailView
+        quote={quote}
+        opportunity={opportunity}
+        client={loadClients().items.find((item) => item.id === quote.clientId)}
+        onBack={() => {
+          if (opportunity) {
+            setDetailOpportunityId(opportunity.id);
+            setCurrentView('opportunityDetail');
+          } else setCurrentView('savedQuotes');
+        }}
+        onPdf={handleQuoteDetailPdfDownload}
+        onStatus={(_quote, status, audit) => handleCommercialStatusChange(status, audit)}
+      />
     );
   }
 

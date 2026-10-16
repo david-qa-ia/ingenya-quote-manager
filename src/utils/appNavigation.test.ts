@@ -24,6 +24,7 @@ describe('resolveActiveNavigationSection', () => {
     expect(resolveActiveNavigationSection('savedQuotes')).toBe('savedQuotes');
     expect(resolveActiveNavigationSection('catalog')).toBe('catalog');
     expect(resolveActiveNavigationSection('metrics')).toBe('metrics');
+    expect(resolveActiveNavigationSection('quoteDetail')).toBe('nextActions');
   });
 });
 
