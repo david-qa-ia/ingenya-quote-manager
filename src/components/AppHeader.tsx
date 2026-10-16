@@ -3,6 +3,8 @@ import { deploymentBrand } from '../config/deploymentBrand';
 import { UiIcon } from './UiIcon';
 import type { NavigationSection } from '../utils/appNavigation';
 import { getCircularFocusIndex, getVisibleContactItems } from '../utils/appNavigation';
+import { GlobalSearchPanel } from './GlobalSearchPanel';
+import type { GlobalSearchResult } from '../types/globalSearch';
 
 interface AppHeaderProps {
   activeSection: NavigationSection;
@@ -13,6 +15,13 @@ interface AppHeaderProps {
   onShowCadences: () => void;
   onShowMetrics: () => void;
   onShowProspects: () => void;
+  searchQuery: string;
+  searchResults: readonly GlobalSearchResult[];
+  isSearchOpen: boolean;
+  onSearchOpen: () => void;
+  onSearchQueryChange: (value: string) => void;
+  onSearchSelect: (result: GlobalSearchResult) => void;
+  onSearchClose: () => void;
 }
 
 const focusableSelector = 'button:not([disabled]), a[href]';
@@ -26,11 +35,19 @@ export function AppHeader({
   onShowCadences,
   onShowMetrics,
   onShowProspects,
+  searchQuery,
+  searchResults,
+  isSearchOpen,
+  onSearchOpen,
+  onSearchQueryChange,
+  onSearchSelect,
+  onSearchClose,
 }: AppHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const navigationRef = useRef<HTMLElement>(null);
   const wasMenuOpenRef = useRef(false);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const contactItems = getVisibleContactItems(deploymentBrand);
 
   useEffect(() => {
@@ -46,6 +63,17 @@ export function AppHeader({
       wasMenuOpenRef.current = false;
     }
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    function handleShortcut(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        onSearchOpen();
+      }
+    }
+    document.addEventListener('keydown', handleShortcut);
+    return () => document.removeEventListener('keydown', handleShortcut);
+  }, [onSearchOpen]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -140,6 +168,17 @@ export function AppHeader({
             role={isMenuOpen ? 'dialog' : undefined}
           >
             <button
+              ref={searchTriggerRef}
+              className="navigation-link navigation-search-link"
+              type="button"
+              onClick={onSearchOpen}
+              aria-expanded={isSearchOpen}
+              aria-controls="global-search-panel"
+            >
+              <UiIcon name="search" /> <span>Buscar</span>
+              <kbd>⌘ K</kbd>
+            </button>
+            <button
               className="navigation-link"
               type="button"
               aria-current={activeSection === 'prospects' ? 'page' : undefined}
@@ -197,6 +236,18 @@ export function AppHeader({
               Nuevo presupuesto
             </button>
           </nav>
+          {isSearchOpen && (
+            <div id="global-search-panel">
+              <GlobalSearchPanel
+                query={searchQuery}
+                results={searchResults}
+                onQueryChange={onSearchQueryChange}
+                onSelect={onSearchSelect}
+                onClose={onSearchClose}
+                triggerRef={searchTriggerRef}
+              />
+            </div>
+          )}
           <div className="sidebar-footer">
             {contactItems.map((item) =>
               item.href ? (

@@ -6,6 +6,7 @@ interface Props {
   items: readonly FollowUpInboxItem[];
   onShowFollowUp: () => void;
   onOpen: (item: FollowUpInboxItem) => void;
+  quoteNoResponseCount?: number;
 }
 
 const labels = { overdue: 'Vencidos', today: 'Hoy', upcoming: 'Próximos' } as const;
@@ -46,7 +47,7 @@ function BucketIcon({ bucket }: { bucket: keyof typeof labels }) {
   );
 }
 
-export function DailyWorkDashboard({ items, onShowFollowUp, onOpen }: Props) {
+export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, quoteNoResponseCount }: Props) {
   const [selectedBucket, setSelectedBucket] = useState<FollowUpBucket | 'all'>('today');
   const date = new Intl.DateTimeFormat('es-AR', {
     weekday: 'long',
@@ -89,7 +90,8 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen }: Props) {
               ✉
             </span>
             <strong>
-              {quoteAlerts.length} {quoteAlerts.length === 1 ? 'propuesta' : 'propuestas'} sin
+              {quoteNoResponseCount ?? quoteAlerts.length}{' '}
+              {(quoteNoResponseCount ?? quoteAlerts.length) === 1 ? 'propuesta' : 'propuestas'} sin
               respuesta
             </strong>
             <span aria-hidden="true">›</span>

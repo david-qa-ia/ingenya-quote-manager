@@ -27,6 +27,7 @@ export type UiIconName =
   | 'phone'
   | 'plus'
   | 'send'
+  | 'search'
   | 'settings'
   | 'tag'
   | 'trophy'
@@ -137,6 +138,12 @@ const paths: Record<UiIconName, ReactNode> = {
     <>
       <path d="m3 11 18-8-8 18-2-8-8-2Z" />
       <path d="m11 13 4-4" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="10.8" cy="10.8" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
     </>
   ),
   settings: (
