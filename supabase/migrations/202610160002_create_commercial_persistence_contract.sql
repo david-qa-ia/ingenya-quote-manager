@@ -109,7 +109,13 @@ create table if not exists public.activities (
   communication jsonb,
   note_revisions jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
-  unique (workspace_id, id)
+  unique (workspace_id, id),
+  check (
+    ((prospect_id is not null)::integer +
+     (contact_id is not null)::integer +
+     (opportunity_id is not null)::integer +
+     (quote_id is not null)::integer) = 1
+  )
 );
 
 create table if not exists public.commercial_outcomes (
@@ -261,6 +267,45 @@ create table if not exists public.cadence_events (
   foreign key (workspace_id, execution_id) references public.cadence_executions(workspace_id, id)
 );
 
+-- Cross-entity invariants that depend on tables declared later in this migration.
+alter table public.activities
+  add constraint activities_workspace_prospect_fk
+    foreign key (workspace_id, prospect_id) references public.prospects(workspace_id, id),
+  add constraint activities_workspace_contact_fk
+    foreign key (workspace_id, contact_id) references public.contacts(workspace_id, id),
+  add constraint activities_workspace_opportunity_fk
+    foreign key (workspace_id, opportunity_id) references public.opportunities(workspace_id, id),
+  add constraint activities_workspace_quote_fk
+    foreign key (workspace_id, quote_id) references public.quotes(workspace_id, id);
+
+alter table public.commercial_outcomes
+  add constraint outcomes_workspace_quote_fk
+    foreign key (workspace_id, quote_id) references public.quotes(workspace_id, id),
+  add constraint outcomes_workspace_previous_fk
+    foreign key (workspace_id, supersedes_outcome_id)
+    references public.commercial_outcomes(workspace_id, id);
+
+alter table public.cadence_executions
+  add constraint cadence_current_step_workspace_fk
+    foreign key (workspace_id, current_step_execution_id)
+    references public.cadence_step_executions(workspace_id, id);
+
+alter table public.cadence_events
+  add constraint cadence_event_step_workspace_fk
+    foreign key (workspace_id, step_execution_id)
+    references public.cadence_step_executions(workspace_id, id);
+
+alter table public.user_profiles enable row level security;
+
+create policy "users can read their own profile"
+  on public.user_profiles for select
+  using (user_id = auth.uid());
+
+create policy "users can update their own profile"
+  on public.user_profiles for update
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
 create table if not exists public.attachments (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete restrict,
@@ -380,6 +425,37 @@ returns boolean language sql stable security definer set search_path = public as
   );
 $$;
 
+-- Internal tables are never client-writable. RPCs execute as a trusted owner and are the only
+-- path for idempotency records, audit records and post-commit work. Audit payloads are not exposed
+-- through a broad table policy; this RPC returns only a minimal summary.
+revoke all on public.audit_events from anon, authenticated;
+revoke all on public.idempotency_keys from anon, authenticated;
+revoke all on public.outbox_events from anon, authenticated;
+
+create or replace function public.list_audit_event_summaries(
+  target_workspace_id uuid,
+  result_limit integer default 50
+)
+returns table (
+  id uuid,
+  operation text,
+  entity_type text,
+  entity_id uuid,
+  result text,
+  occurred_at timestamptz
+)
+language sql stable security definer set search_path = public as $$
+  select event.id, event.operation, event.entity_type, event.entity_id, event.result, event.occurred_at
+  from public.audit_events event
+  where event.workspace_id = target_workspace_id
+    and public.has_workspace_role(target_workspace_id, array['owner', 'admin'])
+  order by event.occurred_at desc
+  limit greatest(1, least(result_limit, 100));
+$$;
+
+revoke all on function public.list_audit_event_summaries(uuid, integer) from public;
+grant execute on function public.list_audit_event_summaries(uuid, integer) to authenticated;
+
 -- Every commercial table is isolated by the same server-side membership check.
 do $$
 declare table_name text;
@@ -388,12 +464,11 @@ begin
     'prospects', 'contacts', 'opportunities', 'next_actions', 'activities',
     'commercial_outcomes', 'quotes', 'quote_versions', 'quote_sends',
     'quote_change_requests', 'cadence_templates', 'cadence_template_steps',
-    'cadence_executions', 'cadence_step_executions', 'cadence_events',
-    'attachments', 'audit_events', 'idempotency_keys', 'outbox_events'
+    'cadence_executions', 'cadence_step_executions', 'cadence_events', 'attachments'
   ] loop
     execute format('alter table public.%I enable row level security', table_name);
     execute format(
-      'create policy %I on public.%I for all using (public.is_active_workspace_member(workspace_id)) with check (public.is_active_workspace_member(workspace_id))',
+      'create policy %I on public.%I for all using (public.has_workspace_role(workspace_id, array[''owner'', ''admin''])) with check (public.has_workspace_role(workspace_id, array[''owner'', ''admin'']))',
       table_name || '_workspace_isolation', table_name
     );
   end loop;
@@ -405,16 +480,22 @@ alter table public.migration_quarantine enable row level security;
 
 create policy "migration owners can operate runs"
   on public.migration_runs for all
-  using (public.has_workspace_role(destination_workspace_id, array['owner']))
-  with check (public.has_workspace_role(destination_workspace_id, array['owner']));
+  using (
+    public.has_workspace_role(source_workspace_id, array['owner'])
+    and public.has_workspace_role(destination_workspace_id, array['owner'])
+  )
+  with check (
+    public.has_workspace_role(source_workspace_id, array['owner'])
+    and public.has_workspace_role(destination_workspace_id, array['owner'])
+  );
 
 create policy "migration owners can read items"
   on public.migration_items for select
-  using (exists (select 1 from public.migration_runs run where run.id = migration_run_id and public.has_workspace_role(run.destination_workspace_id, array['owner'])));
+  using (exists (select 1 from public.migration_runs run where run.id = migration_run_id and public.has_workspace_role(run.source_workspace_id, array['owner']) and public.has_workspace_role(run.destination_workspace_id, array['owner'])));
 
 create policy "migration owners can read quarantine"
   on public.migration_quarantine for select
-  using (exists (select 1 from public.migration_runs run where run.id = migration_run_id and public.has_workspace_role(run.destination_workspace_id, array['owner'])));
+  using (exists (select 1 from public.migration_runs run where run.id = migration_run_id and public.has_workspace_role(run.source_workspace_id, array['owner']) and public.has_workspace_role(run.destination_workspace_id, array['owner'])));
 
 comment on table public.migration_runs is 'One source workspace, destination workspace and snapshot fingerprint per run; resume existing IDs only.';
 comment on table public.outbox_events is 'Only for post-commit external work; transactional failures roll back and never use requiere_recuperacion.';

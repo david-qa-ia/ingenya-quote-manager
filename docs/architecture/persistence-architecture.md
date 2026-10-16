@@ -8,7 +8,10 @@ verdad: PostgreSQL, Auth, Row Level Security, Storage privado y migraciones vers
 - Supabase Auth identifica al usuario mediante `auth.uid()`.
 - `workspace_id` enviado por el navegador es un selector de contexto, nunca una autorización.
 - Toda tabla comercial tiene `workspace_id not null`.
-- Toda consulta y mutación se ejecuta con RLS y valida una membresía activa.
+- Toda consulta y mutación comercial se ejecuta con RLS y valida una membresía activa con rol
+  `owner` o `admin`.
+- `collaborator` no puede leer ni escribir datos comerciales en el MVP; queda reservado para una
+  matriz futura de permisos.
 - El frontend no conoce ni usa una clave administrativa.
 - La identidad es única; las empresas se representan como membresías en espacios.
 - El login inicial es por enlace mágico al email.
@@ -38,17 +41,20 @@ workspaces -> migration_runs -> migration_items -> migration_quarantine
 Las relaciones entre entidades comerciales se validan con claves compuestas que incluyen
 `workspace_id`. No se permite que una oportunidad de un espacio referencie un contacto de otro.
 
+`user_profiles` tiene RLS explícita: cada usuario puede leer y actualizar únicamente su propio
+perfil. La creación inicial y cambios sensibles de identidad se realizan mediante Auth o RPC segura.
+
 ## Roles
 
-| Operación                            | owner | admin | collaborator futuro  |
-| ------------------------------------ | ----- | ----- | -------------------- |
-| Leer y operar datos comerciales      | Sí    | Sí    | Según permiso futuro |
-| Registrar actividades y seguimientos | Sí    | Sí    | Según permiso futuro |
-| Gestionar plantillas/cadencias       | Sí    | Sí    | Según permiso futuro |
-| Gestionar membresías y roles         | Sí    | No    | No                   |
-| Ejecutar migración                   | Sí    | No    | No                   |
-| Crear/restaurar respaldos            | Sí    | No    | No                   |
-| Ver auditoría completa               | Sí    | Sí    | Limitado             |
+| Operación                            | owner | admin | collaborator futuro |
+| ------------------------------------ | ----- | ----- | ------------------- |
+| Leer y operar datos comerciales      | Sí    | Sí    | No                  |
+| Registrar actividades y seguimientos | Sí    | Sí    | No                  |
+| Gestionar plantillas/cadencias       | Sí    | Sí    | No                  |
+| Gestionar membresías y roles         | Sí    | No    | No                  |
+| Ejecutar migración                   | Sí    | No    | No                  |
+| Crear/restaurar respaldos            | Sí    | No    | No                  |
+| Ver auditoría completa               | Sí    | Sí    | Limitado            |
 
 El rol `collaborator` solo queda preparado en el modelo; no agrega permisos en este alcance.
 
@@ -73,6 +79,7 @@ Cada RPC debe cumplir estas reglas:
 4. Si falla cualquier escritura secundaria dentro de la RPC, hacer rollback de toda la transacción.
 5. Registrar auditoría e idempotencia dentro de la misma transacción.
 6. Devolver confirmación solo después del commit.
+7. Una escritura secundaria fallida dentro de la RPC revierte toda la transacción.
 
 `requiere_recuperacion` no representa un fallo de una escritura dentro de la transacción. Solo se
 usa para una tarea externa o posterior al commit, registrada en `outbox_events` y reintentable con
@@ -96,7 +103,13 @@ Los eventos derivados tienen identificadores deterministas, por ejemplo:
 ## Auditoría y outbox
 
 `audit_events` es inmutable y registra usuario, espacio, rol, operación, entidad, antes/después,
-request ID, clave idempotente, timestamp y resultado.
+request ID, clave idempotente, timestamp y resultado. No tiene políticas `for all` para miembros ni
+permite escritura, update o delete desde el cliente. La lectura, si se habilita, debe ocurrir por
+una RPC explícita que devuelva únicamente un resumen mínimo; los payloads técnicos completos no se
+exponen directamente.
+
+`idempotency_keys` y `outbox_events` tampoco tienen políticas comerciales para miembros. Solo las
+RPC seguras pueden escribirlos; el worker posterior al commit consume outbox con una clave única.
 
 `outbox_events` se utiliza solamente después del commit para tareas externas, por ejemplo:
 
@@ -110,7 +123,8 @@ Cada evento tiene estado `pending`, `processing`, `completed` o `failed`, contad
 
 ## Migración
 
-Una `migration_run` siempre representa exactamente un origen, un destino y un snapshot:
+Una `migration_run` siempre representa exactamente un origen, un destino y un snapshot. El usuario
+debe ser `owner` tanto del espacio origen como del espacio destino:
 
 ```text
 source_workspace_id + destination_workspace_id + snapshot_fingerprint
@@ -118,6 +132,12 @@ source_workspace_id + destination_workspace_id + snapshot_fingerprint
 
 No se puede crear una nueva corrida con el mismo fingerprint. Sí se puede reanudar la corrida
 existente, con su mismo ID y checkpoints.
+
+Las actividades tienen exactamente un sujeto comercial válido. Sus FKs compuestas obligan a que
+prospecto, contacto, oportunidad y presupuesto pertenezcan al mismo `workspace_id`. Resultados
+comerciales referencian presupuesto y resultado previo; ejecuciones de cadencia referencian el paso
+actual y los eventos referencian su ejecución y paso. Cualquier relación polimórfica no expresable
+con una FK se valida obligatoriamente dentro de la RPC antes de escribir.
 
 Flujo:
 
