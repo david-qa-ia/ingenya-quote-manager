@@ -77,7 +77,11 @@ export function QuoteCommercialStatus({
         {sentAudit && (
           <div>
             <dt>Envío registrado</dt>
-            <dd>{new Date(sentAudit.changedAt).toLocaleString('es-AR')}</dd>
+            <dd>
+              {new Date(sentAudit.changedAt).toLocaleString('es-AR')}
+              {sentAudit.channel && ` · ${sentAudit.channel === 'whatsapp' ? 'WhatsApp' : 'email'}`}
+              {sentAudit.recipient && ` · ${sentAudit.recipient}`}
+            </dd>
           </div>
         )}
       </dl>

@@ -13,6 +13,8 @@ export interface CommercialStatusAudit {
   changedAt: string;
   changedBy: string;
   reason: string;
+  channel?: 'whatsapp' | 'email';
+  recipient?: string;
 }
 
 export interface CatalogJob {
