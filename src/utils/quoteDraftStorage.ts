@@ -165,6 +165,9 @@ export function saveQuote(quote: Quote): boolean {
       clientName: quote.clientName,
       projectName: quote.projectName,
       lines: quote.lines,
+      ...(quote.version ? { version: quote.version } : {}),
+      ...(quote.basedOnQuoteId ? { basedOnQuoteId: quote.basedOnQuoteId } : {}),
+      ...(quote.changeRequest ? { changeRequest: quote.changeRequest } : {}),
       savedAt: new Date().toISOString(),
     };
     if (!recoverSavedQuote(savedQuote)) return false;

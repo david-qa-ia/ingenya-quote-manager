@@ -74,6 +74,13 @@
   font-size: 0.9rem;
   font-weight: 750;
 }
+.ui-icon {
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
 .navigation-link:hover {
   color: var(--accent-dark);
   background: var(--accent-soft);
@@ -1806,6 +1813,168 @@ td small {
 .opportunity-detail-view {
   padding-top: 28px;
 }
+.opportunity-pipeline-card {
+  margin: 20px 0;
+}
+.opportunity-detail-view > .opportunity-pipeline-card {
+  display: none;
+}
+.opportunity-pipeline-card h2 {
+  margin: 0 0 16px;
+  font-size: 1.05rem;
+}
+.opportunity-detail-main .opportunity-pipeline-card {
+  margin: 0;
+}
+.opportunity-pipeline {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: start;
+  gap: 0;
+}
+.opportunity-pipeline-step {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+.opportunity-pipeline-step i {
+  position: absolute;
+  top: 29px;
+  left: calc(50% + 31px);
+  width: calc(100% - 62px);
+  height: 2px;
+  background: var(--border);
+}
+.opportunity-pipeline-icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 60px;
+  height: 60px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+}
+.opportunity-svg-icon {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+.opportunity-pipeline-icon .ui-icon {
+  width: 28px;
+  height: 28px;
+  stroke-width: 1.7;
+}
+.opportunity-header-actions .opportunity-svg-icon {
+  width: 18px;
+  height: 18px;
+}
+.opportunity-pipeline-step.reached .opportunity-pipeline-icon {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+.opportunity-pipeline-step.completed .opportunity-pipeline-icon {
+  color: #08775a;
+  background: #d7f8e8;
+  box-shadow: inset 0 0 0 1px #7ad4ac;
+}
+.opportunity-pipeline-complete {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 2px solid var(--surface, #fff);
+  border-radius: 50%;
+  color: #fff;
+  background: #08775a;
+}
+.opportunity-pipeline-complete .ui-icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.6;
+}
+.opportunity-pipeline-step.reached i {
+  background: #43b88b;
+}
+.opportunity-pipeline-step.active {
+  color: var(--accent-dark);
+}
+.opportunity-pipeline-step.active .opportunity-pipeline-icon {
+  color: var(--accent-dark);
+  background: #e4d8ff;
+  box-shadow: inset 0 0 0 2px #8c6be8;
+}
+.opportunity-current-proposal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid #ccebdd;
+  border-radius: 10px;
+  background: #effcf5;
+  font-size: 0.82rem;
+}
+.opportunity-proposal-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  color: #05654f;
+  background: #d5f8e7;
+}
+.opportunity-current-proposal > div {
+  display: grid;
+  gap: 3px;
+  min-width: 170px;
+}
+.opportunity-current-proposal > div span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.opportunity-sent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  color: #07674f;
+  background: #d7f8e8;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.opportunity-sent-chip .opportunity-svg-icon {
+  width: 16px;
+  height: 16px;
+}
+.opportunity-current-proposal .button-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  margin-left: auto;
+  padding: 0 10px;
+}
+.opportunity-versions-card {
+  margin-top: 18px;
+}
+.opportunity-versions-card .quote-heading {
+  align-items: center;
+}
 .opportunity-workspace {
   background: #f7f8f6;
   display: grid;
@@ -1876,6 +2045,21 @@ button.opportunity-nav-item:hover {
   font-size: clamp(2rem, 3.1vw, 2.7rem);
   letter-spacing: -0.035em;
 }
+.opportunity-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.opportunity-title-row h1 {
+  margin-bottom: 0;
+}
+.opportunity-title-row .status-badge {
+  color: #4f24bd;
+  background: #e5d9ff;
+  border: 0;
+  font-size: 0.82rem;
+}
 .opportunity-tabs {
   border-bottom: 1px solid var(--border, #dfe5e1);
   display: flex;
@@ -1917,20 +2101,31 @@ button.opportunity-nav-item:hover {
   margin-top: 0;
 }
 .opportunity-next-step {
-  padding: 24px;
+  padding: 22px 20px 18px;
+  background: #f4fbf7;
 }
 .opportunity-step-main {
   align-items: flex-start;
   display: flex;
   gap: 14px;
-  margin: 18px 0 20px;
+  margin: 16px 0 22px;
 }
 .opportunity-step-main h2 {
-  font-size: 1.35rem;
-  margin: 0 0 6px;
+  font-size: 1.25rem;
+  margin: 0 0 8px;
 }
 .opportunity-step-main p {
+  align-items: center;
+  color: var(--text-heading);
+  display: flex;
+  gap: 8px;
+  font-size: 0.86rem;
   margin: 0;
+}
+.opportunity-step-main p .ui-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--accent-dark);
 }
 .opportunity-step-main > div:last-child {
   min-width: 0;
@@ -1938,22 +2133,26 @@ button.opportunity-nav-item:hover {
 }
 .opportunity-step-icon {
   align-items: center;
-  background: #e8f4ee;
+  background: #dff4e9;
   border-radius: 50%;
   color: #1f5949;
   display: flex;
   font-size: 27px;
-  height: 78px;
+  height: 64px;
   justify-content: center;
-  flex: 0 0 78px;
-  width: 78px;
+  flex: 0 0 64px;
+  width: 64px;
+}
+.opportunity-step-icon .ui-icon {
+  width: 27px;
+  height: 27px;
 }
 .opportunity-next-step .next-action-card {
   background: transparent;
   border: 0;
   box-shadow: none;
-  margin: 18px 0 0;
-  padding: 14px 0 0;
+  margin: 0;
+  padding: 0;
 }
 .opportunity-next-step .summary-panel-heading {
   display: none;
@@ -1962,27 +2161,96 @@ button.opportunity-nav-item:hover {
   border-top: 1px solid var(--border, #dfe5e1);
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  padding-top: 18px;
+  gap: 8px;
+  padding-top: 14px;
+}
+.opportunity-next-step .commercial-actions .button {
+  flex: 1;
+  min-height: 36px;
+  padding: 7px 12px;
+  border-radius: 9px;
+  font-size: 0.76rem;
+}
+.opportunity-next-step .commercial-actions .button-link {
+  flex-basis: 100%;
+  flex-grow: 0;
+  min-height: 28px;
+  border: 0;
+  color: var(--text-heading);
+  padding: 2px 0 0;
+  text-align: center;
 }
 .opportunity-data-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 28px;
   margin: 0;
+}
+.opportunity-data-card h2,
+.opportunity-data-card dt,
+.opportunity-data-card dd {
+  color: #10172f;
+}
+.opportunity-data-card dt {
+  font-weight: 500;
+}
+.opportunity-data-card dd {
+  font-weight: 700;
+}
+.opportunity-data-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.opportunity-data-heading h2 {
+  margin: 0;
+  white-space: nowrap;
+}
+.opportunity-data-heading .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  color: var(--accent-dark);
+}
+.opportunity-data-heading .ui-icon {
+  width: 17px;
+  height: 17px;
+}
+.opportunity-data-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  color: var(--text-heading);
+  background: #fff;
+  font: inherit;
+  font-size: 0.82rem;
 }
 .opportunity-data-row {
   align-items: center;
   border-top: 1px solid var(--border, #dfe5e1);
   column-gap: 12px;
   display: grid;
-  grid-template-columns: 28px minmax(170px, 0.7fr) minmax(0, 1.3fr);
+  grid-template-columns: 22px minmax(0, 1.1fr) minmax(95px, 0.9fr);
   min-width: 0;
   padding: 14px 0;
+}
+@media (max-width: 900px) {
+  .opportunity-data-card dl {
+    grid-template-columns: 1fr;
+  }
 }
 .opportunity-data-card dt,
 .opportunity-data-card dd {
   margin: 0;
 }
 .opportunity-data-card dt {
-  color: var(--muted, #64716d);
+  color: #10172f;
   font-weight: 500;
 }
 .opportunity-data-icon {
@@ -1992,9 +2260,10 @@ button.opportunity-nav-item:hover {
 }
 .opportunity-data-card dd {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .opportunity-data-card dd {
+  color: #10172f;
   font-weight: 600;
 }
 .opportunity-contact-card p {
@@ -2002,6 +2271,73 @@ button.opportunity-nav-item:hover {
 }
 .opportunity-contact-card {
   padding: 22px 24px;
+}
+.opportunity-contact-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.opportunity-contact-identity p {
+  margin: 3px 0;
+  color: var(--text-muted);
+}
+.opportunity-contact-identity small {
+  color: var(--text-muted);
+}
+.opportunity-avatar {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 50%;
+  color: #1e3962;
+  background: #dcecff;
+  font-weight: 800;
+}
+.opportunity-contact-line .opportunity-svg-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--accent-dark);
+}
+.opportunity-recent-list {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.opportunity-recent-list li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: start;
+}
+.opportunity-recent-list strong,
+.opportunity-recent-list small {
+  display: block;
+}
+.opportunity-recent-list small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+.opportunity-recent-list time {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+.opportunity-activity-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+.opportunity-activity-icon .opportunity-svg-icon {
+  width: 16px;
+  height: 16px;
 }
 .opportunity-contact-line {
   align-items: center;
@@ -2153,10 +2489,9 @@ button.opportunity-nav-item:hover {
     background: #246b59;
     color: #fff;
   }
-  .app-sidebar-header .navigation-link span {
-    font-size: 1.25rem;
-    line-height: 1;
-    width: 20px;
+  .app-sidebar-header .navigation-link .ui-icon {
+    width: 22px;
+    height: 22px;
   }
   .app-sidebar-header .header-new-quote {
     margin: 22px 6px 0;
@@ -2173,8 +2508,15 @@ button.opportunity-nav-item:hover {
   }
   .app-sidebar-header .sidebar-footer a,
   .app-sidebar-header .sidebar-footer span {
+    align-items: center;
     color: #e7f3ee;
+    display: inline-flex;
+    gap: 9px;
     text-decoration: none;
+  }
+  .app-sidebar-header .sidebar-footer .ui-icon {
+    width: 19px;
+    height: 19px;
   }
   .app-sidebar-header + main,
   .app-sidebar-header + .prospecting-view,

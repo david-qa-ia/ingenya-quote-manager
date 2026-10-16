@@ -48,6 +48,13 @@ export interface Quote {
   clientName: string;
   projectName: string;
   lines: QuoteLine[];
+  version?: number;
+  basedOnQuoteId?: string;
+  changeRequest?: {
+    requestedAt: string;
+    requestedBy: string;
+    reason: string;
+  };
 }
 
 export interface QuoteDraft extends Quote {

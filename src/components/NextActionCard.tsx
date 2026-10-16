@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import type { NextAction, Opportunity } from '../types/opportunity';
+import { UiIcon } from './UiIcon';
 import {
   getActionBucket,
   businessTimeZone,
@@ -25,6 +26,7 @@ interface Props {
   opportunity: Opportunity;
   onSave: (opportunity: Opportunity, event: string) => boolean;
   onPrepareContact?: (channel: 'call' | 'whatsapp') => void;
+  embedded?: boolean;
 }
 
 function localValue(iso: string) {
@@ -44,7 +46,7 @@ function inputToIso(value: string) {
   return value ? new Date(`${value}:00-03:00`).toISOString() : '';
 }
 
-export function NextActionCard({ opportunity, onSave, onPrepareContact }: Props) {
+export function NextActionCard({ opportunity, onSave, onPrepareContact, embedded = false }: Props) {
   const action = opportunity.nextAction;
   const [mode, setMode] = useState<'complete' | 'reschedule' | 'cancel' | 'notRelevant' | null>(
     null,
@@ -93,20 +95,24 @@ export function NextActionCard({ opportunity, onSave, onPrepareContact }: Props)
         <p className="eyebrow">Seguimiento</p>
         <h2>Próxima acción</h2>
       </div>
-      <p>
-        <strong>{kindLabels[action.kind ?? 'followUp']}</strong> · {labels[action.type]} ·{' '}
-        {new Intl.DateTimeFormat('es-AR', {
-          dateStyle: 'short',
-          timeStyle: 'short',
-          timeZone: businessTimeZone,
-        }).format(new Date(action.dueAt))}
-      </p>
-      <p className={bucket === 'overdue' ? 'commercial-warning' : 'commercial-note'}>
-        {bucket === 'overdue'
-          ? 'Vencida'
-          : `${priorities[action.priority]} · ${action.responsible}`}{' '}
-        · {action.description}
-      </p>
+      {!embedded && (
+        <>
+          <p>
+            <strong>{kindLabels[action.kind ?? 'followUp']}</strong> · {labels[action.type]} ·{' '}
+            {new Intl.DateTimeFormat('es-AR', {
+              dateStyle: 'short',
+              timeStyle: 'short',
+              timeZone: businessTimeZone,
+            }).format(new Date(action.dueAt))}
+          </p>
+          <p className={bucket === 'overdue' ? 'commercial-warning' : 'commercial-note'}>
+            {bucket === 'overdue'
+              ? 'Vencida'
+              : `${priorities[action.priority]} · ${action.responsible}`}{' '}
+            · {action.description}
+          </p>
+        </>
+      )}
       <div className="commercial-actions">
         {(action.type === 'call' || action.type === 'whatsapp') && (
           <button
@@ -114,21 +120,33 @@ export function NextActionCard({ opportunity, onSave, onPrepareContact }: Props)
             type="button"
             onClick={() => onPrepareContact?.(action.type as 'call' | 'whatsapp')}
           >
-            Preparar contacto
+            <UiIcon name="document" /> Preparar contacto
           </button>
         )}
-        <button className="button button-line" type="button" onClick={() => setMode('complete')}>
-          Completar
-        </button>
         <button className="button button-line" type="button" onClick={() => setMode('reschedule')}>
-          Reprogramar
+          <UiIcon name="calendar" /> Reprogramar
         </button>
-        <button className="button button-line" type="button" onClick={() => setMode('cancel')}>
-          Cancelar
+        <button
+          className={embedded ? 'button button-primary' : 'button button-line'}
+          type="button"
+          onClick={() => setMode('complete')}
+        >
+          <UiIcon name="check-circle" /> Completar
         </button>
-        <button className="button button-link" type="button" onClick={() => setMode('notRelevant')}>
-          No relevante
-        </button>
+        {!embedded && (
+          <>
+            <button className="button button-line" type="button" onClick={() => setMode('cancel')}>
+              Cancelar
+            </button>
+            <button
+              className="button button-link"
+              type="button"
+              onClick={() => setMode('notRelevant')}
+            >
+              No relevante
+            </button>
+          </>
+        )}
       </div>
       {mode && (
         <div className="modal-backdrop">

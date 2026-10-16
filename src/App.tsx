@@ -144,6 +144,9 @@ function App() {
   const [opportunities, setOpportunities] = useState(() => loadOpportunities().items);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
+  const [quoteVersion, setQuoteVersion] = useState(1);
+  const [quoteBasedOnId, setQuoteBasedOnId] = useState<string | undefined>();
+  const [quoteChangeRequest, setQuoteChangeRequest] = useState<Quote['changeRequest']>();
   const [saveFeedback, setSaveFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -260,6 +263,9 @@ function App() {
       clientName,
       projectName,
       lines: quoteLines,
+      version: quoteVersion,
+      basedOnQuoteId: quoteBasedOnId,
+      changeRequest: quoteChangeRequest,
     };
   }
 
@@ -487,6 +493,9 @@ function App() {
     setQuoteLines([]);
     setClientName('');
     setProjectName('');
+    setQuoteVersion(1);
+    setQuoteBasedOnId(undefined);
+    setQuoteChangeRequest(undefined);
     setClientId(undefined);
     setOpportunityId(undefined);
     resetTransientState();
@@ -504,6 +513,9 @@ function App() {
     setOpportunityId(savedQuote.opportunityId);
     setClientName(savedQuote.clientName);
     setProjectName(savedQuote.projectName);
+    setQuoteVersion(savedQuote.version ?? 1);
+    setQuoteBasedOnId(savedQuote.basedOnQuoteId);
+    setQuoteChangeRequest(savedQuote.changeRequest);
     resetTransientState();
     setCurrentView(savedQuote.status === 'draft' ? 'editor' : 'summary');
   }
@@ -519,8 +531,33 @@ function App() {
     setOpportunityId(savedQuote.opportunityId);
     setClientName(savedQuote.clientName);
     setProjectName(savedQuote.projectName);
+    setQuoteVersion(savedQuote.version ?? 1);
+    setQuoteBasedOnId(savedQuote.basedOnQuoteId);
+    setQuoteChangeRequest(savedQuote.changeRequest);
     setDetailQuoteId(savedQuote.id);
     setCurrentView('quoteDetail');
+  }
+
+  function handleCreateQuoteVersion(source: SavedQuote, reason: string) {
+    setQuoteId(createQuoteId());
+    setQuoteStatus('draft');
+    setCommercialStatus('prepared');
+    setCommercialStatusAudit(createPreparedCommercialAudit(new Date().toISOString()));
+    setSentAudit(undefined);
+    setQuoteLines(source.lines.map((line) => ({ ...line, id: crypto.randomUUID() })));
+    setClientId(source.clientId);
+    setOpportunityId(source.opportunityId);
+    setClientName(source.clientName);
+    setProjectName(source.projectName);
+    setQuoteVersion((source.version ?? 1) + 1);
+    setQuoteBasedOnId(source.id);
+    setQuoteChangeRequest({
+      requestedAt: new Date().toISOString(),
+      requestedBy: 'Pendiente de registrar',
+      reason: reason.trim(),
+    });
+    resetTransientState();
+    setCurrentView('editor');
   }
 
   function handleFollowUpOpen(item: FollowUpInboxItem) {
@@ -749,6 +786,19 @@ function App() {
       setCommercialStatusAudit(next.commercialStatusAudit);
       setSentAudit(next.sentAudit);
       setSavedQuotes(loadSavedQuotes());
+      if (quote.opportunityId && ['sent', 'followingUp'].includes(nextStatus)) {
+        const opportunity = loadOpportunities().items.find(
+          (item) => item.id === quote.opportunityId,
+        );
+        if (opportunity && opportunity.pipelineStage !== 'proposal') {
+          saveOpportunity({
+            ...opportunity,
+            pipelineStage: 'proposal',
+            updatedAt: audit.changedAt,
+          });
+          setOpportunities(loadOpportunities().items);
+        }
+      }
       if (['accepted', 'rejected', 'expired'].includes(nextStatus)) {
         const cadenceCancelled = cancelCadencesForCommercialClose(
           quote.id,
@@ -815,6 +865,19 @@ function App() {
 
       setQuoteStatus('finalized');
       setSavedQuotes(loadSavedQuotes());
+      if (finalizedQuote.opportunityId) {
+        const opportunity = loadOpportunities().items.find(
+          (item) => item.id === finalizedQuote.opportunityId,
+        );
+        if (opportunity && opportunity.pipelineStage !== 'proposal') {
+          saveOpportunity({
+            ...opportunity,
+            pipelineStage: 'proposal',
+            updatedAt: new Date().toISOString(),
+          });
+          setOpportunities(loadOpportunities().items);
+        }
+      }
       const creationActivitySaved =
         !isNewQuote ||
         recordAutomaticActivity(
@@ -1131,6 +1194,8 @@ function App() {
                 });
               }}
               onOpenQuote={handleQuoteDetailOpen}
+              onCreateQuoteVersion={handleCreateQuoteVersion}
+              activities={loadActivities().items}
             />
             {inboxContact && (
               <ContactAssistant

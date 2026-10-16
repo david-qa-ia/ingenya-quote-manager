@@ -60,6 +60,24 @@ Avoid:
 - Hidden calculations
 - Confusing worker/payroll language
 - References to UOCRA or salary tables
+
+## Icon System
+
+Use the shared `UiIcon` component from `src/components/UiIcon.tsx` for interface icons.
+Do not introduce Unicode glyphs, emoji, or one-off inline SVG drawings in feature components.
+The shared icon set uses a consistent 24px viewBox, stroke style, line caps and line joins so
+navigation, pipeline stages, actions and status cards remain visually coherent.
+
+When a new icon is needed:
+
+1. Add it to `UiIconName` and the shared path registry.
+2. Reuse the same semantic name everywhere in the product.
+3. Size and color it through the consuming component's CSS, not by changing the path geometry.
+4. Validate the real screen against the approved visual reference before opening a pull request.
+
+The approved Ingenya visual language uses outline icons with a 1.8px stroke, rounded joins and
+semantic accent colors. The icon system is intentionally local so the application can keep a
+stable, auditable visual vocabulary without feature-by-feature icon drift.
 ```
 
 ## Client And Opportunity Context (SCRUM-46)
