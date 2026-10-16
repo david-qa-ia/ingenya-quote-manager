@@ -8,6 +8,7 @@ import type {
 } from '../types/opportunity';
 
 const actionTypes = ['call', 'whatsapp', 'email', 'meeting', 'waitForResponse', 'other'];
+const actionKinds = ['followUp', 'sendQuote', 'other'];
 const actionStatuses = ['pending', 'completed', 'cancelled', 'notRelevant'];
 const actionPriorities = ['low', 'medium', 'high'];
 const historyEvents = ['created', 'rescheduled', 'completed', 'cancelled', 'notRelevant'];
@@ -54,6 +55,8 @@ export function isNextAction(value: unknown): value is NextAction {
   const action = value as Record<string, unknown>;
   return (
     isNonEmpty(action.id) &&
+    (action.kind === undefined ||
+      (typeof action.kind === 'string' && actionKinds.includes(action.kind))) &&
     typeof action.type === 'string' &&
     actionTypes.includes(action.type) &&
     typeof action.description === 'string' &&
@@ -61,6 +64,9 @@ export function isNextAction(value: unknown): value is NextAction {
     isNonEmpty(action.responsible) &&
     typeof action.priority === 'string' &&
     actionPriorities.includes(action.priority) &&
+    (action.suggestedChannel === undefined ||
+      (typeof action.suggestedChannel === 'string' &&
+        actionTypes.includes(action.suggestedChannel))) &&
     typeof action.status === 'string' &&
     actionStatuses.includes(action.status) &&
     isIso(action.createdAt) &&

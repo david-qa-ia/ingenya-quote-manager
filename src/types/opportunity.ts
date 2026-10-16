@@ -1,5 +1,6 @@
 export type NextActionType =
   'call' | 'whatsapp' | 'email' | 'meeting' | 'waitForResponse' | 'other';
+export type NextActionKind = 'followUp' | 'sendQuote' | 'other';
 export type OpportunityStatus = 'active' | 'cancelled' | 'converted' | 'closed';
 export type OpportunityCommercialState = 'open' | 'won' | 'lost';
 export type OpportunityInterestLevel = 'high' | 'medium' | 'low';
@@ -28,11 +29,14 @@ export interface NextActionHistoryEntry {
 
 export interface NextAction {
   id: string;
+  /** The commercial intent remains separate from the contact channel in the audit flow. */
+  kind?: NextActionKind;
   type: NextActionType;
   description: string;
   dueAt: string;
   responsible: string;
   priority: NextActionPriority;
+  suggestedChannel?: NextActionType;
   status: NextActionStatus;
   createdAt: string;
   updatedAt: string;

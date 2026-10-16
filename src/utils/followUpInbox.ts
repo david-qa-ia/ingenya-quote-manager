@@ -1,8 +1,9 @@
 import type { Activity } from '../types/activity';
 import type { CadenceExecution } from '../types/cadence';
 import type { Client } from '../types/client';
-import type { FollowUpFilters, FollowUpInboxItem } from '../types/followUpInbox';
-import type { Opportunity } from '../types/opportunity';
+import type { FollowUpBucket, FollowUpFilters, FollowUpInboxItem } from '../types/followUpInbox';
+import type { NextActionType, Opportunity } from '../types/opportunity';
+import type { Prospect } from '../types/prospect';
 import type { SavedQuote } from '../types/quote';
 import { isPendingEmail, isPendingPhone } from './clientValidation';
 import { businessTimeZone, getActionBucket, priorityRank } from './opportunityNextAction';
@@ -76,6 +77,7 @@ export function deriveFollowUpInbox(
   executions: readonly CadenceExecution[],
   _activities: readonly Activity[],
   now = new Date(),
+  prospects: readonly Prospect[] = [],
 ): FollowUpInboxItem[] {
   const clientsById = new Map(clients.map((client) => [client.id, client]));
   const quoteById = new Map(quotes.map((quote) => [quote.id, quote]));
@@ -113,6 +115,7 @@ export function deriveFollowUpInbox(
       if (cadence) seenCadences.add(cadence.execution.id);
       const base = {
         id: action.id,
+        subjectType: 'opportunity' as const,
         bucket,
         source: cadence ? ('opportunityCadence' as const) : ('manual' as const),
         action,
@@ -142,6 +145,7 @@ export function deriveFollowUpInbox(
     } else {
       const base = {
         id: `missing:${opportunity.id}`,
+        subjectType: 'opportunity' as const,
         bucket: 'missing' as const,
         source: 'missing' as const,
         clientId: client?.id,
@@ -172,6 +176,7 @@ export function deriveFollowUpInbox(
     if (!bucket) continue;
     const base = {
       id: `cadence:${execution.id}:${cadence.stepId}`,
+      subjectType: 'quote' as const,
       bucket,
       source: 'quoteCadence' as const,
       action,
@@ -194,6 +199,47 @@ export function deriveFollowUpInbox(
         stepExecutionId: cadence.stepId,
       },
       rescheduleCount: countReschedules(action),
+    };
+    items.push({ ...base, priority: calculateFollowUpPriority(base, null, now) });
+  }
+  for (const prospect of prospects) {
+    if (!prospect.nextActionAt || ['converted', 'notInterested'].includes(prospect.status))
+      continue;
+    const dueAt = prospect.nextActionAt;
+    const actionDay = localDay(new Date(dueAt));
+    const bucket: FollowUpBucket =
+      actionDay < localDay(now) ? 'overdue' : actionDay === localDay(now) ? 'today' : 'upcoming';
+    const channel: NextActionType =
+      prospect.preferredChannel === 'phone' ? 'call' : prospect.preferredChannel || 'other';
+    const action = {
+      id: `prospect:${prospect.id}:${dueAt}`,
+      type: channel,
+      description: prospect.nextAction || 'Retomar contacto',
+      dueAt,
+      responsible: prospect.responsible,
+      priority: prospect.priority,
+      status: 'pending' as const,
+      createdAt: prospect.createdAt,
+      updatedAt: prospect.updatedAt,
+      history: [],
+    };
+    const base = {
+      id: action.id,
+      subjectType: 'prospect' as const,
+      prospectId: prospect.id,
+      bucket,
+      source: 'manual' as const,
+      action,
+      clientName: prospect.name,
+      clientCompany: prospect.company,
+      opportunityName: prospect.potentialService || undefined,
+      phone: !isPendingPhone(prospect.phone) ? prospect.phone : undefined,
+      email: !isPendingEmail(prospect.email) ? prospect.email : undefined,
+      contactRestricted: false,
+      responsible: prospect.responsible || 'Sin asignar',
+      channel,
+      manualPriority: prospect.priority,
+      rescheduleCount: 0,
     };
     items.push({ ...base, priority: calculateFollowUpPriority(base, null, now) });
   }

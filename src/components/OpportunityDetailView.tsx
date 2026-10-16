@@ -34,6 +34,11 @@ const channelLabels = {
   waitForResponse: 'Esperar respuesta',
   other: 'Otra',
 } as const;
+const actionKindLabels = {
+  followUp: 'Seguimiento',
+  sendQuote: 'Enviar presupuesto',
+  other: 'Otra acción',
+} as const;
 const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
 
 function dateTime(iso: string) {
@@ -128,7 +133,8 @@ export function OpportunityDetailView({
                   <div>
                     <h2>{action.description}</h2>
                     <p>
-                      {channelLabels[action.type]} · {dateTime(action.dueAt)} · {action.responsible}
+                      {actionKindLabels[action.kind ?? 'followUp']} · {channelLabels[action.type]} ·{' '}
+                      {dateTime(action.dueAt)} · {action.responsible}
                     </p>
                   </div>
                 </div>

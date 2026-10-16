@@ -4,6 +4,7 @@ import type { CadenceExecution } from '../types/cadence';
 import type { Client } from '../types/client';
 import type { FollowUpFilters, FollowUpInboxItem } from '../types/followUpInbox';
 import type { Opportunity } from '../types/opportunity';
+import type { Prospect } from '../types/prospect';
 import type { SavedQuote } from '../types/quote';
 import {
   defaultFollowUpFilters,
@@ -18,6 +19,7 @@ interface Props {
   quotes: readonly SavedQuote[];
   executions: readonly CadenceExecution[];
   activities: readonly Activity[];
+  prospects?: readonly Prospect[];
   issues: readonly string[];
   onOpen: (item: FollowUpInboxItem) => void;
   onPrepareContact: (item: FollowUpInboxItem) => void;
@@ -52,6 +54,7 @@ export function OpportunityNextActionsInbox({
   quotes,
   executions,
   activities,
+  prospects = [],
   issues,
   onOpen,
   onPrepareContact,
@@ -68,7 +71,15 @@ export function OpportunityNextActionsInbox({
   const [dueAt, setDueAt] = useState('');
   const [actionError, setActionError] = useState('');
   const now = new Date();
-  const all = deriveFollowUpInbox(opportunities, clients, quotes, executions, activities, now);
+  const all = deriveFollowUpInbox(
+    opportunities,
+    clients,
+    quotes,
+    executions,
+    activities,
+    now,
+    prospects,
+  );
   const visible = filterFollowUpInbox(all, filters, now);
   const responsibleOptions = [...new Set(all.map((item) => item.responsible))].sort((a, b) =>
     a.localeCompare(b, 'es'),

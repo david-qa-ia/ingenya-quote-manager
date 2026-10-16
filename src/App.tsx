@@ -69,6 +69,7 @@ import { CadenceView } from './components/CadenceView';
 import { MetricsDashboard } from './components/MetricsDashboard';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
+import { DailyWorkDashboard } from './components/DailyWorkDashboard';
 import { QuoteDetailView } from './components/QuoteDetailView';
 import { defaultProspectFilters, type ProspectFilters } from './utils/prospectWorkflow';
 import { PROSPECT_FILTERS_STORAGE_KEY } from './utils/prospectStorage';
@@ -80,6 +81,8 @@ import {
 import { transitionNextAction } from './utils/opportunityNextAction';
 import { completeCadenceAction, updateCadenceAction } from './utils/cadenceTransitions';
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
+import { deriveFollowUpInbox } from './utils/followUpInbox';
+import { loadProspects } from './utils/prospectStorage';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -128,7 +131,8 @@ function App() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>('editor');
+  const [currentView, setCurrentView] = useState<AppView>('dailyDashboard');
+  const [prospects] = useState(() => loadProspects().items);
   const [prospectFilters, setProspectFilters] = useState(loadProspectFilters);
   const [inboxContact, setInboxContact] = useState<FollowUpInboxItem | null>(null);
   const [clientId, setClientId] = useState<string | undefined>();
@@ -889,12 +893,41 @@ function App() {
       onNewQuote={handleNewQuote}
       onShowSavedQuotes={() => setCurrentView('savedQuotes')}
       onShowCatalog={() => setCurrentView('catalog')}
-      onShowNextActions={() => setCurrentView('nextActions')}
+      onShowNextActions={() => setCurrentView('dailyDashboard')}
       onShowCadences={() => setCurrentView('cadences')}
       onShowMetrics={() => setCurrentView('metrics')}
       onShowProspects={() => setCurrentView('prospects')}
     />
   );
+  const currentOpportunities = loadOpportunities().items;
+
+  if (currentView === 'dailyDashboard') {
+    const clientLoad = loadClients();
+    const executionLoad = loadCadenceExecutions();
+    const activityLoad = loadActivities();
+    const items = deriveFollowUpInbox(
+      currentOpportunities,
+      clientLoad.items,
+      savedQuotes,
+      executionLoad.items,
+      activityLoad.items,
+      new Date(),
+      prospects,
+    );
+    return (
+      <>
+        {appHeader}
+        <DailyWorkDashboard
+          items={items}
+          onShowFollowUp={() => setCurrentView('nextActions')}
+          onOpen={(item) => {
+            handleFollowUpOpen(item);
+            setCurrentView('nextActions');
+          }}
+        />
+      </>
+    );
+  }
 
   if (currentView === 'prospects') {
     return (
@@ -941,11 +974,12 @@ function App() {
       <>
         {appHeader}
         <OpportunityNextActionsInbox
-          opportunities={opportunities}
+          opportunities={currentOpportunities}
           clients={loadClients().items}
           quotes={savedQuotes}
           executions={loadCadenceExecutions().items}
           activities={loadActivities().items}
+          prospects={prospects}
           issues={
             [loadClients().issue, loadCadenceExecutions().issue, loadActivities().issue].filter(
               (issue) => issue !== null,
