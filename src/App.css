@@ -1946,6 +1946,268 @@ button.opportunity-nav-item:hover {
 .confirmation-actions .button-primary {
   min-width: 150px;
 }
+
+.quote-detail-workspace {
+  background: #f7f8f6;
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  min-height: 100vh;
+}
+.quote-detail-sidebar {
+  background: #063f35;
+  color: #edf8f2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 28px 20px;
+}
+.quote-detail-sidebar strong {
+  font-size: 2rem;
+  letter-spacing: -0.06em;
+}
+.quote-detail-sidebar small {
+  font-size: 0.57rem;
+  letter-spacing: 0.17em;
+  margin: -8px 0 40px 2px;
+}
+.quote-detail-sidebar span {
+  border-radius: 9px;
+  padding: 14px 12px;
+}
+.quote-detail-sidebar .quote-nav-active {
+  background: #246b59;
+  font-weight: 700;
+}
+.quote-detail-content {
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 1440px;
+  padding: 26px 32px 48px;
+  width: 100%;
+}
+.quote-breadcrumb {
+  color: #536763;
+  font-size: 0.88rem;
+  margin: 0 0 22px;
+}
+.quote-detail-back {
+  margin-bottom: 14px;
+}
+.quote-detail-header h1 {
+  font-size: clamp(2rem, 3.1vw, 2.7rem);
+  letter-spacing: -0.045em;
+  margin: 0;
+}
+.quote-detail-header p {
+  color: #65736f;
+  margin: 10px 0 20px;
+}
+.quote-title-line {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.quote-proposal-chip,
+.quote-card-title b {
+  background: #d9f6e7;
+  border-radius: 8px;
+  color: #15593e;
+  font-size: 0.85rem;
+  padding: 8px 12px;
+}
+.quote-detail-tabs {
+  border-bottom: 1px solid #dce5e0;
+  display: flex;
+  gap: 32px;
+  margin-bottom: 20px;
+  overflow: auto;
+  padding: 0 8px 12px;
+}
+.quote-detail-tabs span,
+.quote-detail-tabs strong {
+  white-space: nowrap;
+}
+.quote-detail-tabs strong {
+  border-bottom: 3px solid #0f5b49;
+  color: #104e40;
+  margin-bottom: -15px;
+  padding-bottom: 12px;
+}
+.quote-detail-grid {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1.9fr) minmax(310px, 1fr);
+}
+.quote-detail-main,
+.quote-detail-side {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+}
+.quote-detail-card {
+  background: #fff;
+  border: 1px solid #dce5e0;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(28, 58, 49, 0.045);
+  padding: 24px;
+}
+.quote-detail-card h2 {
+  font-size: 1.15rem;
+  margin: 0 0 15px;
+}
+.quote-card-title {
+  align-items: start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+.quote-card-title h2 {
+  margin-bottom: 4px;
+}
+.quote-card-title p {
+  color: #65736f;
+  margin: 0;
+}
+.quote-detail-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.quote-detail-table th {
+  background: #f1f5f3;
+  text-align: left;
+}
+.quote-detail-table th,
+.quote-detail-table td {
+  border-bottom: 1px solid #e1e8e4;
+  padding: 13px 12px;
+}
+.quote-detail-table td:not(:first-child),
+.quote-detail-table th:not(:first-child) {
+  text-align: right;
+}
+.quote-detail-table small {
+  color: #687873;
+  display: block;
+  margin-top: 3px;
+}
+.quote-document-total {
+  display: flex;
+  font-size: 1.25rem;
+  justify-content: flex-end;
+  gap: 48px;
+  padding: 17px 12px 5px;
+}
+.quote-document-total strong {
+  font-size: 1.45rem;
+}
+.quote-document-actions,
+.quote-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+.quote-document-actions .button {
+  flex: 1 1 160px;
+  justify-content: center;
+  text-decoration: none;
+}
+.quote-document-actions a[aria-disabled='true'] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.quote-detail-feedback {
+  background: #edf7f1;
+  border-radius: 7px;
+  color: #13513f;
+  margin: 16px 0 0;
+  padding: 10px;
+}
+.quote-status-flow {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+.quote-status-flow span {
+  background: #edf0ef;
+  border-radius: 22px;
+  padding: 11px 18px;
+  text-align: center;
+}
+.quote-status-flow i {
+  background: #b9c7c1;
+  height: 2px;
+  flex: 1;
+}
+.quote-status-flow .active {
+  background: #dceeff;
+  color: #1763ad;
+}
+.quote-status-flow .accepted {
+  background: #d9f6e7;
+  color: #15593e;
+}
+.button-danger {
+  background: #fff;
+  border: 1px solid #ef9c9c;
+  color: #b32121;
+}
+.quote-contact-detail p {
+  border-top: 1px solid #e1e8e4;
+  margin: 0;
+  padding: 12px 0;
+}
+.quote-commercial-summary p {
+  border-top: 1px solid #e1e8e4;
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding: 10px 0;
+}
+.quote-commercial-summary strong {
+  text-align: right;
+}
+@media (max-width: 800px) {
+  .quote-detail-workspace {
+    display: block;
+  }
+  .quote-detail-sidebar {
+    flex-direction: row;
+    overflow: auto;
+    padding: 13px;
+  }
+  .quote-detail-sidebar strong {
+    font-size: 1.4rem;
+  }
+  .quote-detail-sidebar small {
+    display: none;
+  }
+  .quote-detail-sidebar span {
+    white-space: nowrap;
+  }
+  .quote-detail-content {
+    padding: 20px;
+  }
+  .quote-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .quote-detail-tabs {
+    gap: 20px;
+  }
+  .quote-detail-table {
+    min-width: 620px;
+  }
+  .quote-document-total {
+    gap: 20px;
+  }
+  .quote-status-flow {
+    overflow: auto;
+  }
+  .quote-status-flow span {
+    white-space: nowrap;
+  }
+}
 .back-to-current {
   width: auto;
   margin-top: 18px;
