@@ -40,6 +40,34 @@ describe('commercial quote statuses', () => {
     expect(followingUp.sentAudit).toEqual(audit);
   });
 
+  it('persists the actual channel and recipient used for a confirmed send', () => {
+    const sent = applyCommercialTransition('prepared', 'sent', 'finalized', {
+      ...audit,
+      channel: 'whatsapp',
+      recipient: '+54 341 555 0101',
+    });
+
+    expect(sent.sentAudit).toMatchObject({
+      channel: 'whatsapp',
+      recipient: '+54 341 555 0101',
+    });
+  });
+
+  it('rejects invalid send metadata', () => {
+    expect(() =>
+      applyCommercialTransition('prepared', 'sent', 'finalized', {
+        ...audit,
+        channel: 'sms' as 'whatsapp',
+      }),
+    ).toThrow('Ingresá quién registró el cambio y su motivo.');
+    expect(() =>
+      applyCommercialTransition('prepared', 'sent', 'finalized', {
+        ...audit,
+        recipient: ' ',
+      }),
+    ).toThrow('Ingresá quién registró el cambio y su motivo.');
+  });
+
   it('allows a follow-up self-transition and does not offer reopening closed states', () => {
     expect(getCommercialTransitionTargets('followingUp', 'finalized')).toContain('followingUp');
     expect(getCommercialTransitionTargets('accepted', 'finalized')).toEqual([]);

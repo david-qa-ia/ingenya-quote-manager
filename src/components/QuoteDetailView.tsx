@@ -29,6 +29,10 @@ export function QuoteDetailView({ quote, client, opportunity, onBack, onPdf, onS
   const [reason, setReason] = useState('');
   const [feedback, setFeedback] = useState('');
   const [loadingPdf, setLoadingPdf] = useState(false);
+  const [sendChannel, setSendChannel] = useState<'whatsapp' | 'email' | null>(null);
+  const [sendAuthor, setSendAuthor] = useState('');
+  const [sendReason, setSendReason] = useState('');
+  const [sendError, setSendError] = useState('');
   const total = calculateQuoteTotal(quote.lines);
   const targets = getCommercialTransitionTargets(quote.commercialStatus, quote.status);
   const displayName = opportunity?.name || quote.projectName || 'Presupuesto';
@@ -50,6 +54,45 @@ export function QuoteDetailView({ quote, client, opportunity, onBack, onPdf, onS
     if (error) return setFeedback(error);
     setFeedback(`Estado actualizado a ${commercialStatusLabels[target]}.`);
     setTarget(null);
+  }
+
+  function openSend(channel: 'whatsapp' | 'email') {
+    setSendChannel(channel);
+    setSendError('');
+    setSendReason('');
+  }
+
+  function closeSend() {
+    setSendChannel(null);
+    setSendError('');
+  }
+
+  function confirmSend() {
+    if (!sendChannel) return;
+    const recipient = sendChannel === 'whatsapp' ? client?.phone : client?.email;
+    if (!recipient) {
+      setSendError('El contacto no tiene un destinatario válido para este canal.');
+      return;
+    }
+    const audit: CommercialStatusAudit = {
+      changedAt: new Date().toISOString(),
+      changedBy: sendAuthor.trim(),
+      reason: sendReason.trim(),
+      channel: sendChannel,
+      recipient,
+    };
+    const error = onStatus(quote, 'sent', audit);
+    if (error) {
+      setSendError(error);
+      return;
+    }
+    const destination =
+      sendChannel === 'whatsapp'
+        ? `https://wa.me/${recipient.replace(/\D/g, '')}`
+        : `mailto:${recipient}`;
+    closeSend();
+    setFeedback(`Envío por ${sendChannel === 'whatsapp' ? 'WhatsApp' : 'email'} registrado.`);
+    window.open(destination, '_blank', 'noopener,noreferrer');
   }
 
   return (
@@ -140,22 +183,22 @@ export function QuoteDetailView({ quote, client, opportunity, onBack, onPdf, onS
               >
                 {loadingPdf ? 'Generando…' : '▧ Ver PDF'}
               </button>
-              <a
+              <button
                 className="button button-line"
-                href={
-                  client?.phone ? `https://wa.me/${client.phone.replace(/\D/g, '')}` : undefined
-                }
-                aria-disabled={!client?.phone}
+                type="button"
+                onClick={() => openSend('whatsapp')}
+                disabled={!client?.phone || !targets.includes('sent')}
               >
                 ◉ Enviar por WhatsApp
-              </a>
-              <a
+              </button>
+              <button
                 className="button button-line"
-                href={client?.email ? `mailto:${client.email}` : undefined}
-                aria-disabled={!client?.email}
+                type="button"
+                onClick={() => openSend('email')}
+                disabled={!client?.email || !targets.includes('sent')}
               >
                 ✉ Enviar por email
-              </a>
+              </button>
             </div>
             {feedback && (
               <p className="quote-detail-feedback" role="status">
@@ -183,7 +226,7 @@ export function QuoteDetailView({ quote, client, opportunity, onBack, onPdf, onS
                 <button
                   className="button button-primary"
                   type="button"
-                  onClick={() => setTarget('sent')}
+                  onClick={() => openSend(client?.phone ? 'whatsapp' : 'email')}
                 >
                   Registrar envío
                 </button>
@@ -262,6 +305,44 @@ export function QuoteDetailView({ quote, client, opportunity, onBack, onPdf, onS
               </button>
               <button className="button button-primary" type="button" onClick={confirm}>
                 Confirmar
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      {sendChannel && (
+        <div className="modal-backdrop">
+          <section className="confirmation-modal" role="dialog" aria-modal="true">
+            <h2>Confirmar envío por {sendChannel === 'whatsapp' ? 'WhatsApp' : 'email'}</h2>
+            <p>
+              Abrir el canal no registra el envío. Confirmá que el mensaje fue enviado para guardar
+              la auditoría.
+            </p>
+            <p className="commercial-note">
+              Destinatario: {sendChannel === 'whatsapp' ? client?.phone : client?.email}
+            </p>
+            <label className="field">
+              <span>Responsable</span>
+              <input value={sendAuthor} onChange={(event) => setSendAuthor(event.target.value)} />
+            </label>
+            <label className="field">
+              <span>Resultado o nota</span>
+              <textarea
+                value={sendReason}
+                onChange={(event) => setSendReason(event.target.value)}
+              />
+            </label>
+            {sendError && (
+              <p className="commercial-warning" role="alert">
+                {sendError}
+              </p>
+            )}
+            <div className="confirmation-actions">
+              <button className="button button-line" type="button" onClick={closeSend}>
+                Cancelar
+              </button>
+              <button className="button button-primary" type="button" onClick={confirmSend}>
+                Confirmar envío y abrir canal
               </button>
             </div>
           </section>

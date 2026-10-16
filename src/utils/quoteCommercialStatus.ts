@@ -49,7 +49,10 @@ export function isCommercialStatusAudit(value: unknown): value is CommercialStat
     typeof audit.changedBy === 'string' &&
     audit.changedBy.trim().length > 0 &&
     typeof audit.reason === 'string' &&
-    audit.reason.trim().length > 0
+    audit.reason.trim().length > 0 &&
+    (audit.channel === undefined || audit.channel === 'whatsapp' || audit.channel === 'email') &&
+    (audit.recipient === undefined ||
+      (typeof audit.recipient === 'string' && audit.recipient.trim().length > 0))
   );
 }
 
