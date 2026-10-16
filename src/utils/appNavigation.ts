@@ -8,7 +8,8 @@ export type AppView =
   | 'nextActions'
   | 'cadences'
   | 'metrics'
-  | 'prospects';
+  | 'prospects'
+  | 'opportunityDetail';
 export type NavigationSection =
   'newQuote' | 'savedQuotes' | 'catalog' | 'nextActions' | 'cadences' | 'metrics' | 'prospects';
 
@@ -24,6 +25,7 @@ export function resolveActiveNavigationSection(view: AppView): NavigationSection
   if (view === 'cadences') return 'cadences';
   if (view === 'metrics') return 'metrics';
   if (view === 'prospects') return 'prospects';
+  if (view === 'opportunityDetail') return 'nextActions';
   return 'newQuote';
 }
 
