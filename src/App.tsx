@@ -70,6 +70,7 @@ import { MetricsDashboard } from './components/MetricsDashboard';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
 import { DailyWorkDashboard } from './components/DailyWorkDashboard';
+import { RegisterResultDrawer, type RegisterResultInput } from './components/RegisterResultDrawer';
 import { QuoteDetailView } from './components/QuoteDetailView';
 import { defaultProspectFilters, type ProspectFilters } from './utils/prospectWorkflow';
 import { PROSPECT_FILTERS_STORAGE_KEY } from './utils/prospectStorage';
@@ -135,6 +136,7 @@ function App() {
   const [prospects] = useState(() => loadProspects().items);
   const [prospectFilters, setProspectFilters] = useState(loadProspectFilters);
   const [inboxContact, setInboxContact] = useState<FollowUpInboxItem | null>(null);
+  const [dashboardResult, setDashboardResult] = useState<FollowUpInboxItem | null>(null);
   const [clientId, setClientId] = useState<string | undefined>();
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
@@ -541,6 +543,25 @@ function App() {
     });
   }
 
+  function handleDashboardQuoteIntent(item: FollowUpInboxItem, mode: 'new' | 'existing') {
+    if (mode === 'existing' && item.quoteId) {
+      const existing = savedQuotes.find((quote) => quote.id === item.quoteId);
+      if (existing) {
+        handleSavedQuoteOpen(existing);
+        return;
+      }
+    }
+    if (mode === 'new' && item.opportunityId) {
+      const opportunity = opportunities.find((value) => value.id === item.opportunityId);
+      const client = loadClients().items.find((value) => value.id === item.clientId);
+      handleNewQuote();
+      setClientId(client?.id);
+      setOpportunityId(opportunity?.id);
+      setClientName(client?.name ?? item.clientName);
+      setProjectName(opportunity?.name ?? item.opportunityName ?? '');
+    }
+  }
+
   function saveOpportunityFromDetail(next: Opportunity, event: string): boolean {
     if (!saveOpportunity(next)) return false;
     const eventMap = {
@@ -613,6 +634,8 @@ function App() {
       if (!item.opportunityId) return false;
       const current = loadOpportunities().items.find((value) => value.id === item.opportunityId);
       if (!current) return false;
+      const currentAction = current.nextAction;
+      if (!currentAction) return false;
       const next = transitionNextAction(
         current,
         event,
@@ -624,12 +647,39 @@ function App() {
           result: event === 'completed' ? input.result : undefined,
         },
       );
+      const nextAction =
+        event === 'completed' && input.nextStep && input.nextStep !== 'none' && input.dueAt
+          ? {
+              id: crypto.randomUUID(),
+              kind: input.nextStep === 'sendQuote' ? ('sendQuote' as const) : ('followUp' as const),
+              type: input.nextStep === 'sendQuote' ? ('other' as const) : input.nextStep,
+              description:
+                input.nextStep === 'sendQuote' ? 'Enviar presupuesto' : 'Dar seguimiento',
+              dueAt: input.dueAt,
+              responsible: input.actor.trim(),
+              priority: currentAction.priority,
+              suggestedChannel: currentAction.type,
+              status: 'pending' as const,
+              createdAt: now,
+              updatedAt: now,
+              history: [
+                {
+                  id: `${currentAction.id}:created:${now}`,
+                  occurredAt: now,
+                  actor: input.actor.trim(),
+                  event: 'created' as const,
+                  reason: input.reason.trim(),
+                },
+              ],
+            }
+          : next.nextAction;
+      const persisted = { ...next, nextAction };
       if (
-        !saveOpportunity(next) ||
-        !next.nextAction ||
+        !saveOpportunity(persisted) ||
+        !persisted.nextAction ||
         !recordNextActionActivity(
           current.id,
-          next.nextAction.id,
+          currentAction.id,
           event,
           `Próxima acción actualizada desde la bandeja.`,
         )
@@ -920,11 +970,26 @@ function App() {
         <DailyWorkDashboard
           items={items}
           onShowFollowUp={() => setCurrentView('nextActions')}
-          onOpen={(item) => {
-            handleFollowUpOpen(item);
-            setCurrentView('nextActions');
-          }}
+          onOpen={(item) => setDashboardResult(item)}
         />
+        {dashboardResult && (
+          <RegisterResultDrawer
+            item={dashboardResult}
+            onClose={() => setDashboardResult(null)}
+            onSubmit={(input: RegisterResultInput) =>
+              handleFollowUpAction(dashboardResult, 'completed', {
+                actor: input.actor,
+                reason: input.reason,
+                result: input.result,
+                dueAt: input.dueAt,
+                channel: input.channel,
+                nextStep: input.nextStep,
+                quoteMode: input.quoteMode,
+              })
+            }
+            onQuoteIntent={handleDashboardQuoteIntent}
+          />
+        )}
       </>
     );
   }

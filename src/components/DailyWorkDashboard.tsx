@@ -161,7 +161,7 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen }: Props) {
               <button
                 className="daily-row-menu"
                 type="button"
-                aria-label={`Más opciones para ${item.clientName}`}
+                aria-label={`Registrar resultado para ${item.clientName}`}
                 onClick={() => onOpen(item)}
               >
                 ⋮

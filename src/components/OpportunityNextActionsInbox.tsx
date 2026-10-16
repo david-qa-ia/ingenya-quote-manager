@@ -12,6 +12,7 @@ import {
   filterFollowUpInbox,
 } from '../utils/followUpInbox';
 import { businessTimeZone } from '../utils/opportunityNextAction';
+import type { RegisterResultInput } from './RegisterResultDrawer';
 
 interface Props {
   opportunities: readonly Opportunity[];
@@ -31,6 +32,9 @@ export interface InboxActionInput {
   reason: string;
   result: string;
   dueAt: string;
+  channel?: RegisterResultInput['channel'];
+  nextStep?: RegisterResultInput['nextStep'];
+  quoteMode?: RegisterResultInput['quoteMode'];
 }
 const bucketLabels = {
   overdue: 'Vencidas',
