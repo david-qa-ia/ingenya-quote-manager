@@ -1,12 +1,23 @@
 import { useMemo, useState } from 'react';
 import { ActivityTimeline } from './ActivityTimeline';
 import { NextActionCard } from './NextActionCard';
+import { UiIcon } from './UiIcon';
 import type { Client } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
+import type { Activity } from '../types/activity';
 import { businessTimeZone } from '../utils/opportunityNextAction';
 
 type DetailTab = 'summary' | 'activity' | 'quotes' | 'notes' | 'files';
+type OpportunityDataDraft = {
+  serviceOfInterest: string;
+  estimatedValue: string;
+  closingProbability: string;
+  estimatedCloseDate: string;
+  origin: string;
+  tag: string;
+  responsibleSeller: string;
+};
 
 interface Props {
   opportunity: Opportunity;
@@ -16,6 +27,8 @@ interface Props {
   onSaveOpportunity: (opportunity: Opportunity, event: string) => boolean;
   onPrepareContact: (channel: 'call' | 'whatsapp') => void;
   onOpenQuote: (quote: SavedQuote) => void;
+  onCreateQuoteVersion: (quote: SavedQuote, reason: string) => void;
+  activities: readonly Activity[];
 }
 
 const tabLabels: Record<DetailTab, string> = {
@@ -25,21 +38,13 @@ const tabLabels: Record<DetailTab, string> = {
   notes: 'Notas',
   files: 'Archivos',
 };
-const interestLabels = { high: 'Alto', medium: 'Medio', low: 'Bajo' } as const;
-const channelLabels = {
-  call: 'Llamada',
-  whatsapp: 'WhatsApp',
-  email: 'Email',
-  meeting: 'Reunión',
-  waitForResponse: 'Esperar respuesta',
-  other: 'Otra',
-} as const;
-const actionKindLabels = {
-  followUp: 'Seguimiento',
-  sendQuote: 'Enviar presupuesto',
-  other: 'Otra acción',
-} as const;
 const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
+
+const fullDateTime = new Intl.DateTimeFormat('es-AR', {
+  dateStyle: 'full',
+  timeStyle: 'short',
+  timeZone: businessTimeZone,
+});
 
 function dateTime(iso: string) {
   return new Intl.DateTimeFormat('es-AR', {
@@ -57,16 +62,48 @@ export function OpportunityDetailView({
   onSaveOpportunity,
   onPrepareContact,
   onOpenQuote,
+  onCreateQuoteVersion,
+  activities,
 }: Props) {
   const [tab, setTab] = useState<DetailTab>('summary');
   const [copied, setCopied] = useState('');
+  const [editingOpportunityData, setEditingOpportunityData] = useState(false);
+  const [dataDraft, setDataDraft] = useState<OpportunityDataDraft>(() => ({
+    serviceOfInterest: opportunity.qualification?.serviceOfInterest ?? '',
+    estimatedValue: opportunity.qualification?.estimatedValue?.toString() ?? '',
+    closingProbability: opportunity.closingProbability?.toString() ?? '',
+    estimatedCloseDate: opportunity.estimatedCloseDate?.slice(0, 10) ?? '',
+    origin: opportunity.origin ?? '',
+    tag: opportunity.tag ?? '',
+    responsibleSeller: opportunity.responsibleSeller ?? '',
+  }));
   const relatedQuotes = useMemo(
-    () => quotes.filter((quote) => quote.opportunityId === opportunity.id),
+    () =>
+      quotes
+        .filter((quote) => quote.opportunityId === opportunity.id)
+        .sort((a, b) => (b.version ?? 1) - (a.version ?? 1)),
     [opportunity.id, quotes],
   );
   const action = opportunity.nextAction?.status === 'pending' ? opportunity.nextAction : undefined;
   const qualification = opportunity.qualification;
   const isMissingClient = !client;
+  const currentQuote = relatedQuotes[0];
+  const pipeline = [
+    ['prospect', 'Prospecto'],
+    ['contacted', 'Contactado'],
+    ['opportunity', 'Oportunidad'],
+    ['proposal', 'Propuesta'],
+    ['won', 'Ganada'],
+  ] as const;
+  const currentStage = opportunity.pipelineStage ?? (currentQuote ? 'proposal' : 'opportunity');
+  const recentActivities = activities
+    .filter(
+      (item) =>
+        item.subject.kind === 'opportunity' && item.subject.opportunityId === opportunity.id,
+    )
+    .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
+    .slice(0, 4);
+
   async function copy(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
@@ -74,6 +111,39 @@ export function OpportunityDetailView({
     } catch {
       setCopied(`No se pudo copiar ${label.toLocaleLowerCase('es')}.`);
     }
+  }
+  function toggleOpportunityDataEditing() {
+    if (!editingOpportunityData) {
+      setEditingOpportunityData(true);
+      return;
+    }
+    const estimatedValue = dataDraft.estimatedValue.trim()
+      ? Number(dataDraft.estimatedValue)
+      : undefined;
+    const closingProbability = dataDraft.closingProbability.trim()
+      ? Number(dataDraft.closingProbability)
+      : undefined;
+    const updated: Opportunity = {
+      ...opportunity,
+      responsibleSeller: dataDraft.responsibleSeller.trim(),
+      origin: dataDraft.origin.trim() || undefined,
+      tag: dataDraft.tag.trim() || undefined,
+      closingProbability: Number.isFinite(closingProbability) ? closingProbability : undefined,
+      estimatedCloseDate: dataDraft.estimatedCloseDate
+        ? new Date(`${dataDraft.estimatedCloseDate}T12:00:00-03:00`).toISOString()
+        : undefined,
+      qualification: {
+        ...(opportunity.qualification ?? {
+          serviceOfInterest: '',
+          interestLevel: 'medium' as const,
+          detectedNeed: '',
+        }),
+        serviceOfInterest: dataDraft.serviceOfInterest.trim(),
+        estimatedValue: Number.isFinite(estimatedValue) ? estimatedValue : undefined,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    if (onSaveOpportunity(updated, 'edited')) setEditingOpportunityData(false);
   }
 
   return (
@@ -84,20 +154,30 @@ export function OpportunityDetailView({
       <header className="opportunity-detail-header">
         <div>
           <p className="eyebrow">Seguimiento / Oportunidades</p>
-          <h1>{opportunity.name}</h1>
+          <div className="opportunity-title-row">
+            <h1>{opportunity.name}</h1>
+            <span className="status-badge prospect-status-contacted">
+              {currentStage === 'proposal'
+                ? 'Propuesta'
+                : currentStage === 'won'
+                  ? 'Ganada'
+                  : currentStage === 'lost'
+                    ? 'Perdida'
+                    : 'En seguimiento'}
+            </span>
+          </div>
           <p className="page-description">
             {client?.company && `${client.company} · `}
             {client?.name ?? 'Cliente no disponible'}
           </p>
         </div>
         <div className="opportunity-header-actions">
-          <span className="status-badge prospect-status-contacted">● En seguimiento</span>
           <button
             className="button button-primary"
             type="button"
             onClick={() => setTab('activity')}
           >
-            ⚡ Registrar acción
+            <UiIcon name="document" /> Registrar resultado
           </button>
         </div>
       </header>
@@ -106,6 +186,57 @@ export function OpportunityDetailView({
           No se encontró el cliente vinculado. La oportunidad se muestra en modo de solo lectura.
         </p>
       )}
+      <section className="quote-card opportunity-pipeline-card" aria-label="Pipeline comercial">
+        <h2>Pipeline comercial</h2>
+        <div className="opportunity-pipeline">
+          {pipeline.map(([stage, label], index) => {
+            const active = stage === currentStage;
+            const reached = pipeline.findIndex(([value]) => value === currentStage) >= index;
+            return (
+              <div
+                className={`opportunity-pipeline-step ${active ? 'active' : ''} ${reached ? 'reached' : ''}`}
+                key={stage}
+              >
+                <span className="opportunity-pipeline-icon">
+                  <UiIcon
+                    name={
+                      stage === 'prospect'
+                        ? 'person'
+                        : stage === 'contacted'
+                          ? 'phone'
+                          : stage === 'opportunity' || stage === 'proposal'
+                            ? 'document'
+                            : 'trophy'
+                    }
+                  />
+                </span>
+                <strong>{label}</strong>
+                {index < pipeline.length - 1 && <i />}
+              </div>
+            );
+          })}
+        </div>
+        {currentQuote && (
+          <div className="opportunity-current-proposal">
+            <span className="opportunity-proposal-icon">
+              <UiIcon name="document" />
+            </span>
+            <div>
+              <strong>Propuesta actual</strong>
+              <span>
+                {currentQuote.id} · V{currentQuote.version ?? 1}
+              </span>
+            </div>
+            <span className="opportunity-sent-chip">
+              <UiIcon name="whatsapp" />{' '}
+              {currentQuote.commercialStatus === 'sent' ? 'Enviada' : currentQuote.commercialStatus}
+            </span>
+            <button className="button button-line" type="button" onClick={() => setTab('quotes')}>
+              <UiIcon name="document" /> Ver versiones ({relatedQuotes.length})
+            </button>
+          </div>
+        )}
+      </section>
       <div className="opportunity-tabs" role="tablist" aria-label="Secciones de oportunidad">
         {(Object.keys(tabLabels) as DetailTab[]).map((item) => (
           <button
@@ -123,18 +254,94 @@ export function OpportunityDetailView({
       {tab === 'summary' && (
         <div className="opportunity-detail-grid">
           <div className="opportunity-detail-main">
+            <section
+              className="quote-card opportunity-pipeline-card"
+              aria-label="Pipeline comercial"
+            >
+              <h2>Pipeline comercial</h2>
+              <div className="opportunity-pipeline">
+                {pipeline.map(([stage, label], index) => {
+                  const active = stage === currentStage;
+                  const reached = pipeline.findIndex(([value]) => value === currentStage) >= index;
+                  return (
+                    <div
+                      className={`opportunity-pipeline-step ${active ? 'active' : ''} ${reached ? 'reached' : ''} ${reached && !active ? 'completed' : ''}`}
+                      key={stage}
+                    >
+                      <span className="opportunity-pipeline-icon">
+                        <UiIcon
+                          name={
+                            stage === 'prospect'
+                              ? 'person'
+                              : stage === 'contacted'
+                                ? 'phone'
+                                : stage === 'opportunity' || stage === 'proposal'
+                                  ? 'document'
+                                  : 'trophy'
+                          }
+                        />
+                        {reached && !active && (
+                          <span className="opportunity-pipeline-complete">
+                            <UiIcon name="check" />
+                          </span>
+                        )}
+                      </span>
+                      <strong>{label}</strong>
+                      {index < pipeline.length - 1 && <i />}
+                    </div>
+                  );
+                })}
+              </div>
+              {currentQuote && (
+                <div className="opportunity-current-proposal">
+                  <span className="opportunity-proposal-icon">
+                    <UiIcon name="document" />
+                  </span>
+                  <div>
+                    <strong>Propuesta actual</strong>
+                    <span>
+                      {currentQuote.id} · V{currentQuote.version ?? 1}
+                    </span>
+                  </div>
+                  <span className="opportunity-sent-chip">
+                    <UiIcon name="whatsapp" />{' '}
+                    {currentQuote.commercialStatus === 'sent'
+                      ? 'Enviada'
+                      : currentQuote.commercialStatus}
+                  </span>
+                  <button
+                    className="button button-line"
+                    type="button"
+                    onClick={() => setTab('quotes')}
+                  >
+                    <UiIcon name="document" /> Ver versiones ({relatedQuotes.length})
+                  </button>
+                </div>
+              )}
+            </section>
             <section className="quote-card opportunity-next-step">
               <p className="eyebrow">Próximo paso</p>
               {action ? (
                 <div className="opportunity-step-main">
                   <div className="opportunity-step-icon" aria-hidden="true">
-                    ◔
+                    <UiIcon
+                      name={
+                        action.type === 'whatsapp'
+                          ? 'whatsapp'
+                          : action.type === 'email'
+                            ? 'email'
+                            : 'calendar'
+                      }
+                    />
                   </div>
                   <div>
                     <h2>{action.description}</h2>
                     <p>
-                      {actionKindLabels[action.kind ?? 'followUp']} · {channelLabels[action.type]} ·{' '}
-                      {dateTime(action.dueAt)} · {action.responsible}
+                      <UiIcon name="calendar" /> {fullDateTime.format(new Date(action.dueAt))}
+                    </p>
+                    <p>
+                      <UiIcon name="person" /> {action.responsible}
+                      {client?.company && ` · ${client.company}`}
                     </p>
                   </div>
                 </div>
@@ -151,50 +358,245 @@ export function OpportunityDetailView({
                   opportunity={opportunity}
                   onSave={onSaveOpportunity}
                   onPrepareContact={onPrepareContact}
+                  embedded
                 />
               )}
             </section>
+            {currentQuote && (
+              <section className="quote-card opportunity-versions-card">
+                <div className="quote-heading">
+                  <div>
+                    <p className="eyebrow">Propuesta</p>
+                    <h2>Versiones del presupuesto</h2>
+                  </div>
+                  <button
+                    className="button button-line"
+                    type="button"
+                    onClick={() =>
+                      onCreateQuoteVersion(currentQuote, 'El cliente solicitó cambios.')
+                    }
+                  >
+                    Crear V{(currentQuote.version ?? 1) + 1} desde V{currentQuote.version ?? 1}
+                  </button>
+                </div>
+                <ul className="opportunity-quote-list">
+                  {relatedQuotes.map((quote) => (
+                    <li key={quote.id}>
+                      <div>
+                        <strong>
+                          V{quote.version ?? 1} · {quote.projectName || quote.id}
+                        </strong>
+                        <small>
+                          {quote.commercialStatus === 'sent' ? 'Enviada' : quote.commercialStatus} ·{' '}
+                          {dateTime(quote.savedAt)}
+                        </small>
+                        {quote.basedOnQuoteId && (
+                          <small>
+                            Creada desde{' '}
+                            {relatedQuotes.find((item) => item.id === quote.basedOnQuoteId)?.id ??
+                              quote.basedOnQuoteId}
+                          </small>
+                        )}
+                      </div>
+                      <button
+                        className="button button-line"
+                        type="button"
+                        onClick={() => onOpenQuote(quote)}
+                      >
+                        Abrir versión
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             <section className="quote-card opportunity-data-card">
-              <h2>Datos de oportunidad</h2>
+              <div className="opportunity-data-heading">
+                <h2>Datos de oportunidad</h2>
+                <button
+                  className="button button-link"
+                  type="button"
+                  onClick={toggleOpportunityDataEditing}
+                >
+                  <UiIcon name={editingOpportunityData ? 'check' : 'edit'} />
+                  {editingOpportunityData ? 'Guardar' : 'Editar'}
+                </button>
+              </div>
               <dl>
                 <div className="opportunity-data-row">
                   <span className="opportunity-data-icon" aria-hidden="true">
-                    ⌕
+                    <UiIcon name="document" />
                   </span>
-                  <dt>Servicio de interés</dt>
-                  <dd>{qualification?.serviceOfInterest || 'Sin definir'}</dd>
-                </div>
-                <div className="opportunity-data-row">
-                  <span className="opportunity-data-icon" aria-hidden="true">
-                    ▥
-                  </span>
-                  <dt>Nivel de interés</dt>
+                  <dt>Servicio / Tipo</dt>
                   <dd>
-                    {qualification ? interestLabels[qualification.interestLevel] : 'Sin definir'}
+                    {editingOpportunityData ? (
+                      <input
+                        className="opportunity-data-input"
+                        value={dataDraft.serviceOfInterest}
+                        onChange={(event) =>
+                          setDataDraft((draft) => ({
+                            ...draft,
+                            serviceOfInterest: event.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      qualification?.serviceOfInterest || 'Sin definir'
+                    )}
                   </dd>
                 </div>
                 <div className="opportunity-data-row">
                   <span className="opportunity-data-icon" aria-hidden="true">
-                    ◫
+                    <UiIcon name="document" />
                   </span>
-                  <dt>Necesidad</dt>
-                  <dd>{qualification?.detectedNeed || 'Sin definir'}</dd>
+                  <dt>Valor estimado</dt>
+                  <dd>
+                    {editingOpportunityData ? (
+                      <input
+                        className="opportunity-data-input"
+                        inputMode="decimal"
+                        value={dataDraft.estimatedValue}
+                        onChange={(event) =>
+                          setDataDraft((draft) => ({
+                            ...draft,
+                            estimatedValue: event.target.value,
+                          }))
+                        }
+                      />
+                    ) : qualification?.estimatedValue !== undefined ? (
+                      money.format(qualification.estimatedValue)
+                    ) : (
+                      'Sin definir'
+                    )}
+                  </dd>
                 </div>
-                {qualification?.estimatedValue !== undefined && (
-                  <div className="opportunity-data-row">
-                    <span className="opportunity-data-icon" aria-hidden="true">
-                      ◉
-                    </span>
-                    <dt>Valor estimado</dt>
-                    <dd>{money.format(qualification.estimatedValue)}</dd>
-                  </div>
-                )}
                 <div className="opportunity-data-row">
                   <span className="opportunity-data-icon" aria-hidden="true">
-                    ♙
+                    <UiIcon name="activity" />
+                  </span>
+                  <dt>Probabilidad de cierre</dt>
+                  <dd>
+                    {editingOpportunityData ? (
+                      <input
+                        className="opportunity-data-input"
+                        inputMode="numeric"
+                        value={dataDraft.closingProbability}
+                        onChange={(event) =>
+                          setDataDraft((draft) => ({
+                            ...draft,
+                            closingProbability: event.target.value,
+                          }))
+                        }
+                      />
+                    ) : opportunity.closingProbability !== undefined ? (
+                      `${opportunity.closingProbability}%`
+                    ) : (
+                      'Sin definir'
+                    )}
+                  </dd>
+                </div>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    <UiIcon name="calendar" />
+                  </span>
+                  <dt>Fecha estimada de cierre</dt>
+                  <dd>
+                    {editingOpportunityData ? (
+                      <input
+                        className="opportunity-data-input"
+                        type="date"
+                        value={dataDraft.estimatedCloseDate}
+                        onChange={(event) =>
+                          setDataDraft((draft) => ({
+                            ...draft,
+                            estimatedCloseDate: event.target.value,
+                          }))
+                        }
+                      />
+                    ) : opportunity.estimatedCloseDate ? (
+                      dateTime(opportunity.estimatedCloseDate)
+                    ) : (
+                      'Sin definir'
+                    )}
+                  </dd>
+                </div>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    <UiIcon name="send" />
+                  </span>
+                  <dt>Origen</dt>
+                  <dd>
+                    {editingOpportunityData ? (
+                      <input
+                        className="opportunity-data-input"
+                        value={dataDraft.origin}
+                        onChange={(event) =>
+                          setDataDraft((draft) => ({ ...draft, origin: event.target.value }))
+                        }
+                      />
+                    ) : (
+                      opportunity.origin || 'Sin definir'
+                    )}
+                  </dd>
+                </div>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    <UiIcon name="tag" />
+                  </span>
+                  <dt>Etiqueta</dt>
+                  <dd>
+                    {editingOpportunityData ? (
+                      <input
+                        className="opportunity-data-input"
+                        value={dataDraft.tag}
+                        onChange={(event) =>
+                          setDataDraft((draft) => ({ ...draft, tag: event.target.value }))
+                        }
+                      />
+                    ) : (
+                      opportunity.tag || 'Sin definir'
+                    )}
+                  </dd>
+                </div>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    <UiIcon name="person" />
                   </span>
                   <dt>Responsable</dt>
-                  <dd>{opportunity.responsibleSeller || 'Sin asignar'}</dd>
+                  <dd>
+                    {editingOpportunityData ? (
+                      <input
+                        className="opportunity-data-input"
+                        value={dataDraft.responsibleSeller}
+                        onChange={(event) =>
+                          setDataDraft((draft) => ({
+                            ...draft,
+                            responsibleSeller: event.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      opportunity.responsibleSeller || 'Sin asignar'
+                    )}
+                  </dd>
+                </div>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    <UiIcon name="calendar" />
+                  </span>
+                  <dt>Creado el</dt>
+                  <dd>{dateTime(opportunity.createdAt)}</dd>
+                </div>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    <UiIcon name="document" />
+                  </span>
+                  <dt>Versiones</dt>
+                  <dd>
+                    {relatedQuotes.length
+                      ? `${relatedQuotes.length} · V${currentQuote?.version ?? 1} actual`
+                      : 'Sin presupuestos'}
+                  </dd>
                 </div>
               </dl>
             </section>
@@ -202,13 +604,26 @@ export function OpportunityDetailView({
           <aside className="opportunity-detail-side">
             <section className="quote-card opportunity-contact-card">
               <h2>Contacto</h2>
-              <p>
-                <strong>{client?.name ?? 'Cliente no disponible'}</strong>
-              </p>
-              {client?.company && <p>{client.company}</p>}
+              <div className="opportunity-contact-identity">
+                <span className="opportunity-avatar">
+                  {client?.name
+                    ?.split(/\s+/)
+                    .map((part) => part[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase() ?? '??'}
+                </span>
+                <div>
+                  <strong>{client?.name ?? 'Cliente no disponible'}</strong>
+                  {client?.company && <p>{client.company}</p>}
+                  <small>Responsable de proyectos</small>
+                </div>
+              </div>
               {client?.phone && (
                 <p className="opportunity-contact-line">
-                  <span>☎</span>
+                  <span>
+                    <UiIcon name="phone" />
+                  </span>
                   {client.phone}
                   <button
                     type="button"
@@ -221,7 +636,9 @@ export function OpportunityDetailView({
               )}
               {client?.email && (
                 <p className="opportunity-contact-line">
-                  <span>✉</span>
+                  <span>
+                    <UiIcon name="email" />
+                  </span>
                   {client.email}
                   <button
                     type="button"
@@ -240,9 +657,34 @@ export function OpportunityDetailView({
             </section>
             <section className="quote-card opportunity-activity-preview">
               <h2>Actividad reciente</h2>
-              <p className="commercial-note">
-                Consultá la pestaña Actividad para ver y registrar movimientos.
-              </p>
+              {recentActivities.length ? (
+                <ol className="opportunity-recent-list">
+                  {recentActivities.map((activity) => (
+                    <li key={activity.id}>
+                      <span className="opportunity-activity-icon">
+                        <UiIcon
+                          name={
+                            activity.type === 'whatsapp'
+                              ? 'whatsapp'
+                              : activity.type === 'email'
+                                ? 'email'
+                                : activity.type === 'note'
+                                  ? 'note'
+                                  : 'document'
+                          }
+                        />
+                      </span>
+                      <div>
+                        <strong>{activity.result}</strong>
+                        <small>{activity.note || 'Actividad registrada'}</small>
+                      </div>
+                      <time>{new Date(activity.occurredAt).toLocaleDateString('es-AR')}</time>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="commercial-note">Todavía no hay actividades para esta oportunidad.</p>
+              )}
               <button
                 className="button button-line"
                 type="button"

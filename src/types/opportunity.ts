@@ -3,6 +3,8 @@ export type NextActionType =
 export type NextActionKind = 'followUp' | 'sendQuote' | 'other';
 export type OpportunityStatus = 'active' | 'cancelled' | 'converted' | 'closed';
 export type OpportunityCommercialState = 'open' | 'won' | 'lost';
+export type OpportunityPipelineStage =
+  'prospect' | 'contacted' | 'qualified' | 'opportunity' | 'proposal' | 'won' | 'lost';
 export type OpportunityInterestLevel = 'high' | 'medium' | 'low';
 
 export interface OpportunityQualification {
@@ -57,8 +59,13 @@ export interface Opportunity {
   address: string;
   estimatedStartDate: string;
   responsibleSeller: string;
+  origin?: string;
+  tag?: string;
+  closingProbability?: number;
+  estimatedCloseDate?: string;
   status?: OpportunityStatus;
   commercialState?: OpportunityCommercialState;
+  pipelineStage?: OpportunityPipelineStage;
   currentCommercialOutcomeId?: string;
   qualification?: OpportunityQualification;
   nextAction?: NextAction;

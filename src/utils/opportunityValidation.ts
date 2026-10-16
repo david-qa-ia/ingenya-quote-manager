@@ -12,6 +12,15 @@ const actionKinds = ['followUp', 'sendQuote', 'other'];
 const actionStatuses = ['pending', 'completed', 'cancelled', 'notRelevant'];
 const actionPriorities = ['low', 'medium', 'high'];
 const historyEvents = ['created', 'rescheduled', 'completed', 'cancelled', 'notRelevant'];
+const pipelineStages = [
+  'prospect',
+  'contacted',
+  'qualified',
+  'opportunity',
+  'proposal',
+  'won',
+  'lost',
+];
 
 function isValidDate(value: string): boolean {
   const instant = new Date(`${value}T12:00:00Z`);
@@ -184,6 +193,13 @@ export function recoverOpportunity(value: unknown): Opportunity | null {
       record.commercialState === 'lost'
         ? record.commercialState
         : 'open',
+    pipelineStage: pipelineStages.includes(record.pipelineStage as string)
+      ? (record.pipelineStage as Opportunity['pipelineStage'])
+      : record.commercialState === 'won'
+        ? 'won'
+        : record.commercialState === 'lost'
+          ? 'lost'
+          : 'opportunity',
     ...(isNonEmpty(record.currentCommercialOutcomeId)
       ? { currentCommercialOutcomeId: record.currentCommercialOutcomeId }
       : {}),
@@ -219,6 +235,7 @@ export function normalizeOpportunityInput(input: OpportunityInput): OpportunityI
     estimatedStartDate: input.estimatedStartDate,
     responsibleSeller: input.responsibleSeller.trim(),
     commercialState: input.commercialState ?? 'open',
+    pipelineStage: input.pipelineStage ?? 'opportunity',
     ...(input.qualification
       ? {
           qualification: {

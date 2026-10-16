@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { deploymentBrand } from '../config/deploymentBrand';
+import { UiIcon } from './UiIcon';
 import type { NavigationSection } from '../utils/appNavigation';
 import { getCircularFocusIndex, getVisibleContactItems } from '../utils/appNavigation';
 
@@ -144,7 +145,7 @@ export function AppHeader({
               aria-current={activeSection === 'prospects' ? 'page' : undefined}
               onClick={() => navigate(onShowProspects)}
             >
-              <span aria-hidden="true">♧</span> Prospectos
+              <UiIcon name="users" /> Prospectos
             </button>
             <button
               className="navigation-link"
@@ -152,7 +153,7 @@ export function AppHeader({
               aria-current={activeSection === 'metrics' ? 'page' : undefined}
               onClick={() => navigate(onShowMetrics)}
             >
-              <span aria-hidden="true">▥</span> Métricas
+              <UiIcon name="bar-chart" /> Métricas
             </button>
             <button
               className="navigation-link"
@@ -160,7 +161,7 @@ export function AppHeader({
               aria-current={activeSection === 'nextActions' ? 'page' : undefined}
               onClick={() => navigate(onShowNextActions)}
             >
-              <span aria-hidden="true">▣</span> Seguimiento
+              <UiIcon name="calendar-check" /> Seguimiento
             </button>
             <button
               className="navigation-link"
@@ -168,7 +169,7 @@ export function AppHeader({
               aria-current={activeSection === 'cadences' ? 'page' : undefined}
               onClick={() => navigate(onShowCadences)}
             >
-              <span aria-hidden="true">➤</span> Cadencias
+              <UiIcon name="send" /> Cadencias
             </button>
             <button
               className="navigation-link"
@@ -176,7 +177,7 @@ export function AppHeader({
               aria-current={activeSection === 'savedQuotes' ? 'page' : undefined}
               onClick={() => navigate(onShowSavedQuotes)}
             >
-              <span aria-hidden="true">▤</span> Mis presupuestos
+              <UiIcon name="document" /> Mis presupuestos
             </button>
             <button
               className="navigation-link"
@@ -184,7 +185,7 @@ export function AppHeader({
               aria-current={activeSection === 'catalog' ? 'page' : undefined}
               onClick={() => navigate(onShowCatalog)}
             >
-              <span aria-hidden="true">⌂</span> Mano de obra
+              <UiIcon name="activity" /> Mano de obra
             </button>
             <button
               className="button button-primary header-new-quote"
@@ -192,7 +193,7 @@ export function AppHeader({
               aria-current={activeSection === 'newQuote' ? 'page' : undefined}
               onClick={() => navigate(onNewQuote)}
             >
-              <span aria-hidden="true">＋</span>
+              <UiIcon name="plus" />
               Nuevo presupuesto
             </button>
           </nav>
@@ -206,8 +207,12 @@ export function AppHeader({
                 <span key={item.label}>{item.label}</span>
               ),
             )}
-            <span>⚙ Configuración</span>
-            <span>ⓘ Ayuda</span>
+            <span>
+              <UiIcon name="settings" /> Configuración
+            </span>
+            <span>
+              <UiIcon name="help" /> Ayuda
+            </span>
           </div>
         </div>
       </div>

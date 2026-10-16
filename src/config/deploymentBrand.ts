@@ -1,8 +1,8 @@
 import type { DeploymentBrandConfig } from '../types/branding';
 
 export const deploymentBrand: DeploymentBrandConfig = {
-  companyName: 'Alef-Tau',
-  experienceMessage: 'Más de 50 años de experiencia en construcción',
+  companyName: 'ingenya',
+  experienceMessage: 'CONSTRUYE RELACIONES',
   email: 'alef.tau.contacto@gmail.com',
   whatsapp: {
     display: '341 616-4761',
