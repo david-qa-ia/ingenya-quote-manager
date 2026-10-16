@@ -1930,6 +1930,241 @@ td small {
   }
 }
 
+/* SCRUM-80: workspace identity stays inside the existing navigation. */
+.workspace-switcher {
+  position: relative;
+  z-index: 40;
+}
+.workspace-switcher-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.workspace-switcher-trigger:hover,
+.workspace-switcher-trigger:focus-visible {
+  border-color: rgba(225, 243, 234, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+.workspace-switcher-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  color: #d7f3e6;
+  background: rgba(255, 255, 255, 0.11);
+}
+.workspace-switcher-icon .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+.workspace-switcher-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+.workspace-switcher-copy strong,
+.workspace-switcher-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-switcher-copy strong {
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+.workspace-switcher-copy small {
+  color: rgba(231, 243, 238, 0.72);
+  font-size: 0.72rem;
+}
+.workspace-switcher-trigger > .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+.workspace-switcher-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: calc(100% + 8px);
+  width: 248px;
+  padding: 8px;
+  border: 1px solid #dbe4e2;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 34px rgba(14, 37, 32, 0.2);
+  color: var(--text-heading);
+}
+.workspace-switcher-heading {
+  margin: 5px 8px 7px;
+  color: #667486;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.workspace-option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text-heading);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.workspace-option:hover,
+.workspace-option:focus-visible {
+  background: #edf8f4;
+  outline: none;
+}
+.workspace-option-active {
+  background: #e5f6ee;
+}
+.workspace-option .workspace-switcher-copy small {
+  color: #667486;
+}
+.workspace-option .workspace-switcher-icon {
+  color: #075c4b;
+  background: #d5efe4;
+}
+.workspace-option > .ui-icon {
+  width: 18px;
+  height: 18px;
+  margin-left: auto;
+  color: #0a8056;
+}
+.workspace-switcher-error {
+  margin: 7px 8px 4px;
+  color: #9b3d2d;
+  font-size: 0.75rem;
+}
+.workspace-modal-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(12, 27, 25, 0.52);
+}
+.workspace-confirmation-modal {
+  position: relative;
+  width: min(100%, 500px);
+  padding: 30px;
+  border: 1px solid #dfe7e3;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(13, 30, 27, 0.25);
+}
+.workspace-confirmation-modal h2 {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 1.35rem;
+}
+.workspace-confirmation-modal p {
+  margin: 12px 0 24px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.workspace-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  border: 0;
+  color: var(--text-heading);
+  background: transparent;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.workspace-confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.workspace-access-state {
+  display: grid;
+  min-height: 100vh;
+  margin-left: 212px;
+  place-items: center;
+  padding: 36px;
+  background: #f7faf8;
+}
+.workspace-access-card {
+  width: min(100%, 440px);
+  padding: 40px;
+  border: 1px solid #dfe8e3;
+  border-radius: 14px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 8px 30px rgba(15, 40, 32, 0.06);
+}
+.workspace-access-card > .ui-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--accent-dark);
+}
+.workspace-access-card h1 {
+  margin: 18px 0 8px;
+  color: var(--text-heading);
+  font-size: 1.35rem;
+}
+.workspace-access-card p {
+  margin: 0 0 22px;
+  color: var(--text-muted);
+}
+@media (min-width: 801px) {
+  .app-sidebar-header .workspace-switcher {
+    width: auto;
+    margin: 0 12px 12px;
+  }
+  .app-sidebar-header .workspace-switcher-trigger {
+    padding: 8px 10px;
+  }
+}
+@media (max-width: 800px) {
+  .workspace-switcher {
+    margin: 0 16px 10px;
+  }
+  .workspace-switcher-trigger {
+    min-height: 48px;
+    padding: 7px 10px;
+    color: #e7f3ee;
+    background: rgba(255, 255, 255, 0.07);
+  }
+  .workspace-switcher-popover {
+    top: calc(100% + 6px);
+    left: 0;
+    width: min(300px, calc(100vw - 32px));
+  }
+  .workspace-access-state {
+    margin-left: 0;
+    padding: 20px;
+  }
+  .workspace-confirmation-modal {
+    padding: 24px 20px;
+  }
+  .workspace-confirmation-actions {
+    flex-direction: column-reverse;
+  }
+  .workspace-confirmation-actions .button {
+    width: 100%;
+  }
+}
+
 .opportunity-detail-view {
   padding-top: 28px;
 }
@@ -3938,6 +4173,118 @@ button.opportunity-nav-item:hover {
   font-size: 0.8rem;
   padding: 5px 8px;
   width: fit-content;
+}
+
+/* SCRUM-80: keep the existing navigation usable at every narrow width. */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+@media (max-width: 800px) {
+  .app-sidebar-header {
+    max-width: 100%;
+    overflow: visible;
+  }
+  .app-sidebar-header .main-header,
+  .app-sidebar-header .header-container,
+  .app-sidebar-header .main-header-content {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .app-sidebar-header .main-header-content {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 12px 12px;
+  }
+  .app-sidebar-header .brand-name {
+    flex: 0 0 auto;
+    margin: 4px 4px 2px;
+  }
+  .app-sidebar-header .workspace-switcher {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    margin: 0;
+    min-width: 0;
+    width: 100%;
+  }
+  .app-sidebar-header .workspace-switcher-trigger {
+    box-sizing: border-box;
+    color: #fff;
+    background: #0b5a49;
+    border-color: rgba(255, 255, 255, 0.6);
+    min-width: 0;
+    width: 100%;
+  }
+  .app-sidebar-header .workspace-switcher-copy {
+    min-width: 0;
+  }
+  .app-sidebar-header .workspace-switcher-copy strong,
+  .app-sidebar-header .workspace-switcher-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .app-sidebar-header .mobile-menu-button {
+    align-self: flex-end;
+    flex: 0 0 46px;
+    margin-top: -58px;
+  }
+  .app-sidebar-header + main,
+  .app-sidebar-header + .prospecting-view,
+  .app-sidebar-header + .metrics-dashboard {
+    box-sizing: border-box;
+    margin-left: 0;
+    max-width: 100%;
+    padding: 24px 14px 48px;
+    width: 100%;
+  }
+  .workspace-switcher-popover {
+    box-sizing: border-box;
+    left: 0;
+    max-width: calc(100vw - 28px);
+    width: min(320px, calc(100vw - 28px));
+  }
+
+  #primary-navigation {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  #primary-navigation .navigation-link {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Between phone and desktop widths the full navigation remains visible, but
+   each item occupies the available column instead of forcing a wide row. */
+@media (min-width: 641px) and (max-width: 800px) {
+  .app-sidebar-header .primary-navigation {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    padding: 0;
+    width: 100%;
+  }
+
+  .app-sidebar-header .navigation-link {
+    min-width: 0;
+    width: 100%;
+    white-space: normal;
+  }
 }
 @media (max-width: 900px) {
   .daily-dashboard-header {

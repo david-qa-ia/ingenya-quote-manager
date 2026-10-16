@@ -1,6 +1,7 @@
 import { initialJobCatalog } from '../data/jobCatalog';
 import type { CatalogJob } from '../types/quote';
 import { isCatalogJob } from './jobCatalogValidation';
+import { workspaceStorageKey } from './workspaceStorage';
 
 export const LABOR_CATALOG_STORAGE_KEY = 'ingenya.laborCatalog.v1';
 
@@ -30,12 +31,12 @@ export function parseLaborCatalog(storedValue: string): LaborCatalogLoadResult {
 
 export function loadLaborCatalog(): LaborCatalogLoadResult {
   try {
-    const storedValue = localStorage.getItem(LABOR_CATALOG_STORAGE_KEY);
+    const storedValue = localStorage.getItem(workspaceStorageKey(LABOR_CATALOG_STORAGE_KEY));
     if (storedValue !== null) return parseLaborCatalog(storedValue);
 
     const jobs = seedCatalog();
     try {
-      localStorage.setItem(LABOR_CATALOG_STORAGE_KEY, JSON.stringify(jobs));
+      localStorage.setItem(workspaceStorageKey(LABOR_CATALOG_STORAGE_KEY), JSON.stringify(jobs));
       return { jobs, issue: null };
     } catch {
       return { jobs, issue: 'initialization-write-failed' };
@@ -47,7 +48,7 @@ export function loadLaborCatalog(): LaborCatalogLoadResult {
 
 export function saveLaborCatalog(jobs: readonly CatalogJob[]): boolean {
   try {
-    localStorage.setItem(LABOR_CATALOG_STORAGE_KEY, JSON.stringify(jobs));
+    localStorage.setItem(workspaceStorageKey(LABOR_CATALOG_STORAGE_KEY), JSON.stringify(jobs));
     return true;
   } catch {
     return false;

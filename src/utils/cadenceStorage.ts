@@ -3,6 +3,7 @@ import { loadCollection, saveCollectionItem } from './localCollectionStorage';
 import { updateCadenceAction } from './cadenceTransitions';
 import { loadOpportunities, saveOpportunity } from './opportunityStorage';
 import { recordCadenceActivity } from './activityStorage';
+import { workspaceStorageKey } from './workspaceStorage';
 
 export const CADENCE_TEMPLATES_STORAGE_KEY = 'ingenya.cadenceTemplates.v1';
 export const CADENCE_EXECUTIONS_STORAGE_KEY = 'ingenya.cadenceExecutions.v1';
@@ -140,7 +141,7 @@ export function removeCadenceTemplate(id: string): boolean {
     const template = loaded.items.find((item) => item.id === id);
     if (!template) return false;
     localStorage.setItem(
-      CADENCE_TEMPLATES_STORAGE_KEY,
+      workspaceStorageKey(CADENCE_TEMPLATES_STORAGE_KEY),
       JSON.stringify(loaded.items.filter((item) => item.id !== id)),
     );
     return true;

@@ -1,6 +1,7 @@
 import type { CommercialOutcome } from '../types/commercialOutcome';
 import { loadCollection, readCollection, hasRecordId } from './localCollectionStorage';
 import { isCommercialOutcome } from './commercialOutcome';
+import { workspaceStorageKey } from './workspaceStorage';
 
 export const COMMERCIAL_OUTCOMES_STORAGE_KEY = 'ingenya.commercialOutcomes.v1';
 
@@ -14,7 +15,10 @@ export function appendCommercialOutcome(outcome: CommercialOutcome): boolean {
     const existing = records.find((item) => hasRecordId(item, outcome.id));
     if (existing) return isCommercialOutcome(existing);
     records.push(structuredClone(outcome));
-    localStorage.setItem(COMMERCIAL_OUTCOMES_STORAGE_KEY, JSON.stringify(records));
+    localStorage.setItem(
+      workspaceStorageKey(COMMERCIAL_OUTCOMES_STORAGE_KEY),
+      JSON.stringify(records),
+    );
     return true;
   } catch {
     return false;

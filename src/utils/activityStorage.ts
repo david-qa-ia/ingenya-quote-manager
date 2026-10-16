@@ -8,6 +8,7 @@ import type {
 } from '../types/activity';
 import type { ContactCommunicationSnapshot, WhatsAppResult } from '../types/contactScript';
 import { hasRecordId, loadCollection, readCollection } from './localCollectionStorage';
+import { workspaceStorageKey } from './workspaceStorage';
 
 export const ACTIVITIES_STORAGE_KEY = 'ingenya.activities.v1';
 export const ACTIVITY_AUTHOR_STORAGE_KEY = 'ingenya.activityAuthor.v1';
@@ -129,7 +130,7 @@ export function saveActivity(activity: Activity): boolean {
     const records = readCollection(ACTIVITIES_STORAGE_KEY);
     if (records.some((record) => hasRecordId(record, activity.id))) return false;
     records.push(activity);
-    localStorage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(records));
+    localStorage.setItem(workspaceStorageKey(ACTIVITIES_STORAGE_KEY), JSON.stringify(records));
     notifyActivityChange();
     return true;
   } catch {
@@ -254,7 +255,7 @@ export function appendActivityNoteRevision(
       note: revision.note,
       noteRevisions: [...activity.noteRevisions, revision],
     };
-    localStorage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(records));
+    localStorage.setItem(workspaceStorageKey(ACTIVITIES_STORAGE_KEY), JSON.stringify(records));
     notifyActivityChange();
     return true;
   } catch {
@@ -264,7 +265,7 @@ export function appendActivityNoteRevision(
 
 export function loadActivityAuthor(): string {
   try {
-    return localStorage.getItem(ACTIVITY_AUTHOR_STORAGE_KEY)?.trim() ?? '';
+    return localStorage.getItem(workspaceStorageKey(ACTIVITY_AUTHOR_STORAGE_KEY))?.trim() ?? '';
   } catch {
     return '';
   }
@@ -274,7 +275,7 @@ export function saveActivityAuthor(author: string): boolean {
   try {
     const normalized = author.trim();
     if (!normalized) return false;
-    localStorage.setItem(ACTIVITY_AUTHOR_STORAGE_KEY, normalized);
+    localStorage.setItem(workspaceStorageKey(ACTIVITY_AUTHOR_STORAGE_KEY), normalized);
     return true;
   } catch {
     return false;

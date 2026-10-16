@@ -1,10 +1,12 @@
+import { workspaceStorageKey } from './workspaceStorage';
+
 export interface CollectionLoad<T> {
   items: T[];
   issue: 'invalid-root' | 'invalid-entries' | 'unavailable' | null;
 }
 
 export function readCollection(key: string): unknown[] {
-  const stored = localStorage.getItem(key);
+  const stored = localStorage.getItem(workspaceStorageKey(key));
   if (stored === null) return [];
   const parsed: unknown = JSON.parse(stored);
   if (!Array.isArray(parsed)) throw new Error('Invalid collection root');
@@ -17,7 +19,7 @@ export function loadCollection<T extends { id: string }>(
 ): CollectionLoad<T> {
   let stored: string | null;
   try {
-    stored = localStorage.getItem(key);
+    stored = localStorage.getItem(workspaceStorageKey(key));
   } catch {
     return { items: [], issue: 'unavailable' };
   }
@@ -55,7 +57,7 @@ export function saveCollectionItem<T extends { id: string }>(
     if (index < 0) records.push(item);
     else records[index] = item;
     // Preserve unrelated invalid records for recovery; never replace an unreadable root.
-    localStorage.setItem(key, JSON.stringify(records));
+    localStorage.setItem(workspaceStorageKey(key), JSON.stringify(records));
     return true;
   } catch {
     return false;
