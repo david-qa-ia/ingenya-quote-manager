@@ -998,6 +998,7 @@ function App() {
       <>
         {opportunity ? (
           <>
+            {appHeader}
             <OpportunityDetailView
               opportunity={opportunity}
               client={loadClients().items.find((item) => item.id === opportunity.clientId)}
@@ -1089,19 +1090,22 @@ function App() {
       );
     }
     return (
-      <QuoteDetailView
-        quote={quote}
-        opportunity={opportunity}
-        client={loadClients().items.find((item) => item.id === quote.clientId)}
-        onBack={() => {
-          if (opportunity) {
-            setDetailOpportunityId(opportunity.id);
-            setCurrentView('opportunityDetail');
-          } else setCurrentView('savedQuotes');
-        }}
-        onPdf={handleQuoteDetailPdfDownload}
-        onStatus={(_quote, status, audit) => handleCommercialStatusChange(status, audit)}
-      />
+      <>
+        {appHeader}
+        <QuoteDetailView
+          quote={quote}
+          opportunity={opportunity}
+          client={loadClients().items.find((item) => item.id === quote.clientId)}
+          onBack={() => {
+            if (opportunity) {
+              setDetailOpportunityId(opportunity.id);
+              setCurrentView('opportunityDetail');
+            } else setCurrentView('savedQuotes');
+          }}
+          onPdf={handleQuoteDetailPdfDownload}
+          onStatus={(_quote, status, audit) => handleCommercialStatusChange(status, audit)}
+        />
+      </>
     );
   }
 

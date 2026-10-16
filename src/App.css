@@ -1933,6 +1933,106 @@ button.opportunity-nav-item:hover {
     width: 100%;
   }
 }
+
+/* SCRUM-69: navigation is global and permanent on desktop. */
+@media (min-width: 801px) {
+  .app-sidebar-header {
+    background: #063f35;
+    bottom: 0;
+    color: #edf8f2;
+    left: 0;
+    position: fixed;
+    top: 0;
+    width: 252px;
+    z-index: 30;
+  }
+  .app-sidebar-header .main-header,
+  .app-sidebar-header .header-container,
+  .app-sidebar-header .main-header-content {
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
+    width: 100%;
+  }
+  .app-sidebar-header .brand-name {
+    color: #fff;
+    font-size: 2rem;
+    letter-spacing: -0.06em;
+    margin: 28px 28px 8px;
+  }
+  .app-sidebar-header .brand-name::after {
+    content: 'CONSTRUYE RELACIONES';
+    display: block;
+    font-size: 0.54rem;
+    letter-spacing: 0.18em;
+    margin: 7px 0 36px 2px;
+  }
+  .app-sidebar-header .primary-navigation {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 12px;
+    width: auto;
+  }
+  .app-sidebar-header .navigation-link {
+    border-radius: 9px;
+    color: #e7f3ee;
+    display: flex;
+    font-size: 1rem;
+    gap: 12px;
+    padding: 13px 14px;
+    text-align: left;
+  }
+  .app-sidebar-header .navigation-link:hover,
+  .app-sidebar-header .navigation-link[aria-current='page'] {
+    background: #246b59;
+    color: #fff;
+  }
+  .app-sidebar-header .navigation-link span {
+    font-size: 1.25rem;
+    line-height: 1;
+    width: 20px;
+  }
+  .app-sidebar-header .header-new-quote {
+    margin: 22px 6px 0;
+    width: calc(100% - 12px);
+  }
+  .app-sidebar-header .sidebar-footer {
+    border-top: 1px solid rgba(225, 243, 234, 0.22);
+    display: flex;
+    flex-direction: column;
+    font-size: 0.78rem;
+    gap: 12px;
+    margin: auto 24px 25px;
+    padding-top: 20px;
+  }
+  .app-sidebar-header .sidebar-footer a,
+  .app-sidebar-header .sidebar-footer span {
+    color: #e7f3ee;
+    text-decoration: none;
+  }
+  .app-sidebar-header + main,
+  .app-sidebar-header + .prospecting-view,
+  .app-sidebar-header + .metrics-dashboard {
+    box-sizing: border-box;
+    margin-left: 252px;
+    min-height: 100vh;
+    width: calc(100% - 252px);
+  }
+}
+
+@media (max-width: 800px) {
+  .app-sidebar-header {
+    position: static;
+    width: auto;
+  }
+  .app-sidebar-header .sidebar-footer {
+    display: none;
+  }
+}
 .confirmation-modal p {
   margin: 14px 0 24px;
   color: var(--text-muted);

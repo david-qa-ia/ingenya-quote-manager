@@ -72,270 +72,254 @@ export function OpportunityDetailView({
   }
 
   return (
-    <main className="opportunity-workspace">
-      <aside className="opportunity-sidebar" aria-label="Navegación de Ingenya">
-        <div className="opportunity-brand">Ingenya</div>
-        <button type="button" className="opportunity-nav-item" onClick={onBack}>
-          ▣ Seguimiento
-        </button>
-        <span className="opportunity-nav-item">◌ Prospectos</span>
-        <span className="opportunity-nav-item">◫ Métricas</span>
-        <span className="opportunity-nav-item">▤ Cadencias</span>
-        <span className="opportunity-nav-item">▧ Mis presupuestos</span>
-        <span className="opportunity-nav-item">♙ Mano de obra</span>
-      </aside>
-      <section className="app-shell opportunity-detail-view">
-        <button className="button button-link opportunity-back" type="button" onClick={onBack}>
-          ← Volver a seguimiento
-        </button>
-        <header className="opportunity-detail-header">
-          <div>
-            <p className="eyebrow">Seguimiento / Oportunidades</p>
-            <h1>{opportunity.name}</h1>
-            <p className="page-description">
-              {client?.company && `${client.company} · `}
-              {client?.name ?? 'Cliente no disponible'}
-            </p>
-          </div>
-          <div className="opportunity-header-actions">
-            <span className="status-badge prospect-status-contacted">● En seguimiento</span>
-            <button
-              className="button button-primary"
-              type="button"
-              onClick={() => setTab('activity')}
-            >
-              ⚡ Registrar acción
-            </button>
-          </div>
-        </header>
-        {isMissingClient && (
-          <p className="commercial-warning" role="alert">
-            No se encontró el cliente vinculado. La oportunidad se muestra en modo de solo lectura.
+    <main className="app-shell opportunity-detail-view">
+      <button className="button button-link opportunity-back" type="button" onClick={onBack}>
+        ← Volver a seguimiento
+      </button>
+      <header className="opportunity-detail-header">
+        <div>
+          <p className="eyebrow">Seguimiento / Oportunidades</p>
+          <h1>{opportunity.name}</h1>
+          <p className="page-description">
+            {client?.company && `${client.company} · `}
+            {client?.name ?? 'Cliente no disponible'}
           </p>
-        )}
-        <div className="opportunity-tabs" role="tablist" aria-label="Secciones de oportunidad">
-          {(Object.keys(tabLabels) as DetailTab[]).map((item) => (
-            <button
-              key={item}
-              className={
-                tab === item ? 'opportunity-tab opportunity-tab-active' : 'opportunity-tab'
-              }
-              role="tab"
-              type="button"
-              aria-selected={tab === item}
-              onClick={() => setTab(item)}
-            >
-              {tabLabels[item]}
-            </button>
-          ))}
         </div>
-        {tab === 'summary' && (
-          <div className="opportunity-detail-grid">
-            <div className="opportunity-detail-main">
-              <section className="quote-card opportunity-next-step">
-                <p className="eyebrow">Próximo paso</p>
-                {action ? (
-                  <div className="opportunity-step-main">
-                    <div className="opportunity-step-icon" aria-hidden="true">
-                      ◔
-                    </div>
-                    <div>
-                      <h2>{action.description}</h2>
-                      <p>
-                        {channelLabels[action.type]} · {dateTime(action.dueAt)} ·{' '}
-                        {action.responsible}
-                      </p>
-                    </div>
+        <div className="opportunity-header-actions">
+          <span className="status-badge prospect-status-contacted">● En seguimiento</span>
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={() => setTab('activity')}
+          >
+            ⚡ Registrar acción
+          </button>
+        </div>
+      </header>
+      {isMissingClient && (
+        <p className="commercial-warning" role="alert">
+          No se encontró el cliente vinculado. La oportunidad se muestra en modo de solo lectura.
+        </p>
+      )}
+      <div className="opportunity-tabs" role="tablist" aria-label="Secciones de oportunidad">
+        {(Object.keys(tabLabels) as DetailTab[]).map((item) => (
+          <button
+            key={item}
+            className={tab === item ? 'opportunity-tab opportunity-tab-active' : 'opportunity-tab'}
+            role="tab"
+            type="button"
+            aria-selected={tab === item}
+            onClick={() => setTab(item)}
+          >
+            {tabLabels[item]}
+          </button>
+        ))}
+      </div>
+      {tab === 'summary' && (
+        <div className="opportunity-detail-grid">
+          <div className="opportunity-detail-main">
+            <section className="quote-card opportunity-next-step">
+              <p className="eyebrow">Próximo paso</p>
+              {action ? (
+                <div className="opportunity-step-main">
+                  <div className="opportunity-step-icon" aria-hidden="true">
+                    ◔
                   </div>
-                ) : (
-                  <>
-                    <h2>Sin próximo paso</h2>
-                    <p className="commercial-note">
-                      Programá una acción para sostener el seguimiento.
+                  <div>
+                    <h2>{action.description}</h2>
+                    <p>
+                      {channelLabels[action.type]} · {dateTime(action.dueAt)} · {action.responsible}
                     </p>
-                  </>
-                )}
-                {!isMissingClient && (
-                  <NextActionCard
-                    opportunity={opportunity}
-                    onSave={onSaveOpportunity}
-                    onPrepareContact={onPrepareContact}
-                  />
-                )}
-              </section>
-              <section className="quote-card opportunity-data-card">
-                <h2>Datos de oportunidad</h2>
-                <dl>
-                  <div className="opportunity-data-row">
-                    <span className="opportunity-data-icon" aria-hidden="true">
-                      ⌕
-                    </span>
-                    <dt>Servicio de interés</dt>
-                    <dd>{qualification?.serviceOfInterest || 'Sin definir'}</dd>
                   </div>
-                  <div className="opportunity-data-row">
-                    <span className="opportunity-data-icon" aria-hidden="true">
-                      ▥
-                    </span>
-                    <dt>Nivel de interés</dt>
-                    <dd>
-                      {qualification ? interestLabels[qualification.interestLevel] : 'Sin definir'}
-                    </dd>
-                  </div>
-                  <div className="opportunity-data-row">
-                    <span className="opportunity-data-icon" aria-hidden="true">
-                      ◫
-                    </span>
-                    <dt>Necesidad</dt>
-                    <dd>{qualification?.detectedNeed || 'Sin definir'}</dd>
-                  </div>
-                  {qualification?.estimatedValue !== undefined && (
-                    <div className="opportunity-data-row">
-                      <span className="opportunity-data-icon" aria-hidden="true">
-                        ◉
-                      </span>
-                      <dt>Valor estimado</dt>
-                      <dd>{money.format(qualification.estimatedValue)}</dd>
-                    </div>
-                  )}
-                  <div className="opportunity-data-row">
-                    <span className="opportunity-data-icon" aria-hidden="true">
-                      ♙
-                    </span>
-                    <dt>Responsable</dt>
-                    <dd>{opportunity.responsibleSeller || 'Sin asignar'}</dd>
-                  </div>
-                </dl>
-              </section>
-            </div>
-            <aside className="opportunity-detail-side">
-              <section className="quote-card opportunity-contact-card">
-                <h2>Contacto</h2>
-                <p>
-                  <strong>{client?.name ?? 'Cliente no disponible'}</strong>
-                </p>
-                {client?.company && <p>{client.company}</p>}
-                {client?.phone && (
-                  <p className="opportunity-contact-line">
-                    <span>☎</span>
-                    {client.phone}
-                    <button
-                      type="button"
-                      aria-label="Copiar teléfono"
-                      onClick={() => copy(client.phone, 'Teléfono')}
-                    >
-                      ⧉
-                    </button>
+                </div>
+              ) : (
+                <>
+                  <h2>Sin próximo paso</h2>
+                  <p className="commercial-note">
+                    Programá una acción para sostener el seguimiento.
                   </p>
+                </>
+              )}
+              {!isMissingClient && (
+                <NextActionCard
+                  opportunity={opportunity}
+                  onSave={onSaveOpportunity}
+                  onPrepareContact={onPrepareContact}
+                />
+              )}
+            </section>
+            <section className="quote-card opportunity-data-card">
+              <h2>Datos de oportunidad</h2>
+              <dl>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    ⌕
+                  </span>
+                  <dt>Servicio de interés</dt>
+                  <dd>{qualification?.serviceOfInterest || 'Sin definir'}</dd>
+                </div>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    ▥
+                  </span>
+                  <dt>Nivel de interés</dt>
+                  <dd>
+                    {qualification ? interestLabels[qualification.interestLevel] : 'Sin definir'}
+                  </dd>
+                </div>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    ◫
+                  </span>
+                  <dt>Necesidad</dt>
+                  <dd>{qualification?.detectedNeed || 'Sin definir'}</dd>
+                </div>
+                {qualification?.estimatedValue !== undefined && (
+                  <div className="opportunity-data-row">
+                    <span className="opportunity-data-icon" aria-hidden="true">
+                      ◉
+                    </span>
+                    <dt>Valor estimado</dt>
+                    <dd>{money.format(qualification.estimatedValue)}</dd>
+                  </div>
                 )}
-                {client?.email && (
-                  <p className="opportunity-contact-line">
-                    <span>✉</span>
-                    {client.email}
-                    <button
-                      type="button"
-                      aria-label="Copiar email"
-                      onClick={() => copy(client.email, 'Email')}
-                    >
-                      ⧉
-                    </button>
-                  </p>
-                )}
-                {copied && (
-                  <small className="commercial-note" role="status">
-                    {copied}
-                  </small>
-                )}
-              </section>
-              <section className="quote-card opportunity-activity-preview">
-                <h2>Actividad reciente</h2>
-                <p className="commercial-note">
-                  Consultá la pestaña Actividad para ver y registrar movimientos.
-                </p>
-                <button
-                  className="button button-line"
-                  type="button"
-                  onClick={() => setTab('activity')}
-                >
-                  Ver toda la actividad
-                </button>
-              </section>
-            </aside>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    ♙
+                  </span>
+                  <dt>Responsable</dt>
+                  <dd>{opportunity.responsibleSeller || 'Sin asignar'}</dd>
+                </div>
+              </dl>
+            </section>
           </div>
-        )}
-        {tab === 'activity' && (
-          <section className="quote-card opportunity-tab-panel">
-            <h2>Actividad</h2>
-            <ActivityTimeline
-              entrySubject={{ kind: 'opportunity', opportunityId: opportunity.id }}
-              subjects={[
-                {
-                  subject: { kind: 'opportunity', opportunityId: opportunity.id },
-                  label: 'Obra o trabajo',
-                },
-              ]}
-              emptyMessage="Todavía no hay actividades para esta oportunidad."
-            />
-          </section>
-        )}
-        {tab === 'notes' && (
-          <section className="quote-card opportunity-tab-panel">
-            <h2>Notas</h2>
-            <ActivityTimeline
-              entrySubject={{ kind: 'opportunity', opportunityId: opportunity.id }}
-              subjects={[
-                {
-                  subject: { kind: 'opportunity', opportunityId: opportunity.id },
-                  label: 'Obra o trabajo',
-                },
-              ]}
-              initialFilter="note"
-              hideFilters
-              emptyMessage="Todavía no hay notas para esta oportunidad."
-              registerLabel="Registrar nota"
-            />
-          </section>
-        )}
-        {tab === 'quotes' && (
-          <section className="quote-card opportunity-tab-panel">
-            <h2>Presupuestos</h2>
-            {relatedQuotes.length ? (
-              <ul className="opportunity-quote-list">
-                {relatedQuotes.map((quote) => (
-                  <li key={quote.id}>
-                    <div>
-                      <strong>{quote.projectName || quote.id}</strong>
-                      <small>{quote.commercialStatus}</small>
-                    </div>
-                    <button
-                      className="button button-line"
-                      type="button"
-                      onClick={() => onOpenQuote(quote)}
-                    >
-                      Abrir presupuesto
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="empty-state">
-                <h3>Aún no hay presupuestos</h3>
-                <p>Cuando generes uno vinculado a esta oportunidad aparecerá aquí.</p>
-              </div>
-            )}
-          </section>
-        )}
-        {tab === 'files' && (
-          <section className="quote-card opportunity-tab-panel empty-state">
-            <h2>Archivos</h2>
-            <p>Aún no hay archivos adjuntos.</p>
-            <p className="commercial-note">
-              La carga de documentos se habilitará cuando tenga una persistencia segura, para evitar
-              perder archivos al recargar.
-            </p>
-          </section>
-        )}
-      </section>
+          <aside className="opportunity-detail-side">
+            <section className="quote-card opportunity-contact-card">
+              <h2>Contacto</h2>
+              <p>
+                <strong>{client?.name ?? 'Cliente no disponible'}</strong>
+              </p>
+              {client?.company && <p>{client.company}</p>}
+              {client?.phone && (
+                <p className="opportunity-contact-line">
+                  <span>☎</span>
+                  {client.phone}
+                  <button
+                    type="button"
+                    aria-label="Copiar teléfono"
+                    onClick={() => copy(client.phone, 'Teléfono')}
+                  >
+                    ⧉
+                  </button>
+                </p>
+              )}
+              {client?.email && (
+                <p className="opportunity-contact-line">
+                  <span>✉</span>
+                  {client.email}
+                  <button
+                    type="button"
+                    aria-label="Copiar email"
+                    onClick={() => copy(client.email, 'Email')}
+                  >
+                    ⧉
+                  </button>
+                </p>
+              )}
+              {copied && (
+                <small className="commercial-note" role="status">
+                  {copied}
+                </small>
+              )}
+            </section>
+            <section className="quote-card opportunity-activity-preview">
+              <h2>Actividad reciente</h2>
+              <p className="commercial-note">
+                Consultá la pestaña Actividad para ver y registrar movimientos.
+              </p>
+              <button
+                className="button button-line"
+                type="button"
+                onClick={() => setTab('activity')}
+              >
+                Ver toda la actividad
+              </button>
+            </section>
+          </aside>
+        </div>
+      )}
+      {tab === 'activity' && (
+        <section className="quote-card opportunity-tab-panel">
+          <h2>Actividad</h2>
+          <ActivityTimeline
+            entrySubject={{ kind: 'opportunity', opportunityId: opportunity.id }}
+            subjects={[
+              {
+                subject: { kind: 'opportunity', opportunityId: opportunity.id },
+                label: 'Obra o trabajo',
+              },
+            ]}
+            emptyMessage="Todavía no hay actividades para esta oportunidad."
+          />
+        </section>
+      )}
+      {tab === 'notes' && (
+        <section className="quote-card opportunity-tab-panel">
+          <h2>Notas</h2>
+          <ActivityTimeline
+            entrySubject={{ kind: 'opportunity', opportunityId: opportunity.id }}
+            subjects={[
+              {
+                subject: { kind: 'opportunity', opportunityId: opportunity.id },
+                label: 'Obra o trabajo',
+              },
+            ]}
+            initialFilter="note"
+            hideFilters
+            emptyMessage="Todavía no hay notas para esta oportunidad."
+            registerLabel="Registrar nota"
+          />
+        </section>
+      )}
+      {tab === 'quotes' && (
+        <section className="quote-card opportunity-tab-panel">
+          <h2>Presupuestos</h2>
+          {relatedQuotes.length ? (
+            <ul className="opportunity-quote-list">
+              {relatedQuotes.map((quote) => (
+                <li key={quote.id}>
+                  <div>
+                    <strong>{quote.projectName || quote.id}</strong>
+                    <small>{quote.commercialStatus}</small>
+                  </div>
+                  <button
+                    className="button button-line"
+                    type="button"
+                    onClick={() => onOpenQuote(quote)}
+                  >
+                    Abrir presupuesto
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="empty-state">
+              <h3>Aún no hay presupuestos</h3>
+              <p>Cuando generes uno vinculado a esta oportunidad aparecerá aquí.</p>
+            </div>
+          )}
+        </section>
+      )}
+      {tab === 'files' && (
+        <section className="quote-card opportunity-tab-panel empty-state">
+          <h2>Archivos</h2>
+          <p>Aún no hay archivos adjuntos.</p>
+          <p className="commercial-note">
+            La carga de documentos se habilitará cuando tenga una persistencia segura, para evitar
+            perder archivos al recargar.
+          </p>
+        </section>
+      )}
     </main>
   );
 }
