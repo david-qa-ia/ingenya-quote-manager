@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import type { FollowUpBucket, FollowUpInboxItem } from '../types/followUpInbox';
 import { businessTimeZone } from '../utils/opportunityNextAction';
+import { getContactAction } from '../utils/contactAction';
 
 interface Props {
   items: readonly FollowUpInboxItem[];
   onShowFollowUp: () => void;
   onOpen: (item: FollowUpInboxItem) => void;
-  quoteNoResponseCount?: number;
 }
 
 const labels = { overdue: 'Vencidos', today: 'Hoy', upcoming: 'Próximos' } as const;
@@ -47,7 +47,42 @@ function BucketIcon({ bucket }: { bucket: keyof typeof labels }) {
   );
 }
 
-export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, quoteNoResponseCount }: Props) {
+function ContactAction({ item }: { item: FollowUpInboxItem }) {
+  const [feedback, setFeedback] = useState('');
+  const action = getContactAction(item);
+  if (!action) return null;
+  if ('disabledReason' in action)
+    return (
+      <button className="button button-line" type="button" disabled title={action.disabledReason}>
+        {action.label}
+      </button>
+    );
+  const href = action.href;
+  async function openCall() {
+    try {
+      window.location.href = href;
+    } catch {
+      await navigator.clipboard?.writeText(item.phone ?? '');
+      setFeedback('No se pudo iniciar la llamada. Teléfono copiado.');
+    }
+  }
+  if (action.label === 'Llamar')
+    return (
+      <>
+        <button className="button button-line" type="button" onClick={() => void openCall()}>
+          Llamar
+        </button>
+        {feedback && <small className="commercial-warning">{feedback}</small>}
+      </>
+    );
+  return (
+    <a className="button button-line" href={href}>
+      {action.label}
+    </a>
+  );
+}
+
+export function DailyWorkDashboard({ items, onShowFollowUp, onOpen }: Props) {
   const [selectedBucket, setSelectedBucket] = useState<FollowUpBucket | 'all'>('today');
   const date = new Intl.DateTimeFormat('es-AR', {
     weekday: 'long',
@@ -60,10 +95,6 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, quoteNoRespo
     .filter((item) => item.bucket !== 'missing')
     .filter((item) => selectedBucket === 'all' || item.bucket === selectedBucket)
     .slice(0, 6);
-  const missing = items.filter((item) => item.bucket === 'missing');
-  const quoteAlerts = items.filter(
-    (item) => item.subjectType === 'quote' && item.bucket === 'overdue',
-  );
   return (
     <main className="app-shell daily-dashboard">
       <header className="daily-dashboard-header">
@@ -72,29 +103,6 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, quoteNoRespo
           <p className="page-description">{date}</p>
           <button className="daily-dashboard-followup-link" type="button" onClick={onShowFollowUp}>
             Ver seguimiento completo →
-          </button>
-        </div>
-        <div className="daily-dashboard-alerts" aria-label="Alertas">
-          <button type="button" onClick={onShowFollowUp}>
-            <span className="daily-alert-icon" aria-hidden="true">
-              !
-            </span>
-            <strong>
-              {missing.length} {missing.length === 1 ? 'oportunidad' : 'oportunidades'} sin próximo
-              paso
-            </strong>
-            <span aria-hidden="true">›</span>
-          </button>
-          <button type="button" onClick={onShowFollowUp}>
-            <span className="daily-alert-icon" aria-hidden="true">
-              ✉
-            </span>
-            <strong>
-              {quoteNoResponseCount ?? quoteAlerts.length}{' '}
-              {(quoteNoResponseCount ?? quoteAlerts.length) === 1 ? 'propuesta' : 'propuestas'} sin
-              respuesta
-            </strong>
-            <span aria-hidden="true">›</span>
           </button>
         </div>
       </header>
@@ -151,23 +159,16 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, quoteNoRespo
                 }).format(new Date(item.action!.dueAt))}
               </strong>
               <span>{item.action?.description}</span>
-              <button className="button button-primary" type="button" onClick={() => onOpen(item)}>
-                {item.action?.kind === 'sendQuote'
-                  ? 'Enviar presupuesto'
-                  : item.action?.type === 'call'
-                    ? 'Llamar'
-                    : item.action?.type === 'whatsapp'
-                      ? 'WhatsApp'
-                      : 'Registrar resultado'}
-              </button>
-              <button
-                className="daily-row-menu"
-                type="button"
-                aria-label={`Registrar resultado para ${item.clientName}`}
-                onClick={() => onOpen(item)}
-              >
-                ⋮
-              </button>
+              <div className="daily-row-actions">
+                <ContactAction item={item} />
+                <button
+                  className="button button-primary"
+                  type="button"
+                  onClick={() => onOpen(item)}
+                >
+                  ✓ Registrar resultado
+                </button>
+              </div>
             </article>
           ))
         ) : (

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Opportunity } from '../types/opportunity';
 import {
   calculateFollowUpPriority,
+  deduplicateFollowUpInbox,
   deriveFollowUpInbox,
   filterFollowUpInbox,
   defaultFollowUpFilters,
@@ -131,5 +132,20 @@ describe('follow-up inbox', () => {
       new Date('2026-10-14T12:00:00.000Z'),
     );
     expect(items[0]).toMatchObject({ contactRestricted: true, phone: '3415550101' });
+  });
+  it('keeps one copy when the same pending action is present in more than one source', () => {
+    const item = deriveFollowUpInbox(
+      [opportunity],
+      [client],
+      [],
+      [],
+      [],
+      new Date('2026-10-14T12:00:00.000Z'),
+    )[0];
+    const cadenceCopy = {
+      ...item,
+      cadenceStep: { current: 1, total: 2, executionId: 'cadence', stepExecutionId: 'step' },
+    };
+    expect(deduplicateFollowUpInbox([item, cadenceCopy])).toEqual([cadenceCopy]);
   });
 });

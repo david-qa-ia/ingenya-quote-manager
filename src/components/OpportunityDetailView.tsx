@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { ActivityTimeline } from './ActivityTimeline';
-import { NextActionCard } from './NextActionCard';
 import { UiIcon } from './UiIcon';
 import type { Client } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
@@ -26,6 +25,7 @@ interface Props {
   onBack: () => void;
   onSaveOpportunity: (opportunity: Opportunity, event: string) => boolean;
   onPrepareContact: (channel: 'call' | 'whatsapp') => void;
+  onRegisterResult: () => void;
   onOpenQuote: (quote: SavedQuote) => void;
   onCreateQuoteVersion: (quote: SavedQuote, reason: string) => void;
   activities: readonly Activity[];
@@ -61,6 +61,7 @@ export function OpportunityDetailView({
   onBack,
   onSaveOpportunity,
   onPrepareContact,
+  onRegisterResult,
   onOpenQuote,
   onCreateQuoteVersion,
   activities,
@@ -172,11 +173,7 @@ export function OpportunityDetailView({
           </p>
         </div>
         <div className="opportunity-header-actions">
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={() => setTab('activity')}
-          >
+          <button className="button button-primary" type="button" onClick={onRegisterResult}>
             <UiIcon name="document" /> Registrar resultado
           </button>
         </div>
@@ -353,14 +350,17 @@ export function OpportunityDetailView({
                   </p>
                 </>
               )}
-              {!isMissingClient && (
-                <NextActionCard
-                  opportunity={opportunity}
-                  onSave={onSaveOpportunity}
-                  onPrepareContact={onPrepareContact}
-                  embedded
-                />
-              )}
+              {!isMissingClient &&
+                action &&
+                (action.type === 'call' || action.type === 'whatsapp') && (
+                  <button
+                    className="button button-line"
+                    type="button"
+                    onClick={() => onPrepareContact(action.type as 'call' | 'whatsapp')}
+                  >
+                    <UiIcon name="document" /> Preparar contacto
+                  </button>
+                )}
             </section>
             {currentQuote && (
               <section className="quote-card opportunity-versions-card">

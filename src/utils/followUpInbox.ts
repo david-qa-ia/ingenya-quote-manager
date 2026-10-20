@@ -243,7 +243,20 @@ export function deriveFollowUpInbox(
     };
     items.push({ ...base, priority: calculateFollowUpPriority(base, null, now) });
   }
-  return items;
+  return deduplicateFollowUpInbox(items);
+}
+
+/** Keeps one representation of each pending commercial action before any view filters it. */
+export function deduplicateFollowUpInbox(items: readonly FollowUpInboxItem[]): FollowUpInboxItem[] {
+  const byAction = new Map<string, FollowUpInboxItem>();
+  for (const item of items) {
+    const key = item.action
+      ? `${item.subjectType ?? 'unknown'}:${item.action.id}`
+      : `${item.subjectType ?? 'unknown'}:${item.id}`;
+    const current = byAction.get(key);
+    if (!current || (item.cadenceStep && !current.cadenceStep)) byAction.set(key, item);
+  }
+  return [...byAction.values()];
 }
 export function filterFollowUpInbox(
   items: readonly FollowUpInboxItem[],
