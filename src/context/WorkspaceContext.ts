@@ -13,6 +13,7 @@ export interface WorkspaceContextValue {
   accessError: WorkspaceAccessError | null;
   changeWorkspace: (workspaceId: string) => Promise<void>;
   retry: () => void;
+  logout: () => void;
 }
 
 export const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);

@@ -2126,6 +2126,167 @@ td small {
   margin: 0 0 22px;
   color: var(--text-muted);
 }
+.login-card {
+  display: grid;
+  gap: 10px;
+  text-align: left;
+}
+.login-card > .ui-icon,
+.login-card h1 {
+  justify-self: center;
+}
+.login-card label {
+  margin-top: 8px;
+  color: var(--text-heading);
+  font-weight: 700;
+}
+.login-card input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  color: var(--text-heading);
+  background: var(--surface);
+}
+.login-card input:focus {
+  outline: 3px solid var(--accent-ring);
+  border-color: var(--accent);
+}
+.login-card .button {
+  width: 100%;
+  margin-top: 14px;
+}
+.workspace-access-error {
+  color: var(--danger) !important;
+  font-size: 0.9rem;
+}
+.sidebar-footer-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+.settings-view {
+  min-height: 100vh;
+  margin-left: 212px;
+  padding: 42px clamp(24px, 5vw, 72px);
+  background: var(--surface-subtle);
+}
+.settings-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.settings-heading h1,
+.settings-card h2 {
+  margin: 0;
+  color: var(--text-heading);
+}
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.settings-role {
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: #79531b;
+  background: #fff0c9;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.settings-card {
+  max-width: 1080px;
+  margin-bottom: 18px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.settings-card-heading {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.settings-card-heading > .ui-icon {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+.settings-card-heading p,
+.settings-muted {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+}
+.settings-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+.settings-status-success {
+  color: #176142;
+  background: #e6f5ed;
+}
+.migration-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+.migration-step {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 150px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-subtle);
+}
+.migration-step span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.migration-step.is-complete {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.migration-step .button {
+  align-self: end;
+  margin-top: auto;
+}
+.settings-feedback {
+  margin: 18px 0 0;
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+@media (max-width: 800px) {
+  .settings-view {
+    margin-left: 0;
+    padding: 28px 16px;
+  }
+  .settings-heading {
+    flex-direction: column;
+  }
+  .migration-steps {
+    grid-template-columns: 1fr;
+  }
+}
 @media (min-width: 801px) {
   .app-sidebar-header .workspace-switcher {
     width: auto;

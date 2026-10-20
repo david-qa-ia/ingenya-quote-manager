@@ -16,6 +16,7 @@ interface AppHeaderProps {
   onShowCadences: () => void;
   onShowMetrics: () => void;
   onShowProspects: () => void;
+  onShowSettings: () => void;
   searchQuery: string;
   searchResults: readonly GlobalSearchResult[];
   isSearchOpen: boolean;
@@ -25,6 +26,7 @@ interface AppHeaderProps {
   onSearchClose: () => void;
   hasUnsavedChanges: boolean;
   onResetWorkspaceContext: () => void;
+  onLogout: () => void;
 }
 
 const focusableSelector = 'button:not([disabled]), a[href]';
@@ -38,6 +40,7 @@ export function AppHeader({
   onShowCadences,
   onShowMetrics,
   onShowProspects,
+  onShowSettings,
   searchQuery,
   searchResults,
   isSearchOpen,
@@ -47,6 +50,7 @@ export function AppHeader({
   onSearchClose,
   hasUnsavedChanges,
   onResetWorkspaceContext,
+  onLogout,
 }: AppHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -267,9 +271,20 @@ export function AppHeader({
                 <span key={item.label}>{item.label}</span>
               ),
             )}
-            <span>
+            <button
+              className="sidebar-footer-action"
+              type="button"
+              onClick={() => navigate(onShowSettings)}
+            >
               <UiIcon name="settings" /> Configuración
-            </span>
+            </button>
+            <button
+              className="sidebar-footer-action"
+              type="button"
+              onClick={() => navigate(onLogout)}
+            >
+              <UiIcon name="arrow-left" /> Cerrar sesión
+            </button>
             <span>
               <UiIcon name="help" /> Ayuda
             </span>

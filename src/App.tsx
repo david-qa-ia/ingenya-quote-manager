@@ -90,6 +90,8 @@ import { useWorkspace } from './context/useWorkspace';
 import { WorkspaceAccessState } from './components/WorkspaceAccessState';
 import { UiIcon } from './components/UiIcon';
 import { workspaceStorageKey } from './utils/workspaceStorage';
+import { LoginView } from './components/LoginView';
+import { SettingsView } from './components/SettingsView';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -1060,6 +1062,7 @@ function App() {
       onShowCadences={() => setCurrentView('cadences')}
       onShowMetrics={() => setCurrentView('metrics')}
       onShowProspects={() => setCurrentView('prospects')}
+      onShowSettings={() => setCurrentView('settings')}
       searchQuery={searchQuery}
       searchResults={globalSearchResults}
       isSearchOpen={isSearchOpen}
@@ -1072,6 +1075,7 @@ function App() {
       }}
       hasUnsavedChanges={hasUnsavedWorkspaceChanges}
       onResetWorkspaceContext={resetWorkspaceContext}
+      onLogout={workspaceContext.logout}
     />
   );
 
@@ -1090,6 +1094,9 @@ function App() {
   }
 
   if (workspaceContext.accessError || !workspaceContext.activeMembership) {
+    if (workspaceContext.accessError === 'session-expired') {
+      return <LoginView onAuthenticated={workspaceContext.retry} />;
+    }
     return (
       <>
         {appHeader}
@@ -1097,6 +1104,14 @@ function App() {
           error={workspaceContext.accessError ?? 'no-workspaces'}
           onRetry={workspaceContext.retry}
         />
+      </>
+    );
+  }
+  if (currentView === 'settings') {
+    return (
+      <>
+        {appHeader}
+        <SettingsView membership={workspaceContext.activeMembership} />
       </>
     );
   }

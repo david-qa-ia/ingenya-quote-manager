@@ -7,6 +7,7 @@ import {
   toWorkspaceAccessError,
 } from '../utils/workspaceService';
 import { WorkspaceContext } from './WorkspaceContext';
+import { signOut } from '../utils/authService';
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<WorkspaceSession | null>(() => {
@@ -75,6 +76,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       retry: () => {
         setIsLoading(true);
         setReloadToken((value) => value + 1);
+      },
+      logout: () => {
+        signOut();
+        setSession(null);
+        setAccessError('session-expired');
       },
     }),
     [accessError, activeMembership, changeWorkspace, isLoading, isSwitching, session],

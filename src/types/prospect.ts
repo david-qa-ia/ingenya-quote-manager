@@ -71,6 +71,8 @@ export interface Prospect {
   activities: ProspectActivity[];
   createdAt: string;
   updatedAt: string;
+  /** Optimistic concurrency token supplied by the backend. */
+  version?: number;
 }
 
 export type ProspectInput = Omit<Prospect, 'id' | 'activities' | 'createdAt' | 'updatedAt'>;
