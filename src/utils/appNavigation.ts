@@ -11,9 +11,17 @@ export type AppView =
   | 'metrics'
   | 'prospects'
   | 'opportunityDetail'
-  | 'quoteDetail';
+  | 'quoteDetail'
+  | 'settings';
 export type NavigationSection =
-  'newQuote' | 'savedQuotes' | 'catalog' | 'nextActions' | 'cadences' | 'metrics' | 'prospects';
+  | 'newQuote'
+  | 'savedQuotes'
+  | 'catalog'
+  | 'nextActions'
+  | 'cadences'
+  | 'metrics'
+  | 'prospects'
+  | 'settings';
 
 export interface ContactItem {
   readonly label: string;
@@ -21,6 +29,7 @@ export interface ContactItem {
 }
 
 export function resolveActiveNavigationSection(view: AppView): NavigationSection {
+  if (view === 'settings') return 'settings';
   if (view === 'dailyDashboard') return 'nextActions';
   if (view === 'savedQuotes') return 'savedQuotes';
   if (view === 'catalog') return 'catalog';

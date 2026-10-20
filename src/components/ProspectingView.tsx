@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useWorkspace } from '../context/useWorkspace';
 import type {
   Prospect,
   ProspectChannel,
@@ -37,6 +38,12 @@ import {
   startProspectConversion,
   type ProspectConversionInput,
 } from '../utils/prospectConversion';
+import { isAuthConfigured } from '../utils/authService';
+import {
+  createRemoteProspect,
+  loadRemoteProspects,
+  type SupabaseProspectRow,
+} from '../utils/supabaseRepository';
 
 const statuses = Object.keys(prospectStatusLabels) as ProspectStatus[];
 const priorities = Object.keys(prospectPriorityLabels) as ProspectPriority[];
@@ -52,6 +59,30 @@ const activityTypeLabels = {
   note: 'Nota',
   conversionCompleted: 'Conversión completada',
 } as const;
+
+function mapRemoteProspect(row: SupabaseProspectRow): Prospect {
+  return {
+    id: row.id,
+    name: row.name,
+    company: row.company,
+    phone: row.phone,
+    email: row.email,
+    source: row.source,
+    potentialService: row.potential_service,
+    notes: row.notes,
+    status: row.status,
+    priority: row.priority,
+    priorityReason: row.priority_reason,
+    nextAction: row.next_action,
+    nextActionAt: row.next_action_at ?? '',
+    responsible: row.responsible,
+    preferredChannel: row.preferred_channel ?? '',
+    activities: [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    version: row.version,
+  };
+}
 type DueGroup = 'overdue' | 'today' | 'upcoming';
 
 interface Props {
@@ -67,6 +98,7 @@ export function ProspectingView({
   onOpenOpportunity,
   onDirtyChange,
 }: Props) {
+  const workspaceContext = useWorkspace();
   const [prospects, setProspects] = useState(() => loadProspects().items);
   const [filters, setFilters] = useState(initialFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -102,6 +134,13 @@ export function ProspectingView({
     document.addEventListener('keydown', closePanel);
     return () => document.removeEventListener('keydown', closePanel);
   }, [actionProspect, inboxSelectedId]);
+  useEffect(() => {
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (!isAuthConfigured() || !workspaceId) return;
+    loadRemoteProspects(workspaceId)
+      .then((rows) => setProspects(rows.map(mapRemoteProspect)))
+      .catch(() => setFeedback('No se pudieron cargar los prospectos del espacio activo.'));
+  }, [workspaceContext.session?.activeWorkspaceId]);
   function updateFilters(next: ProspectFilters) {
     setFilters(next);
     onFiltersChange(next);
@@ -119,6 +158,36 @@ export function ProspectingView({
     }
     refresh();
     if (openDetail) setSelectedId(next.id);
+    setFeedback('Prospecto guardado localmente.');
+    return true;
+  }
+  async function saveNew(next: Prospect): Promise<boolean> {
+    const localResult = saveProspectWithResult(next);
+    if (!localResult.ok) {
+      setFeedback(
+        `No se pudo guardar (${localResult.reason})${localResult.error ? `: ${localResult.error}` : ''}`,
+      );
+      return false;
+    }
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (isAuthConfigured() && workspaceId) {
+      try {
+        await createRemoteProspect(workspaceId, next);
+      } catch (error) {
+        setFeedback(
+          error instanceof Error
+            ? `No se pudo guardar en el espacio activo: ${error.message}`
+            : 'No se pudo guardar en el espacio activo. El respaldo local se conservó.',
+        );
+        return false;
+      }
+      setProspects((current) => [next, ...current.filter((item) => item.id !== next.id)]);
+      setSelectedId(next.id);
+      setFeedback('Prospecto guardado en el espacio activo.');
+      return true;
+    }
+    refresh();
+    setSelectedId(next.id);
     setFeedback('Prospecto guardado localmente.');
     return true;
   }
@@ -208,8 +277,8 @@ export function ProspectingView({
         initialContactChannel={initialContactChannel}
         isNew
         onBack={() => setCreationDraft(null)}
-        onSave={(prospect) => {
-          const saved = save(prospect);
+        onSave={async (prospect) => {
+          const saved = await saveNew(prospect);
           if (saved) setCreationDraft(null);
           return saved;
         }}
@@ -1057,7 +1126,7 @@ function ProspectDetail({
   initialContactChannel: ProspectChannel;
   isNew?: boolean;
   onBack: () => void;
-  onSave: (prospect: Prospect) => boolean;
+  onSave: (prospect: Prospect) => boolean | Promise<boolean>;
   feedback: string;
   onOpenOpportunity: (id: string) => void;
   onReload: () => void;
@@ -1121,7 +1190,7 @@ function ProspectDetail({
     setPendingConversion(null);
     setConversionFeedback('Oportunidad creada. Revisá su contexto y próximo paso en Seguimiento.');
   }
-  function recordResult(event: FormEvent) {
+  async function recordResult(event: FormEvent) {
     event.preventDefault();
     if (!result) return setContactFeedback('Elegí el resultado del contacto.');
     if (!isProspectContactAvailable(draft, scriptChannel))
@@ -1139,19 +1208,19 @@ function ProspectDetail({
     };
     const validationError = getProspectActionValidationError(input);
     if (validationError) return setContactFeedback(validationError);
-    if (!onSave(registerProspectAction(draft, input)))
+    if (!(await onSave(registerProspectAction(draft, input))))
       return setContactFeedback('No se pudo guardar la acción. Intentá nuevamente.');
     setResult('');
     setScript('');
     setDetailFollowUpAt('');
     setContactFeedback('Contacto registrado en el historial.');
   }
-  function saveDraft() {
+  async function saveDraft() {
     const next =
       draft.status === prospect.status
         ? draft
         : transitionProspect({ ...draft, activities: prospect.activities }, draft.status);
-    if (onSave(next)) setIsEditing(false);
+    if (await onSave(next)) setIsEditing(false);
   }
   function cancelEditing() {
     setDraft(prospect);

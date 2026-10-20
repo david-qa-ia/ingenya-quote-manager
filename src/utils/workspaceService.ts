@@ -4,6 +4,7 @@ import type {
   WorkspaceSession,
 } from '../types/workspace';
 import { getActiveWorkspaceId, setActiveWorkspaceId } from './workspaceStorage';
+import { getSupabaseConfig, isAuthConfigured, loadAuthSession } from './authService';
 
 const demoUserId = 'david-identity';
 const demoMemberships: WorkspaceMembership[] = [
@@ -57,14 +58,58 @@ export function getDemoSession(): WorkspaceSession {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, { credentials: 'include', ...options });
+  const authSession = loadAuthSession();
+  const headers = new Headers(options?.headers);
+  if (authSession) headers.set('Authorization', `Bearer ${authSession.accessToken}`);
+  const response = await fetch(`/api${path}`, {
+    credentials: 'include',
+    ...options,
+    headers,
+  });
   if (response.status === 401) throw new Error('session-expired');
   if (response.status === 403) throw new Error('workspace-denied');
   if (!response.ok) throw new Error('network');
   return (await response.json()) as T;
 }
 
+async function supabaseRequest<T>(path: string): Promise<T> {
+  const config = getSupabaseConfig();
+  const authSession = loadAuthSession();
+  if (!config || !authSession) throw new Error('session-expired');
+  const response = await fetch(`${config.url}/rest/v1${path}`, {
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${authSession.accessToken}`,
+    },
+  });
+  if (response.status === 401) throw new Error('session-expired');
+  if (response.status === 403) throw new Error('workspace-denied');
+  if (!response.ok) throw new Error('network');
+  return (await response.json()) as T;
+}
+
+interface SupabaseMembershipRow {
+  workspace_id: string;
+  role: WorkspaceMembership['role'];
+  status: WorkspaceMembership['status'];
+  workspace: WorkspaceMembership['workspace'];
+}
+
 export async function loadWorkspaceSession(): Promise<WorkspaceSession> {
+  if (isAuthConfigured() && !loadAuthSession()) throw new Error('session-expired');
+  if (isAuthConfigured()) {
+    const authSession = loadAuthSession();
+    const rows = await supabaseRequest<SupabaseMembershipRow[]>(
+      `/workspace_memberships?select=workspace_id,role,status,workspace:workspaces(id,name,slug,status)&user_id=eq.${encodeURIComponent(authSession?.userId ?? '')}&status=eq.active`,
+    );
+    const memberships = rows
+      .filter((row) => row.workspace?.status === 'active')
+      .map((row) => ({ workspace: row.workspace, role: row.role, status: row.status }));
+    const activeWorkspaceId = getActiveWorkspaceId() ?? memberships[0]?.workspace.id ?? null;
+    if (activeWorkspaceId) validateMembership(memberships, activeWorkspaceId);
+    if (activeWorkspaceId) setActiveWorkspaceId(activeWorkspaceId);
+    return { userId: authSession?.userId ?? '', memberships, activeWorkspaceId };
+  }
   if (import.meta.env.VITE_WORKSPACE_API_URL) {
     return request<WorkspaceSession>('/workspaces');
   }
