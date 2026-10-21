@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { loadActivities } from '../utils/activityStorage';
 import { UiIcon } from './UiIcon';
 import { workUnitSymbols } from '../data/workUnits';
 import type { Client } from '../types/client';
@@ -97,13 +98,6 @@ export function QuoteDetailView({
           </p>
         </div>
       </header>
-      <nav className="quote-detail-tabs" aria-label="Secciones">
-        <span>Resumen</span>
-        <span>Actividad</span>
-        <strong>Presupuestos</strong>
-        <span>Notas</span>
-        <span>Archivos</span>
-      </nav>
       <div className="quote-detail-grid">
         <div className="quote-detail-main">
           <section className="quote-detail-card">
@@ -251,30 +245,8 @@ export function QuoteDetailView({
             )}
           </section>
           <section className="quote-detail-card quote-status-card">
-            <h2>Estado del presupuesto</h2>
-            <div className="quote-status-flow">
-              <span>Borrador</span>
-              <i />
-              <span
-                className={['sent', 'followingUp'].includes(quote.commercialStatus) ? 'active' : ''}
-              >
-                Enviado
-              </span>
-              <i />
-              <span className={quote.commercialStatus === 'accepted' ? 'accepted' : ''}>
-                Aceptado
-              </span>
-            </div>
+            <h2>Resultado comercial</h2>
             <div className="quote-status-actions">
-              {targets.includes('sent') && (
-                <button
-                  className="button button-primary"
-                  type="button"
-                  onClick={() => onRegisterSend(quote)}
-                >
-                  Registrar envío
-                </button>
-              )}
               {targets.includes('accepted') && (
                 <button
                   className="button button-secondary"
@@ -307,26 +279,39 @@ export function QuoteDetailView({
             <p>☎ {client?.phone || 'Teléfono pendiente'}</p>
             <p>✉ {client?.email || 'Email pendiente'}</p>
           </section>
-          <section className="quote-detail-card quote-commercial-summary">
-            <h2>Resumen comercial</h2>
-            <p>
-              Valor estimado{' '}
-              <strong>
-                {currencyFormatter.format(opportunity?.qualification?.estimatedValue ?? total)}
-              </strong>
+          <section className="quote-detail-card">
+            <h2>Contexto operativo</h2>
+            <p className="commercial-note">
+              {quote.commercialStatus === 'prepared'
+                ? 'Todavía no registraste el envío.'
+                : 'El envío ya fue registrado para esta versión.'}
             </p>
-            <p>
-              Etapa <strong>{commercialStatusLabels[quote.commercialStatus]}</strong>
-            </p>
-            <p>
-              Responsable <strong>{opportunity?.responsibleSeller || 'Sin asignar'}</strong>
+            <p className="commercial-note">
+              Próximo paso: {opportunity?.nextAction?.description ?? 'Sin próximo paso programado.'}
             </p>
           </section>
           <section className="quote-detail-card">
-            <h2>Actividad reciente</h2>
-            <p className="commercial-note">
-              Los envíos y cambios de estado quedarán registrados en la actividad del presupuesto.
-            </p>
+            <h2>Actividad</h2>
+            {loadActivities().items.filter(
+              (activity) =>
+                activity.subject.kind === 'quote' && activity.subject.quoteId === quote.id,
+            ).length ? (
+              loadActivities()
+                .items.filter(
+                  (activity) =>
+                    activity.subject.kind === 'quote' && activity.subject.quoteId === quote.id,
+                )
+                .map((activity) => (
+                  <p className="commercial-note" key={activity.id}>
+                    {new Date(activity.occurredAt).toLocaleString('es-AR')} ·{' '}
+                    {activity.note || activity.result}
+                  </p>
+                ))
+            ) : (
+              <p className="commercial-note">
+                Todavía no hay actividad registrada para este presupuesto.
+              </p>
+            )}
           </section>
         </aside>
       </div>

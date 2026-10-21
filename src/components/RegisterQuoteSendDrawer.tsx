@@ -22,9 +22,23 @@ const channelLabels: Record<QuoteSendChannel, string> = {
   meeting: 'Reunión',
   other: 'Otro',
 };
+function argentinaLocalDateTime(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(date)
+    .reduce<Record<string, string>>((value, part) => ({ ...value, [part.type]: part.value }), {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
 export function RegisterQuoteSendDrawer({ quote, onClose, onSubmit }: Props) {
   const [channel, setChannel] = useState<QuoteSendChannel>('whatsapp');
-  const [sentAt, setSentAt] = useState(() => new Date().toISOString().slice(0, 16));
+  const [sentAt, setSentAt] = useState(argentinaLocalDateTime);
   const [responsible, setResponsible] = useState('');
   const [note, setNote] = useState('');
   const [nextStep, setNextStep] = useState<QuoteSendInput['nextStep']>('none');
