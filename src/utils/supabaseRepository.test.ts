@@ -64,6 +64,21 @@ describe('remote quote send', () => {
       reason: 'conflict',
     });
   });
+  it('accepts an idempotent retry without creating a second result locally', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ code: 'OK', version: 4, idempotent: true }), {
+          status: 200,
+        }),
+      ),
+    );
+    await expect(registerRemoteQuoteSend(input)).resolves.toEqual({
+      ok: true,
+      version: 4,
+      idempotent: true,
+    });
+  });
   it('reports a typed network failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     await expect(registerRemoteQuoteSend(input)).rejects.toMatchObject({ code: 'network' });

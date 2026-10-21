@@ -126,6 +126,22 @@ describe('prospect import transaction', () => {
     failWrites = false;
     expect(loadProspects().items).toEqual([]);
   });
+  it('persists valid rows and reports no hidden records from invalid or duplicate rows', () => {
+    const mixedRows = previewProspectCsv(
+      'name,company,phone,email,source,potentialService,notes\nAna,Sur,3415550101,ana@sur.com,Web,Pintura,\nInvalida,Norte,12,no,Web,Obra,\nAna,Sur,3415550101,ana@sur.com,Web,Pintura,',
+      [],
+    );
+    const prepared = prepareProspectImport(
+      mixedRows,
+      { schedule: false, channel: 'whatsapp', dueAt: '', responsible: '', note: '' },
+      'mixed-import',
+      '2026-10-20T10:00:00.000Z',
+    );
+    expect(mixedRows.filter((row) => !row.reason && !row.duplicate)).toHaveLength(1);
+    expect(savePreparedProspectImport(prepared)).toBe(true);
+    expect(loadProspects().items).toHaveLength(1);
+    expect(loadProspects().items[0].name).toBe('Ana');
+  });
   it('isolates a prepared import by active workspace', () => {
     const prepared = prepareProspectImport(
       rows,

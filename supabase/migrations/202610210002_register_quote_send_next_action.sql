@@ -8,7 +8,7 @@ create or replace function public.register_quote_send_with_next_action(
 declare v public.quote_versions%rowtype; q public.quotes%rowtype; r jsonb; existing uuid; begin
  perform public.assert_commercial_rpc_access(p_workspace_id);
  select response_body into r from public.idempotency_keys where workspace_id=p_workspace_id and actor_id=auth.uid() and operation='register_quote_send' and key=p_idempotency_key;
- if r is not null then return r; end if;
+ if r is not null then return jsonb_set(r,'{idempotent}','true'::jsonb); end if;
  select * into v from public.quote_versions where workspace_id=p_workspace_id and id=p_quote_version_id for update;
  if not found or v.status <> 'draft' then raise exception 'quote-version-not-sendable'; end if;
  select * into q from public.quotes where workspace_id=p_workspace_id and id=v.quote_id for update;
