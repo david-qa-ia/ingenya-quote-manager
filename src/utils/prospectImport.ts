@@ -8,6 +8,11 @@ export interface ProspectImportRow {
   reason?: string;
   duplicate?: boolean;
 }
+export interface ProspectCsvPreview {
+  rows: ProspectImportRow[];
+  headerError?: string;
+}
+export type FirstContactChannel = 'phone' | 'whatsapp' | 'email';
 const headerMap: Record<string, keyof ProspectInput> = {
   nombre: 'name',
   name: 'name',
@@ -69,18 +74,21 @@ export function parseCsvLine(line: string, delimiter: string): string[] {
   values.push(value);
   return values;
 }
-export function previewProspectCsv(
-  csv: string,
-  existing: readonly Prospect[],
-): ProspectImportRow[] {
+export function analyzeProspectCsv(csv: string, existing: readonly Prospect[]): ProspectCsvPreview {
   const lines = csv.trim().split(/\r?\n/).filter(Boolean);
-  if (!lines.length) return [];
+  if (!lines.length) return { rows: [], headerError: 'El archivo CSV está vacío.' };
   const delimiter = lines[0].includes(';') ? ';' : ',';
   const headers = parseCsvLine(lines[0], delimiter).map(
     (value) => headerMap[value.trim().toLocaleLowerCase('es')],
   );
+  if (!headers.includes('name') || headers.every((header) => !header))
+    return {
+      rows: [],
+      headerError:
+        'El CSV debe incluir los encabezados: name, company, phone, email, source, potentialService y notes.',
+    };
   const accepted: Prospect[] = [];
-  return lines.slice(1).map((line, index) => {
+  const rows = lines.slice(1).map((line, index) => {
     const input = blankInput();
     parseCsvLine(line, delimiter).forEach((value, position) => {
       const key = headers[position];
@@ -104,4 +112,49 @@ export function previewProspectCsv(
       ...(duplicate ? { duplicate: true } : {}),
     };
   });
+  return { rows };
+}
+
+export function previewProspectCsv(
+  csv: string,
+  existing: readonly Prospect[],
+): ProspectImportRow[] {
+  return analyzeProspectCsv(csv, existing).rows;
+}
+
+export function hasUsableContact(input: ProspectInput, channel: FirstContactChannel): boolean {
+  if (channel === 'email')
+    return (
+      Boolean(input.email) &&
+      input.email !== 'none' &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)
+    );
+  return (
+    Boolean(input.phone) &&
+    /^\d{7,15}$/.test(input.phone.replace(/\D/g, '')) &&
+    input.phone !== '1111111111'
+  );
+}
+
+export function argentinaDateTimeToIso(
+  value: string,
+): { ok: true; value: string } | { ok: false; error: string } {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return { ok: false, error: 'Elegí una fecha y hora válida.' };
+  const [, rawYear, rawMonth, rawDay, rawHour, rawMinute] = match;
+  const year = Number(rawYear);
+  const month = Number(rawMonth);
+  const day = Number(rawDay);
+  const hour = Number(rawHour);
+  const minute = Number(rawMinute);
+  const check = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  if (
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() !== month - 1 ||
+    check.getUTCDate() !== day ||
+    check.getUTCHours() !== hour ||
+    check.getUTCMinutes() !== minute
+  )
+    return { ok: false, error: 'Elegí una fecha y hora válida.' };
+  return { ok: true, value: new Date(`${value}:00-03:00`).toISOString() };
 }

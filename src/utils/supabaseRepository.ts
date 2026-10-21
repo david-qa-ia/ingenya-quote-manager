@@ -1,4 +1,5 @@
 import type { Prospect } from '../types/prospect';
+import type { PreparedProspectImport } from './prospectImportTransaction';
 import { getSupabaseConfig, loadAuthSession } from './authService';
 
 export class SupabaseRepositoryError extends Error {
@@ -84,6 +85,45 @@ export async function createRemoteProspect(workspaceId: string, prospect: Prospe
         preferredChannel: prospect.preferredChannel,
       },
       p_idempotency_key: `create-prospect:${prospect.id}`,
+      p_request_id: crypto.randomUUID(),
+    }),
+  });
+}
+
+export async function importRemoteProspects(
+  workspaceId: string,
+  prepared: PreparedProspectImport,
+): Promise<void> {
+  await request('/rest/v1/rpc/import_prospects_with_first_contact', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_workspace_id: workspaceId,
+      p_prospects: prepared.prospects.map((prospect) => ({
+        id: prospect.id,
+        name: prospect.name,
+        company: prospect.company,
+        phone: prospect.phone,
+        email: prospect.email,
+        source: prospect.source,
+        potentialService: prospect.potentialService,
+        notes: prospect.notes,
+        status: prospect.status,
+        priority: prospect.priority,
+        priorityReason: prospect.priorityReason,
+        nextAction: prospect.nextAction,
+        nextActionAt: prospect.nextActionAt,
+        responsible: prospect.responsible,
+        preferredChannel: prospect.preferredChannel,
+        activities: prospect.activities.map((activity) => ({
+          id: activity.id,
+          occurredAt: activity.occurredAt,
+          type: activity.type,
+          description: activity.description,
+          note: activity.note,
+          channel: activity.channel,
+        })),
+      })),
+      p_idempotency_key: `import-prospects:${prepared.importKey}`,
       p_request_id: crypto.randomUUID(),
     }),
   });

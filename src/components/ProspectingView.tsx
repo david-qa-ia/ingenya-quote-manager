@@ -11,10 +11,24 @@ import {
   createNewProspect,
   isProspectContactAvailable,
   loadProspects,
-  saveProspect,
   saveProspectWithResult,
 } from '../utils/prospectStorage';
-import { previewProspectCsv } from '../utils/prospectImport';
+import {
+  analyzeProspectCsv,
+  argentinaDateTimeToIso,
+  hasUsableContact,
+  type FirstContactChannel,
+} from '../utils/prospectImport';
+import {
+  clearProspectImportRecovery,
+  loadProspectImportRecovery,
+  prepareProspectImport,
+  savePreparedProspectImport,
+  saveProspectImportRecovery,
+  type FirstContactImportConfig,
+  type PreparedProspectImport,
+  type ProspectImportRecovery,
+} from '../utils/prospectImportTransaction';
 import { isoToLocalDateTime } from '../utils/prospectFollowUp';
 import {
   filterProspects,
@@ -40,6 +54,7 @@ import {
 import { isAuthConfigured } from '../utils/authService';
 import {
   createRemoteProspect,
+  importRemoteProspects,
   loadRemoteProspects,
   type SupabaseProspectRow,
 } from '../utils/supabaseRepository';
@@ -125,19 +140,44 @@ export function ProspectingView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creationDraft, setCreationDraft] = useState<Prospect | null>(null);
   const initialContactChannel: ProspectChannel = 'phone';
-  const [isImportOpen, setIsImportOpen] = useState(false);
-  const [csv, setCsv] = useState('');
-  const [csvFileName, setCsvFileName] = useState('');
+  const [importRecovery, setImportRecovery] = useState<ProspectImportRecovery | null>(() =>
+    loadProspectImportRecovery(),
+  );
+  const [isImportOpen, setIsImportOpen] = useState(() => Boolean(importRecovery));
+  const [csv, setCsv] = useState(() => importRecovery?.csv ?? '');
+  const [csvFileName, setCsvFileName] = useState(() => importRecovery?.fileName ?? '');
+  const [scheduleFirstContact, setScheduleFirstContact] = useState(
+    () => importRecovery?.config.schedule ?? false,
+  );
+  const [firstContactChannel, setFirstContactChannel] = useState<FirstContactChannel>(
+    () => importRecovery?.config.channel ?? 'whatsapp',
+  );
+  const [firstContactAt, setFirstContactAt] = useState(() =>
+    isoToLocalDateTime(importRecovery?.config.dueAt ?? ''),
+  );
+  const [firstContactResponsible, setFirstContactResponsible] = useState(
+    () => importRecovery?.config.responsible ?? '',
+  );
+  const [firstContactNote, setFirstContactNote] = useState(() => importRecovery?.config.note ?? '');
+  const [isImporting, setIsImporting] = useState(false);
+  const [preparedImport, setPreparedImport] = useState<PreparedProspectImport | null>(
+    () => importRecovery?.prepared ?? null,
+  );
   const [feedback, setFeedback] = useState('');
   const [toast, setToast] = useState('');
   const [actionProspect, setActionProspect] = useState<Prospect | null>(null);
   const [actionInitialResult] = useState<ProspectContactResult>('contacted');
   const [conversionTarget, setConversionTarget] = useState<Prospect | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const importSubmissionRef = useRef(false);
   const selected = prospects.find((item) => item.id === selectedId);
   const visible = useMemo(() => filterProspects(prospects, filters), [prospects, filters]);
-  const rows = useMemo(() => previewProspectCsv(csv, prospects), [csv, prospects]);
+  const csvPreview = useMemo(() => analyzeProspectCsv(csv, prospects), [csv, prospects]);
+  const rows = csvPreview.rows;
   const validRows = rows.filter((row) => !row.reason && !row.duplicate);
+  const compatibleRows = validRows.filter((row) =>
+    hasUsableContact(row.input, firstContactChannel),
+  );
   useEffect(() => {
     if (!toast) return;
     const timeout = window.setTimeout(() => setToast(''), 3000);
@@ -211,36 +251,125 @@ export function ProspectingView({
     setConversionTarget(null);
     setFeedback('Oportunidad creada. Revisá el próximo paso en Seguimiento.');
   }
-  function importRows() {
-    let saved = 0;
-    validRows.forEach((row) => {
-      const now = new Date().toISOString();
-      const prospect: Prospect = {
-        ...row.input,
-        id: crypto.randomUUID(),
-        activities: [
-          {
-            id: crypto.randomUUID(),
-            occurredAt: now,
-            type: 'note',
-            description: 'Prospecto importado.',
-          },
-        ],
-        createdAt: now,
-        updatedAt: now,
+  function buildImportConfig(): FirstContactImportConfig | null {
+    if (!scheduleFirstContact)
+      return {
+        schedule: false,
+        channel: firstContactChannel,
+        dueAt: '',
+        responsible: '',
+        note: '',
       };
-      if (saveProspect(prospect)) saved += 1;
-    });
-    refresh();
-    setFeedback(
-      `${saved} prospecto(s) importado(s). Las filas inválidas o duplicadas no se agregaron.`,
-    );
-    setCsv('');
-    setCsvFileName('');
-    if (csvInputRef.current) csvInputRef.current.value = '';
-    setIsImportOpen(false);
+    const dueAt = argentinaDateTimeToIso(firstContactAt);
+    if (!dueAt.ok || Date.parse(dueAt.value) <= Date.now()) {
+      setFeedback(dueAt.ok ? 'La fecha y hora del primer contacto debe ser futura.' : dueAt.error);
+      return null;
+    }
+    if (!firstContactResponsible.trim()) {
+      setFeedback('Elegí un responsable para el primer contacto.');
+      return null;
+    }
+    return {
+      schedule: true,
+      channel: firstContactChannel,
+      dueAt: dueAt.value,
+      responsible: firstContactResponsible,
+      note: firstContactNote,
+    };
+  }
+  async function importRows() {
+    if (isImporting || importSubmissionRef.current || !validRows.length) return;
+    const config = buildImportConfig();
+    if (!config) return;
+    importSubmissionRef.current = true;
+    const prepared = preparedImport ?? prepareProspectImport(rows, config);
+    const recovery: ProspectImportRecovery = {
+      importKey: prepared.importKey,
+      fileName: csvFileName,
+      csv,
+      config,
+      prepared,
+      phase: 'pending',
+    };
+    setPreparedImport(prepared);
+    saveProspectImportRecovery(recovery);
+    setIsImporting(true);
+    try {
+      const workspaceId = workspaceContext.session?.activeWorkspaceId;
+      let remoteConfirmed = importRecovery?.phase === 'remoteConfirmed';
+      if (isAuthConfigured() && workspaceId && !remoteConfirmed) {
+        await importRemoteProspects(workspaceId, prepared);
+        remoteConfirmed = true;
+        const confirmedRecovery = { ...recovery, phase: 'remoteConfirmed' as const };
+        setImportRecovery(confirmedRecovery);
+        saveProspectImportRecovery(confirmedRecovery);
+      }
+      if (!savePreparedProspectImport(prepared)) {
+        if (remoteConfirmed) {
+          const recoverable = { ...recovery, phase: 'remoteConfirmed' as const };
+          setImportRecovery(recoverable);
+          saveProspectImportRecovery(recoverable);
+          setFeedback(
+            'La importación se confirmó, pero no se pudo guardar parte del historial local. Reintentá solo la recuperación.',
+          );
+        } else {
+          setFeedback('No se pudo guardar la importación. Reintentá con el mismo archivo.');
+        }
+        return;
+      }
+      clearProspectImportRecovery();
+      setImportRecovery(null);
+      setPreparedImport(null);
+      refresh();
+      setFeedback(
+        `${prepared.prospects.length} prospecto(s) importado(s)${prepared.scheduledCount ? ` y ${prepared.scheduledCount} primer contacto(s) agendado(s)` : ''}.`,
+      );
+      cancelImport();
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? `No se pudo confirmar la importación: ${error.message}`
+          : 'No se pudo confirmar la importación. Reintentá con el mismo archivo.',
+      );
+    } finally {
+      importSubmissionRef.current = false;
+      setIsImporting(false);
+    }
+  }
+  async function recoverImport() {
+    if (!importRecovery || isImporting || importSubmissionRef.current) return;
+    importSubmissionRef.current = true;
+    setCsv(importRecovery.csv);
+    setCsvFileName(importRecovery.fileName);
+    setScheduleFirstContact(importRecovery.config.schedule);
+    setFirstContactChannel(importRecovery.config.channel);
+    setFirstContactAt(isoToLocalDateTime(importRecovery.config.dueAt));
+    setFirstContactResponsible(importRecovery.config.responsible);
+    setFirstContactNote(importRecovery.config.note);
+    setPreparedImport(importRecovery.prepared);
+    setIsImporting(true);
+    try {
+      if (!savePreparedProspectImport(importRecovery.prepared)) {
+        setFeedback(
+          'No se pudo completar la recuperación. Tus datos siguen listos para reintentarla.',
+        );
+        return;
+      }
+      clearProspectImportRecovery();
+      setImportRecovery(null);
+      setPreparedImport(null);
+      refresh();
+      setFeedback(
+        'La recuperación se completó. Los prospectos y sus primeros contactos ya están listos.',
+      );
+      setIsImportOpen(false);
+    } finally {
+      importSubmissionRef.current = false;
+      setIsImporting(false);
+    }
   }
   function cancelImport() {
+    if (isImporting || importRecovery?.phase === 'remoteConfirmed') return;
     setCsv('');
     setCsvFileName('');
     if (csvInputRef.current) csvInputRef.current.value = '';
@@ -258,6 +387,9 @@ export function ProspectingView({
     try {
       setCsv(await file.text());
       setCsvFileName(file.name);
+      setPreparedImport(null);
+      setImportRecovery(null);
+      clearProspectImportRecovery();
       setFeedback('');
     } catch {
       setCsv('');
@@ -349,47 +481,237 @@ export function ProspectingView({
       {isImportOpen && (
         <section className="quote-card prospect-import">
           <h2>Importar prospectos</h2>
-          <p>
-            Elegí un archivo CSV con los encabezados: name, company, phone, email, source,
-            potentialService y notes.
-          </p>
-          <label className="field" htmlFor="prospect-csv-file">
-            <span>Archivo CSV</span>
-            <input
-              ref={csvInputRef}
-              id="prospect-csv-file"
-              type="file"
-              accept=".csv,text/csv"
-              onChange={handleCsvFile}
-            />
-          </label>
-          {csvFileName && <p className="commercial-note">Archivo seleccionado: {csvFileName}</p>}
-          {csv && (
-            <p>
-              <strong>{validRows.length}</strong> válidas ·{' '}
-              <strong>{rows.filter((row) => row.reason).length}</strong> inválidas ·{' '}
-              <strong>{rows.filter((row) => row.duplicate).length}</strong> duplicadas
-            </p>
+          <p>Revisá los datos antes de confirmar.</p>
+          {!csvFileName ? (
+            <label className="field" htmlFor="prospect-csv-file">
+              <span>Archivo CSV</span>
+              <input
+                ref={csvInputRef}
+                id="prospect-csv-file"
+                type="file"
+                accept=".csv,text/csv"
+                disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
+                onChange={handleCsvFile}
+              />
+            </label>
+          ) : (
+            <div className="prospect-import-file">
+              <strong>{csvFileName}</strong>
+              <label className="button button-line" htmlFor="prospect-csv-file">
+                Cambiar archivo
+                <input
+                  ref={csvInputRef}
+                  id="prospect-csv-file"
+                  type="file"
+                  accept=".csv,text/csv"
+                  disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
+                  onChange={handleCsvFile}
+                />
+              </label>
+            </div>
           )}
-          <ul className="import-preview">
-            {rows.map((row) => (
-              <li key={row.line}>
-                Fila {row.line}:{' '}
-                {row.reason ?? (row.duplicate ? 'Duplicada, no se importará.' : 'Válida.')}
-              </li>
-            ))}
-          </ul>
-          <button
-            className="button button-primary"
-            type="button"
-            disabled={!validRows.length}
-            onClick={importRows}
-          >
-            Confirmar importación
-          </button>
-          <button className="button button-line" type="button" onClick={cancelImport}>
-            Cancelar
-          </button>
+          {csvPreview.headerError ? (
+            <p className="commercial-warning" role="alert">
+              {csvPreview.headerError}
+            </p>
+          ) : (
+            <>
+              <div className="prospect-import-summary" aria-label="Resumen de importación">
+                <strong>
+                  <span>{validRows.length}</span> válidas
+                </strong>
+                <strong>
+                  <span>{rows.filter((row) => row.duplicate).length}</span> duplicadas
+                </strong>
+                <strong>
+                  <span>{rows.filter((row) => row.reason).length}</span> inválidas
+                </strong>
+                <strong>
+                  <span>{compatibleRows.length}</span> con contacto
+                </strong>
+              </div>
+              {rows.length > 0 && (
+                <div className="table-scroll prospect-import-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Empresa</th>
+                        <th>Contacto</th>
+                        <th>Teléfono</th>
+                        <th>Email</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.slice(0, 8).map((row) => (
+                        <tr
+                          key={row.line}
+                          className={
+                            row.reason
+                              ? 'prospect-import-invalid'
+                              : row.duplicate
+                                ? 'prospect-import-duplicate'
+                                : ''
+                          }
+                        >
+                          <td>{row.input.company || '—'}</td>
+                          <td>{row.input.name || '—'}</td>
+                          <td>{row.input.phone || '—'}</td>
+                          <td>{row.input.email || '—'}</td>
+                          <td>
+                            {row.reason
+                              ? `Inválida: ${row.reason}`
+                              : row.duplicate
+                                ? 'Duplicada'
+                                : 'Válida'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <fieldset className="prospect-first-contact">
+                <legend>Primer contacto</legend>
+                <label
+                  className={
+                    !scheduleFirstContact
+                      ? 'prospect-import-choice prospect-import-choice-selected'
+                      : 'prospect-import-choice'
+                  }
+                >
+                  <input
+                    type="radio"
+                    checked={!scheduleFirstContact}
+                    onChange={() => {
+                      setScheduleFirstContact(false);
+                      setPreparedImport(null);
+                    }}
+                    disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
+                  />
+                  <strong>Importar sin agendar</strong>
+                  <small>Solo se importarán los prospectos.</small>
+                </label>
+                <label
+                  className={
+                    scheduleFirstContact
+                      ? 'prospect-import-choice prospect-import-choice-selected'
+                      : 'prospect-import-choice'
+                  }
+                >
+                  <input
+                    type="radio"
+                    checked={scheduleFirstContact}
+                    onChange={() => {
+                      setScheduleFirstContact(true);
+                      setPreparedImport(null);
+                    }}
+                    disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
+                  />
+                  <strong>Agendar primer contacto</strong>
+                  <small>Se creará una tarea para los prospectos compatibles.</small>
+                </label>
+              </fieldset>
+              {scheduleFirstContact && (
+                <div className="prospect-import-config">
+                  <label className="field">
+                    <span>Canal</span>
+                    <select
+                      value={firstContactChannel}
+                      onChange={(event) => {
+                        setFirstContactChannel(event.target.value as FirstContactChannel);
+                        setPreparedImport(null);
+                      }}
+                      disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
+                    >
+                      <option value="phone">Llamada</option>
+                      <option value="whatsapp">WhatsApp</option>
+                      <option value="email">Email</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Fecha y hora</span>
+                    <input
+                      type="datetime-local"
+                      value={firstContactAt}
+                      onChange={(event) => {
+                        setFirstContactAt(event.target.value);
+                        setPreparedImport(null);
+                      }}
+                      disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Responsable</span>
+                    <input
+                      value={firstContactResponsible}
+                      onChange={(event) => {
+                        setFirstContactResponsible(event.target.value);
+                        setPreparedImport(null);
+                      }}
+                      disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Nota opcional</span>
+                    <input
+                      value={firstContactNote}
+                      onChange={(event) => {
+                        setFirstContactNote(event.target.value);
+                        setPreparedImport(null);
+                      }}
+                      disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
+                    />
+                  </label>
+                </div>
+              )}
+              {scheduleFirstContact && validRows.length > compatibleRows.length && (
+                <p className="commercial-note">
+                  {validRows.length - compatibleRows.length} prospecto(s) sin contacto compatible se
+                  importará(n) sin agendar.
+                </p>
+              )}
+              {importRecovery?.phase === 'remoteConfirmed' && (
+                <p className="commercial-warning" role="alert">
+                  La importación ya se confirmó. No la repitas: recuperá únicamente el registro
+                  local pendiente.
+                </p>
+              )}
+              <div className="prospect-import-actions">
+                <button
+                  className="button button-line"
+                  type="button"
+                  onClick={cancelImport}
+                  disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
+                >
+                  Cancelar
+                </button>
+                {importRecovery?.phase === 'remoteConfirmed' ? (
+                  <button
+                    className="button button-primary"
+                    type="button"
+                    onClick={() => void recoverImport()}
+                    disabled={isImporting}
+                  >
+                    {isImporting ? 'Recuperando…' : 'Reintentar recuperación'}
+                  </button>
+                ) : (
+                  <button
+                    className="button button-primary"
+                    type="button"
+                    disabled={!validRows.length || isImporting || Boolean(csvPreview.headerError)}
+                    onClick={() => void importRows()}
+                  >
+                    {isImporting
+                      ? 'Importando…'
+                      : scheduleFirstContact
+                        ? `Importar ${validRows.length} prospectos y agendar ${compatibleRows.length}`
+                        : `Importar ${validRows.length} prospectos`}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </section>
       )}
       <section className="quote-card prospect-list">
