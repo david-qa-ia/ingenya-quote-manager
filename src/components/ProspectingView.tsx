@@ -125,6 +125,7 @@ interface Props {
   onFiltersChange: (filters: ProspectFilters) => void;
   onOpenOpportunity: (id: string) => void;
   onOpenResult: (item: FollowUpInboxItem) => void;
+  onProspectsChanged?: (prospects: Prospect[]) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -133,6 +134,7 @@ export function ProspectingView({
   onFiltersChange,
   onOpenOpportunity,
   onOpenResult,
+  onProspectsChanged,
   onDirtyChange,
 }: Props) {
   const workspaceContext = useWorkspace();
@@ -188,15 +190,21 @@ export function ProspectingView({
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
     if (!isAuthConfigured() || !workspaceId) return;
     loadRemoteProspects(workspaceId)
-      .then((rows) => setProspects(rows.map(mapRemoteProspect)))
+      .then((rows) => {
+        const next = rows.map(mapRemoteProspect);
+        setProspects(next);
+        onProspectsChanged?.(next);
+      })
       .catch(() => setFeedback('No se pudieron cargar los prospectos del espacio activo.'));
-  }, [workspaceContext.session?.activeWorkspaceId]);
+  }, [workspaceContext.session?.activeWorkspaceId, onProspectsChanged]);
   function updateFilters(next: ProspectFilters) {
     setFilters(next);
     onFiltersChange(next);
   }
   function refresh() {
-    setProspects(loadProspects().items);
+    const next = loadProspects().items;
+    setProspects(next);
+    onProspectsChanged?.(next);
   }
   function save(next: Prospect, openDetail = true): boolean {
     const result = saveProspectWithResult(next);

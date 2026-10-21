@@ -1346,6 +1346,7 @@ function App() {
             setCurrentView('opportunityDetail');
           }}
           onOpenResult={setDrawerItem}
+          onProspectsChanged={setProspects}
           onDirtyChange={setProspectHasUnsavedChanges}
         />
         {resultDrawer}
