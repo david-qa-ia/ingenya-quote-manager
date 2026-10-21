@@ -11,6 +11,7 @@ export interface QuoteSendTransactionInput {
   quote: SavedQuote;
   audit: CommercialStatusAudit;
   nextStep?: { type: 'call' | 'whatsapp' | 'email' | 'meeting'; dueAt: string };
+  replaceExistingNextAction?: boolean;
 }
 export function commitLocalQuoteSend(input: QuoteSendTransactionInput): {
   ok: boolean;
@@ -61,7 +62,7 @@ export function commitLocalQuoteSend(input: QuoteSendTransactionInput): {
         ...opportunity,
         pipelineStage: 'proposal',
         updatedAt: input.audit.changedAt,
-        ...(input.nextStep
+        ...(input.nextStep && (!opportunity.nextAction || input.replaceExistingNextAction)
           ? {
               nextAction: {
                 id: crypto.randomUUID(),

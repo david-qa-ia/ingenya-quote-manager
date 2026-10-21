@@ -1472,6 +1472,26 @@ function App() {
 
   if (currentView === 'quoteDetail') {
     const quote = savedQuotes.find((item) => item.id === detailQuoteId);
+    const versionIds = new Set<string>(quote ? [quote.id] : []);
+    let expandedVersions = true;
+    while (expandedVersions) {
+      expandedVersions = false;
+      for (const item of savedQuotes) {
+        if (
+          item.basedOnQuoteId &&
+          versionIds.has(item.basedOnQuoteId) &&
+          !versionIds.has(item.id)
+        ) {
+          versionIds.add(item.id);
+          expandedVersions = true;
+        }
+        if (item.id === quote?.id && item.basedOnQuoteId && !versionIds.has(item.basedOnQuoteId)) {
+          versionIds.add(item.basedOnQuoteId);
+          expandedVersions = true;
+        }
+      }
+    }
+    const quoteVersions = savedQuotes.filter((item) => versionIds.has(item.id));
     const opportunity = opportunities.find(
       (item) => item.id === quote?.opportunityId && item.clientId === quote?.clientId,
     );
@@ -1496,6 +1516,7 @@ function App() {
         {appHeader}
         <QuoteDetailView
           quote={quote}
+          versions={quoteVersions}
           opportunity={opportunity}
           client={loadClients().items.find((item) => item.id === quote.clientId)}
           onBack={() => {

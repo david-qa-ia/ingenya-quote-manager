@@ -14,6 +14,7 @@ import {
 
 interface Props {
   quote: SavedQuote;
+  versions: readonly SavedQuote[];
   client?: Client;
   opportunity?: Opportunity;
   onBack(): void;
@@ -29,6 +30,7 @@ interface Props {
 
 export function QuoteDetailView({
   quote,
+  versions,
   client,
   opportunity,
   onBack,
@@ -206,28 +208,33 @@ export function QuoteDetailView({
             aria-labelledby="quote-version-history"
           >
             <h2 id="quote-version-history">Historial de versiones</h2>
-            <article
-              className={
-                quote.commercialStatus === 'sent'
-                  ? 'quote-version-row sent'
-                  : 'quote-version-row current'
-              }
-            >
-              <strong>V{quote.version ?? 1}</strong>
-              <div>
-                <b>
-                  {quote.commercialStatus === 'sent'
-                    ? `Enviada${quote.sentAudit?.channel ? ` por ${quote.sentAudit.channel === 'whatsapp' ? 'WhatsApp' : 'email'}` : ''}`
-                    : 'Vigente'}
-                </b>
-                <p>{quote.changeRequest?.reason || 'Versión comercial actual del presupuesto.'}</p>
-              </div>
-              <small>
-                {quote.sentAudit
-                  ? `${new Date(quote.sentAudit.changedAt).toLocaleDateString('es-AR')} · ${quote.sentAudit.changedBy}`
-                  : `Actualizada el ${new Date(quote.savedAt).toLocaleDateString('es-AR')}`}
-              </small>
-            </article>
+            {[...versions]
+              .sort((a, b) => (a.version ?? 1) - (b.version ?? 1))
+              .map((item) => (
+                <article
+                  key={item.id}
+                  className={
+                    item.id === quote.id ? 'quote-version-row current' : 'quote-version-row sent'
+                  }
+                >
+                  <strong>V{item.version ?? 1}</strong>
+                  <div>
+                    <b>
+                      {item.sentAudit
+                        ? `Enviada${item.sentAudit.channel ? ` por ${item.sentAudit.channel === 'whatsapp' ? 'WhatsApp' : 'email'}` : ''}`
+                        : item.id === quote.id
+                          ? 'Vigente'
+                          : 'Reemplazada'}
+                    </b>
+                    <p>{item.changeRequest?.reason || 'Versión comercial registrada.'}</p>
+                  </div>
+                  <small>
+                    {item.sentAudit
+                      ? `${new Date(item.sentAudit.changedAt).toLocaleDateString('es-AR')} · ${item.sentAudit.changedBy}`
+                      : `Actualizada el ${new Date(item.savedAt).toLocaleDateString('es-AR')}`}
+                  </small>
+                </article>
+              ))}
             {quote.commercialStatus === 'sent' && (
               <>
                 <p className="commercial-note">
