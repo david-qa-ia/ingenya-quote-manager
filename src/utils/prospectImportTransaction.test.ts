@@ -71,7 +71,7 @@ describe('prospect import transaction', () => {
       '2026-10-20T10:00:00.000Z',
     );
     expect(savePreparedProspectImport(prepared)).toBe(true);
-    expect(savePreparedProspectImport(prepared)).toBe(false);
+    expect(savePreparedProspectImport(prepared)).toBe(true);
     expect(loadProspects().items).toHaveLength(2);
     expect(loadProspects().items.every((prospect) => !prospect.nextActionAt)).toBe(true);
   });

@@ -88,12 +88,23 @@ export function savePreparedProspectImport(prepared: PreparedProspectImport): bo
         typeof record === 'object' && record ? (record as { id?: string }).id : undefined,
       ),
     );
-    if (prepared.prospects.some((prospect) => ids.has(prospect.id))) return false;
-    localStorage.setItem(
-      workspaceStorageKey(PROSPECTS_STORAGE_KEY),
-      JSON.stringify([...records, ...prepared.prospects]),
+    const existingById = new Map(
+      records
+        .filter((record): record is Prospect => isProspect(record))
+        .map((record) => [record.id, record]),
     );
-    return true;
+    if (prepared.prospects.some((prospect) => ids.has(prospect.id))) {
+      return prepared.prospects.every(
+        (prospect) => JSON.stringify(existingById.get(prospect.id)) === JSON.stringify(prospect),
+      );
+    }
+    const key = workspaceStorageKey(PROSPECTS_STORAGE_KEY);
+    const next = [...records, ...prepared.prospects];
+    localStorage.setItem(key, JSON.stringify(next));
+    const confirmed = readCollection(PROSPECTS_STORAGE_KEY);
+    return prepared.prospects.every((prospect) =>
+      confirmed.some((record) => isProspect(record) && record.id === prospect.id),
+    );
   } catch {
     return false;
   }
