@@ -104,6 +104,16 @@ export function commitLocalQuoteSend(input: QuoteSendTransactionInput): {
         if (snapshot === null) localStorage.removeItem(key);
         else localStorage.setItem(key, snapshot);
       }
+      const verified = [...snapshots].every(
+        ([key, snapshot]) => localStorage.getItem(key) === snapshot,
+      );
+      if (!verified)
+        return {
+          ok: false,
+          recoveryRequired: true,
+          error:
+            'No se pudo verificar la restauración local. No repitas el envío; recuperá el registro antes de continuar.',
+        };
       return { ok: false, error: 'No se pudo registrar el envío. Se restauraron los cambios.' };
     } catch {
       return {

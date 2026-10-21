@@ -123,4 +123,26 @@ describe('quote send transaction', () => {
     expect(result.ok).toBe(true);
     expect(JSON.parse(memory.get(OPPORTUNITIES_STORAGE_KEY)!)[0].nextAction.id).toBe('old');
   });
+  it('reports recovery required when rollback cannot be verified', () => {
+    memory.set(SAVED_QUOTES_STORAGE_KEY, JSON.stringify([quote]));
+    memory.set(ACTIVITIES_STORAGE_KEY, '[]');
+    memory.set(OPPORTUNITIES_STORAGE_KEY, '[]');
+    let writes = 0;
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        writes += 1;
+        if (writes >= 2) throw new Error('write failed');
+        memory.set(key, value);
+      },
+      removeItem: () => {
+        throw new Error('rollback failed');
+      },
+    });
+    const result = commitLocalQuoteSend({
+      quote,
+      audit: { changedAt: '2026-10-21T10:00:00.000Z', changedBy: 'David', reason: 'Enviado' },
+    });
+    expect(result.recoveryRequired).toBe(true);
+  });
 });
