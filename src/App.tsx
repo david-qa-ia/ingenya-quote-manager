@@ -107,7 +107,7 @@ import { SettingsView } from './components/SettingsView';
 import { commitLocalFollowUpResult } from './utils/followUpResultTransaction';
 import { isAuthConfigured } from './utils/authService';
 import { registerRemoteQuoteSend, SupabaseRepositoryError } from './utils/supabaseRepository';
-import { commitLocalQuoteSend } from './utils/quoteSendTransaction';
+import { commitLocalQuoteSend, hasQuoteSendRecovery } from './utils/quoteSendTransaction';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -922,10 +922,10 @@ function App() {
   }
 
   async function handleQuoteSend(input: QuoteSendInput): Promise<{ ok: boolean; error?: string }> {
-    if (quoteSendRecoveryRequired)
-      return { ok: false, error: 'Este envío requiere recuperación. No repitas la confirmación.' };
     const quote = quoteSendTarget;
     if (!quote) return { ok: false, error: 'No se encontró el presupuesto.' };
+    if (quoteSendRecoveryRequired || hasQuoteSendRecovery(quote.id))
+      return { ok: false, error: 'Este envío requiere recuperación. No repitas la confirmación.' };
     const recipient =
       input.channel === 'whatsapp'
         ? loadClients().items.find((item) => item.id === quote.clientId)?.phone
@@ -957,7 +957,7 @@ function App() {
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
     if (isAuthConfigured() && workspaceId) {
       try {
-        await registerRemoteQuoteSend({
+        const remoteResult = await registerRemoteQuoteSend({
           workspaceId,
           quoteVersionId: quote.id,
           expectedVersion: quote.version ?? 1,
@@ -982,6 +982,7 @@ function App() {
           nextActionDecision: input.replaceExistingNextAction ? 'replace' : 'preserve',
           idempotencyKey: `quote-send:${quote.id}`,
         });
+        if (!remoteResult.ok) return { ok: false, error: remoteResult.message };
       } catch (error) {
         if (!(error instanceof SupabaseRepositoryError) || error.code !== 'network')
           return {

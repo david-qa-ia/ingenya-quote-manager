@@ -59,7 +59,10 @@ describe('remote quote send', () => {
         .fn()
         .mockResolvedValue(new Response(JSON.stringify({ code: 'CONFLICT' }), { status: 200 })),
     );
-    await expect(registerRemoteQuoteSend(input)).rejects.toMatchObject({ code: 'conflict' });
+    await expect(registerRemoteQuoteSend(input)).resolves.toMatchObject({
+      ok: false,
+      reason: 'conflict',
+    });
   });
   it('reports a typed network failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));

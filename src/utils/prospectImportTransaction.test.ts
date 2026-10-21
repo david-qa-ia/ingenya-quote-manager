@@ -138,6 +138,30 @@ describe('prospect import transaction', () => {
     session.set('ingenya.activeWorkspace.v1', 'workspace-b');
     expect(loadProspects().items).toEqual([]);
   });
+  it('keeps recovery with the workspace that started the import', () => {
+    const prepared = prepareProspectImport(
+      rows,
+      { schedule: false, channel: 'whatsapp', dueAt: '', responsible: '', note: '' },
+      'workspace-recovery',
+      '2026-10-20T10:00:00.000Z',
+    );
+    session.set('ingenya.activeWorkspace.v1', 'workspace-b');
+    expect(
+      saveProspectImportRecovery({
+        importKey: prepared.importKey,
+        workspaceId: 'workspace-a',
+        fileName: 'prospectos.csv',
+        csv: 'csv',
+        config: { schedule: false, channel: 'whatsapp', dueAt: '', responsible: '', note: '' },
+        prepared,
+        phase: 'remoteConfirmed',
+      }),
+    ).toBe(true);
+    expect(stored.get('workspace-a::ingenya.prospectImportRecovery.v1')).toContain(
+      'workspace-recovery',
+    );
+    expect(stored.get('workspace-b::ingenya.prospectImportRecovery.v1')).toBeUndefined();
+  });
   it('derives each scheduled import once for the shared inboxes', () => {
     const prepared = prepareProspectImport(
       rows,

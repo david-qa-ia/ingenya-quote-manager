@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { commitLocalQuoteSend } from './quoteSendTransaction';
+import {
+  commitLocalQuoteSend,
+  hasQuoteSendRecovery,
+  QUOTE_SEND_RECOVERY_STORAGE_KEY,
+} from './quoteSendTransaction';
 import { SAVED_QUOTES_STORAGE_KEY } from './quoteDraftStorage';
 import { ACTIVITIES_STORAGE_KEY } from './activityStorage';
 import { OPPORTUNITIES_STORAGE_KEY } from './opportunityStorage';
@@ -205,5 +209,13 @@ describe('quote send transaction', () => {
       audit: { changedAt: '2026-10-21T10:00:00.000Z', changedBy: 'David', reason: 'Enviado' },
     });
     expect(result.recoveryRequired).toBe(true);
+  });
+  it('blocks the same send after a persisted recovery marker', () => {
+    memory.set(
+      QUOTE_SEND_RECOVERY_STORAGE_KEY,
+      JSON.stringify({ quoteId: quote.id, recordedAt: '2026-10-21T10:00:00.000Z' }),
+    );
+    expect(hasQuoteSendRecovery(quote.id)).toBe(true);
+    expect(hasQuoteSendRecovery('another-quote')).toBe(false);
   });
 });

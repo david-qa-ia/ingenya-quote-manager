@@ -17,6 +17,10 @@ export function workspaceStorageKey(key: string): string {
   return workspaceId ? `${workspaceId}::${key}` : key;
 }
 
+export function workspaceStorageKeyFor(key: string, workspaceId?: string): string {
+  return workspaceId ? `${workspaceId}::${key}` : key;
+}
+
 export function clearWorkspaceScopedSession(): void {
   try {
     localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);

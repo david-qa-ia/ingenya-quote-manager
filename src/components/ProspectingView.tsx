@@ -52,6 +52,7 @@ import {
   type ProspectConversionInput,
 } from '../utils/prospectConversion';
 import { isAuthConfigured } from '../utils/authService';
+import { getActiveWorkspaceId } from '../utils/workspaceStorage';
 import {
   createRemoteProspect,
   importRemoteProspects,
@@ -283,7 +284,7 @@ export function ProspectingView({
     if (!config) return;
     importSubmissionRef.current = true;
     const prepared = preparedImport ?? prepareProspectImport(rows, config);
-    const importWorkspaceId = workspaceContext.session?.activeWorkspaceId;
+    const importWorkspaceId = getActiveWorkspaceId() ?? workspaceContext.session?.activeWorkspaceId;
     const recovery: ProspectImportRecovery = {
       importKey: prepared.importKey,
       workspaceId: importWorkspaceId ?? undefined,
@@ -306,7 +307,7 @@ export function ProspectingView({
         setImportRecovery(confirmedRecovery);
         saveProspectImportRecovery(confirmedRecovery);
       }
-      if (workspaceContext.session?.activeWorkspaceId !== importWorkspaceId) {
+      if (getActiveWorkspaceId() !== importWorkspaceId) {
         setImportRecovery(recovery);
         saveProspectImportRecovery(recovery);
         setFeedback(
@@ -349,10 +350,7 @@ export function ProspectingView({
   }
   async function recoverImport() {
     if (!importRecovery || isImporting || importSubmissionRef.current) return;
-    if (
-      importRecovery.workspaceId &&
-      workspaceContext.session?.activeWorkspaceId !== importRecovery.workspaceId
-    ) {
+    if (importRecovery.workspaceId && getActiveWorkspaceId() !== importRecovery.workspaceId) {
       setFeedback('Volvé al workspace donde inició la importación para recuperar este lote.');
       return;
     }

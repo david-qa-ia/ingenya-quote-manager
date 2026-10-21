@@ -7,6 +7,35 @@ import { SAVED_QUOTES_STORAGE_KEY } from './quoteDraftStorage';
 import { readCollection } from './localCollectionStorage';
 import { workspaceStorageKey } from './workspaceStorage';
 
+export const QUOTE_SEND_RECOVERY_STORAGE_KEY = 'ingenya.quoteSendRecovery.v1';
+
+interface QuoteSendRecovery {
+  quoteId: string;
+  recordedAt: string;
+}
+
+export function saveQuoteSendRecovery(quoteId: string): void {
+  try {
+    localStorage.setItem(
+      workspaceStorageKey(QUOTE_SEND_RECOVERY_STORAGE_KEY),
+      JSON.stringify({ quoteId, recordedAt: new Date().toISOString() } satisfies QuoteSendRecovery),
+    );
+  } catch {
+    // The transaction error remains visible even if the recovery marker cannot be persisted.
+  }
+}
+
+export function hasQuoteSendRecovery(quoteId: string): boolean {
+  try {
+    const raw = localStorage.getItem(workspaceStorageKey(QUOTE_SEND_RECOVERY_STORAGE_KEY));
+    if (!raw) return false;
+    const value = JSON.parse(raw) as Partial<QuoteSendRecovery>;
+    return value.quoteId === quoteId;
+  } catch {
+    return false;
+  }
+}
+
 export interface QuoteSendTransactionInput {
   quote: SavedQuote;
   audit: CommercialStatusAudit;
@@ -107,15 +136,18 @@ export function commitLocalQuoteSend(input: QuoteSendTransactionInput): {
       const verified = [...snapshots].every(
         ([key, snapshot]) => localStorage.getItem(key) === snapshot,
       );
-      if (!verified)
+      if (!verified) {
+        saveQuoteSendRecovery(input.quote.id);
         return {
           ok: false,
           recoveryRequired: true,
           error:
             'No se pudo verificar la restauración local. No repitas el envío; recuperá el registro antes de continuar.',
         };
+      }
       return { ok: false, error: 'No se pudo registrar el envío. Se restauraron los cambios.' };
     } catch {
+      saveQuoteSendRecovery(input.quote.id);
       return {
         ok: false,
         recoveryRequired: true,

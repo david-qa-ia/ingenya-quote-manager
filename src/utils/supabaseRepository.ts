@@ -2,12 +2,17 @@ import type { Prospect } from '../types/prospect';
 import type { PreparedProspectImport } from './prospectImportTransaction';
 import { getSupabaseConfig, loadAuthSession } from './authService';
 
-export interface RemoteQuoteSendResult {
-  ok: boolean;
-  idempotent: boolean;
-  version: number;
-  conflict?: boolean;
-}
+export type RemoteQuoteSendResult =
+  | {
+      ok: true;
+      idempotent: boolean;
+      version: number;
+    }
+  | {
+      ok: false;
+      reason: 'conflict';
+      message: string;
+    };
 
 export async function registerRemoteQuoteSend(input: {
   workspaceId: string;
@@ -54,7 +59,11 @@ export async function registerRemoteQuoteSend(input: {
     },
   );
   if (result.code === 'CONFLICT')
-    throw new SupabaseRepositoryError('conflict', 'La versión cambió antes de registrar el envío.');
+    return {
+      ok: false,
+      reason: 'conflict',
+      message: 'La versión cambió antes de registrar el envío.',
+    };
   if (result.code !== 'OK')
     throw new SupabaseRepositoryError('server', 'Supabase no confirmó el envío del presupuesto.');
   return {

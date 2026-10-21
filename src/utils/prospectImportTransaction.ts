@@ -3,7 +3,7 @@ import { PROSPECTS_STORAGE_KEY, isProspect } from './prospectStorage';
 import type { FirstContactChannel, ProspectImportRow } from './prospectImport';
 import { hasUsableContact } from './prospectImport';
 import { readCollection } from './localCollectionStorage';
-import { workspaceStorageKey } from './workspaceStorage';
+import { workspaceStorageKey, workspaceStorageKeyFor } from './workspaceStorage';
 
 export const PROSPECT_IMPORT_RECOVERY_STORAGE_KEY = 'ingenya.prospectImportRecovery.v1';
 
@@ -114,7 +114,7 @@ export function savePreparedProspectImport(prepared: PreparedProspectImport): bo
 export function saveProspectImportRecovery(recovery: ProspectImportRecovery): boolean {
   try {
     localStorage.setItem(
-      workspaceStorageKey(PROSPECT_IMPORT_RECOVERY_STORAGE_KEY),
+      workspaceStorageKeyFor(PROSPECT_IMPORT_RECOVERY_STORAGE_KEY, recovery.workspaceId),
       JSON.stringify(recovery),
     );
     return true;
