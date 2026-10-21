@@ -18,6 +18,8 @@ interface Props {
   onClose(): void;
   onSubmit(input: QuoteSendInput): Promise<{ ok: boolean; error?: string }>;
   existingNextAction?: NextAction;
+  canSendWhatsApp: boolean;
+  canSendEmail: boolean;
 }
 const channelLabels: Record<QuoteSendChannel, string> = {
   whatsapp: 'WhatsApp',
@@ -39,8 +41,20 @@ function argentinaLocalDateTime(date = new Date()): string {
     .reduce<Record<string, string>>((value, part) => ({ ...value, [part.type]: part.value }), {});
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
-export function RegisterQuoteSendDrawer({ quote, onClose, onSubmit, existingNextAction }: Props) {
-  const [channel, setChannel] = useState<QuoteSendChannel>('whatsapp');
+function argentinaTimestamp(value: string): number {
+  return Date.parse(`${value}:00-03:00`);
+}
+export function RegisterQuoteSendDrawer({
+  quote,
+  onClose,
+  onSubmit,
+  existingNextAction,
+  canSendWhatsApp,
+  canSendEmail,
+}: Props) {
+  const [channel, setChannel] = useState<QuoteSendChannel>(
+    canSendWhatsApp ? 'whatsapp' : canSendEmail ? 'email' : 'meeting',
+  );
   const [sentAt, setSentAt] = useState(argentinaLocalDateTime);
   const [responsible, setResponsible] = useState('');
   const [note, setNote] = useState('');
@@ -60,10 +74,17 @@ export function RegisterQuoteSendDrawer({ quote, onClose, onSubmit, existingNext
   async function submit() {
     if (saving || lockRef.current) return;
     if (!responsible.trim()) return setError('Indicá quién registró el envío.');
-    if (!sentAt || Number.isNaN(Date.parse(sentAt)) || Date.parse(sentAt) > Date.now())
+    const sentTimestamp = argentinaTimestamp(sentAt);
+    const nextStepTimestamp = nextStepAt ? argentinaTimestamp(nextStepAt) : NaN;
+    if (!sentAt || Number.isNaN(sentTimestamp) || sentTimestamp > Date.now())
       return setError('La fecha y hora de envío debe ser válida y no futura.');
-    if (nextStep !== 'none' && (!nextStepAt || Date.parse(nextStepAt) <= Date.now()))
+    if (
+      nextStep !== 'none' &&
+      (!nextStepAt || Number.isNaN(nextStepTimestamp) || nextStepTimestamp <= Date.now())
+    )
       return setError('El próximo paso debe tener una fecha futura.');
+    if (channel === 'other' && !note.trim())
+      return setError('Indicá una nota para registrar otro canal.');
     lockRef.current = true;
     setSaving(true);
     setError('');
@@ -116,25 +137,37 @@ export function RegisterQuoteSendDrawer({ quote, onClose, onSubmit, existingNext
         <fieldset disabled={saving}>
           <legend>Canal real</legend>
           <div className="quote-send-channels">
-            {(Object.keys(channelLabels) as QuoteSendChannel[]).map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={channel === item ? 'selected' : ''}
-                onClick={() => setChannel(item)}
-              >
-                {item === 'whatsapp' ? (
-                  <UiIcon name="whatsapp" />
-                ) : item === 'email' ? (
-                  <UiIcon name="email" />
-                ) : item === 'meeting' ? (
-                  <UiIcon name="calendar" />
-                ) : (
-                  <UiIcon name="more" />
-                )}
-                {channelLabels[item]}
-              </button>
-            ))}
+            {(Object.keys(channelLabels) as QuoteSendChannel[]).map((item) => {
+              const unavailable =
+                (item === 'whatsapp' && !canSendWhatsApp) || (item === 'email' && !canSendEmail);
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  className={channel === item ? 'selected' : ''}
+                  disabled={unavailable}
+                  title={
+                    item === 'whatsapp' && unavailable
+                      ? 'El contacto no tiene un teléfono válido.'
+                      : item === 'email' && unavailable
+                        ? 'El contacto no tiene un email válido.'
+                        : undefined
+                  }
+                  onClick={() => setChannel(item)}
+                >
+                  {item === 'whatsapp' ? (
+                    <UiIcon name="whatsapp" />
+                  ) : item === 'email' ? (
+                    <UiIcon name="email" />
+                  ) : item === 'meeting' ? (
+                    <UiIcon name="calendar" />
+                  ) : (
+                    <UiIcon name="more" />
+                  )}
+                  {channelLabels[item]}
+                </button>
+              );
+            })}
           </div>
         </fieldset>
         {existingNextAction && nextStep !== 'none' && (

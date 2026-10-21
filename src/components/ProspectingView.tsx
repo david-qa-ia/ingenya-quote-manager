@@ -283,8 +283,10 @@ export function ProspectingView({
     if (!config) return;
     importSubmissionRef.current = true;
     const prepared = preparedImport ?? prepareProspectImport(rows, config);
+    const importWorkspaceId = workspaceContext.session?.activeWorkspaceId;
     const recovery: ProspectImportRecovery = {
       importKey: prepared.importKey,
+      workspaceId: importWorkspaceId ?? undefined,
       fileName: csvFileName,
       csv,
       config,
@@ -295,7 +297,7 @@ export function ProspectingView({
     saveProspectImportRecovery(recovery);
     setIsImporting(true);
     try {
-      const workspaceId = workspaceContext.session?.activeWorkspaceId;
+      const workspaceId = importWorkspaceId;
       let remoteConfirmed = importRecovery?.phase === 'remoteConfirmed';
       if (isAuthConfigured() && workspaceId && !remoteConfirmed) {
         await importRemoteProspects(workspaceId, prepared);
@@ -303,6 +305,14 @@ export function ProspectingView({
         const confirmedRecovery = { ...recovery, phase: 'remoteConfirmed' as const };
         setImportRecovery(confirmedRecovery);
         saveProspectImportRecovery(confirmedRecovery);
+      }
+      if (workspaceContext.session?.activeWorkspaceId !== importWorkspaceId) {
+        setImportRecovery(recovery);
+        saveProspectImportRecovery(recovery);
+        setFeedback(
+          'El workspace cambió durante la importación. Volvé al workspace original para completar la recuperación sin duplicar datos.',
+        );
+        return;
       }
       if (!savePreparedProspectImport(prepared)) {
         if (remoteConfirmed) {
@@ -321,8 +331,9 @@ export function ProspectingView({
       setImportRecovery(null);
       setPreparedImport(null);
       refresh();
+      const omitted = rows.length - prepared.prospects.length;
       setFeedback(
-        `${prepared.prospects.length} prospecto(s) importado(s)${prepared.scheduledCount ? ` y ${prepared.scheduledCount} primer contacto(s) agendado(s)` : ''}.`,
+        `${prepared.prospects.length} prospecto(s) importado(s)${omitted ? `, ${omitted} omitido(s)` : ''}${prepared.scheduledCount ? ` y ${prepared.scheduledCount} primer contacto(s) agendado(s)` : ''}.`,
       );
       cancelImport();
     } catch (error) {
@@ -338,6 +349,13 @@ export function ProspectingView({
   }
   async function recoverImport() {
     if (!importRecovery || isImporting || importSubmissionRef.current) return;
+    if (
+      importRecovery.workspaceId &&
+      workspaceContext.session?.activeWorkspaceId !== importRecovery.workspaceId
+    ) {
+      setFeedback('Volvé al workspace donde inició la importación para recuperar este lote.');
+      return;
+    }
     importSubmissionRef.current = true;
     setCsv(importRecovery.csv);
     setCsvFileName(importRecovery.fileName);

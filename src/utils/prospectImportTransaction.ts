@@ -21,6 +21,7 @@ export interface PreparedProspectImport {
 }
 export interface ProspectImportRecovery {
   importKey: string;
+  workspaceId?: string;
   fileName: string;
   csv: string;
   config: FirstContactImportConfig;

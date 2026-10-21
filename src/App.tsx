@@ -970,6 +970,16 @@ function App() {
                 : 'Registro comercial',
           sentAt: input.sentAt,
           note: audit.reason,
+          ...(input.nextStep !== 'none' && input.nextStepAt
+            ? {
+                nextAction: {
+                  type: input.nextStep,
+                  dueAt: input.nextStepAt,
+                  responsible: input.responsible,
+                },
+              }
+            : {}),
+          nextActionDecision: input.replaceExistingNextAction ? 'replace' : 'preserve',
           idempotencyKey: `quote-send:${quote.id}`,
         });
       } catch (error) {
@@ -1585,6 +1595,22 @@ function App() {
             existingNextAction={
               opportunity?.nextAction?.status === 'pending' ? opportunity.nextAction : undefined
             }
+            canSendWhatsApp={Boolean(
+              quoteSendTarget &&
+              /^\d{7,15}$/.test(
+                (
+                  loadClients().items.find((item) => item.id === quoteSendTarget.clientId)?.phone ??
+                  ''
+                ).replace(/\D/g, ''),
+              ),
+            )}
+            canSendEmail={Boolean(
+              quoteSendTarget &&
+              /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+                loadClients().items.find((item) => item.id === quoteSendTarget.clientId)?.email ??
+                  '',
+              ),
+            )}
           />
         )}
       </>
