@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
+import type { FollowUpResultSaveResult } from '../utils/followUpResultTransaction';
 
 export type ResultChannel = 'call' | 'whatsapp' | 'email' | 'meeting';
 export type ResultNextStep = 'none' | 'call' | 'sendQuote' | 'email' | 'whatsapp' | 'meeting';
@@ -14,10 +15,14 @@ export interface RegisterResultInput {
   quoteMode?: 'new' | 'existing';
 }
 
+export type RegisterResultSubmitResult = FollowUpResultSaveResult;
+
 interface Props {
   item: FollowUpInboxItem;
   onClose: () => void;
-  onSubmit: (input: RegisterResultInput) => boolean | Promise<boolean>;
+  onSubmit: (
+    input: RegisterResultInput,
+  ) => RegisterResultSubmitResult | Promise<RegisterResultSubmitResult>;
   onQuoteIntent?: (item: FollowUpInboxItem, mode: 'new' | 'existing') => void;
 }
 
@@ -146,6 +151,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
   const [quoteMode, setQuoteMode] = useState<'new' | 'existing'>('new');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [recoveryRequired, setRecoveryRequired] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const initials = item.clientName
     .split(/\s+/)
@@ -166,7 +172,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
   }, [isSaving]);
 
   async function submit() {
-    if (isSaving) return;
+    if (isSaving || recoveryRequired) return;
     if (
       !result ||
       !actor.trim() ||
@@ -191,8 +197,13 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
     };
     setIsSaving(true);
     try {
-      if (!(await onSubmit(input))) {
-        setError('No se pudo guardar el resultado. Revisá los datos e intentá nuevamente.');
+      const saved = await onSubmit(input);
+      if (!saved.ok) {
+        setRecoveryRequired(saved.recoveryRequired === true);
+        setError(
+          saved.message ??
+            'No se pudo guardar el resultado. Revisá los datos e intentá nuevamente.',
+        );
         return;
       }
     } catch {
@@ -357,7 +368,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
             className="button button-primary"
             type="button"
             onClick={() => void submit()}
-            disabled={isSaving}
+            disabled={isSaving || recoveryRequired}
           >
             {isSaving ? 'Guardando…' : 'Guardar resultado'}
           </button>

@@ -9,8 +9,11 @@ import type { FollowUpInboxItem } from './types/followUpInbox';
 import type { Opportunity } from './types/opportunity';
 import { loadClients } from './utils/clientStorage';
 import { associateQuote } from './utils/quoteAssociations';
-import { loadOpportunities } from './utils/opportunityStorage';
-import { saveOpportunity } from './utils/opportunityStorage';
+import {
+  loadOpportunities,
+  OPPORTUNITIES_STORAGE_KEY,
+  saveOpportunity,
+} from './utils/opportunityStorage';
 import { AppHeader } from './components/AppHeader';
 import { LaborCatalogView } from './components/LaborCatalogView';
 import { workUnitLabels, workUnitSymbols } from './data/workUnits';
@@ -55,6 +58,7 @@ import { createCatalogQuoteLine } from './utils/quoteLineFactory';
 import { addQuickService } from './utils/quickServiceAddition';
 import { resolveActiveNavigationSection, type AppView } from './utils/appNavigation';
 import {
+  ACTIVITIES_STORAGE_KEY,
   loadActivities,
   recordAutomaticActivity,
   recordCadenceActivity,
@@ -69,7 +73,10 @@ import { MetricsDashboard } from './components/MetricsDashboard';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
 import { DailyWorkDashboard } from './components/DailyWorkDashboard';
-import { RegisterResultDrawer } from './components/RegisterResultDrawer';
+import {
+  RegisterResultDrawer,
+  type RegisterResultSubmitResult,
+} from './components/RegisterResultDrawer';
 import { QuoteDetailView } from './components/QuoteDetailView';
 import {
   defaultProspectFilters,
@@ -78,6 +85,7 @@ import {
 } from './utils/prospectWorkflow';
 import { PROSPECT_FILTERS_STORAGE_KEY, saveProspectWithResult } from './utils/prospectStorage';
 import {
+  CADENCE_EXECUTIONS_STORAGE_KEY,
   cancelCadencesForCommercialClose,
   loadCadenceExecutions,
   saveCadenceExecution,
@@ -95,6 +103,7 @@ import { UiIcon } from './components/UiIcon';
 import { workspaceStorageKey } from './utils/workspaceStorage';
 import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
+import { commitLocalFollowUpResult } from './utils/followUpResultTransaction';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -660,13 +669,16 @@ function App() {
     return true;
   }
 
-  function handleFollowUpAction(item: FollowUpInboxItem, input: InboxActionInput): boolean {
+  function handleFollowUpAction(
+    item: FollowUpInboxItem,
+    input: InboxActionInput,
+  ): RegisterResultSubmitResult {
     const now = new Date().toISOString();
     const event = 'completed' as const;
     try {
       if (item.prospectId) {
         const prospect = loadProspects().items.find((value) => value.id === item.prospectId);
-        if (!prospect) return false;
+        if (!prospect) return { ok: false };
         const result =
           input.result === 'noAnswer'
             ? 'noResponse'
@@ -682,17 +694,18 @@ function App() {
           author: input.actor,
           ...(input.nextStep !== 'none' && input.dueAt ? { followUpAt: input.dueAt } : {}),
         });
-        if (!saveProspectWithResult(next).ok) return false;
+        if (!saveProspectWithResult(next).ok) return { ok: false };
         setProspects(loadProspects().items);
-        return true;
+        return { ok: true };
       }
       if (item.cadenceStep) {
+        const cadenceStep = item.cadenceStep;
         const execution = loadCadenceExecutions().items.find(
-          (value) => value.id === item.cadenceStep?.executionId,
+          (value) => value.id === cadenceStep.executionId,
         );
-        if (!execution) return false;
+        if (!execution) return { ok: false };
         const updated = completeCadenceAction(execution, input.actor, input.result, now);
-        if (!saveCadenceExecution(updated)) return false;
+        const writes: (() => boolean)[] = [() => saveCadenceExecution(updated)];
         if (execution.target.kind === 'opportunity') {
           const targetOpportunityId = execution.target.opportunityId;
           const opportunity = loadOpportunities().items.find(
@@ -701,28 +714,34 @@ function App() {
           const action = updated.stepExecutions.find(
             (step) => step.id === updated.currentStepExecutionId,
           )?.nextAction;
-          if (
-            opportunity &&
-            !saveOpportunity({ ...opportunity, nextAction: action, updatedAt: now })
-          )
-            return false;
+          if (opportunity)
+            writes.push(() =>
+              saveOpportunity({ ...opportunity, nextAction: action, updatedAt: now }),
+            );
         }
-        recordCadenceActivity(
-          execution.target.kind === 'opportunity'
-            ? { kind: 'opportunity', opportunityId: execution.target.opportunityId }
-            : { kind: 'quote', quoteId: execution.target.quoteId },
-          `${execution.id}:${item.action?.id ?? item.cadenceStep.stepExecutionId}:${event}`,
-          `Cadencia actualizada desde la bandeja.`,
+        writes.push(() =>
+          recordCadenceActivity(
+            execution.target.kind === 'opportunity'
+              ? { kind: 'opportunity', opportunityId: execution.target.opportunityId }
+              : { kind: 'quote', quoteId: execution.target.quoteId },
+            `${execution.id}:${item.action?.id ?? cadenceStep.stepExecutionId}:${event}`,
+            `Cadencia actualizada desde la bandeja.`,
+          ),
         );
+        const saved = commitLocalFollowUpResult(
+          [CADENCE_EXECUTIONS_STORAGE_KEY, OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
+          writes,
+        );
+        if (!saved.ok) return saved;
         setOpportunities(loadOpportunities().items);
-        return true;
+        return { ok: true };
       }
-      if (!item.opportunityId) return false;
+      if (!item.opportunityId) return { ok: false };
       const current = loadOpportunities().items.find((value) => value.id === item.opportunityId);
-      if (!current) return false;
+      if (!current) return { ok: false };
       const currentAction = current.nextAction;
       if (!currentAction) {
-        if (!input.nextStep || input.nextStep === 'none' || !input.dueAt) return false;
+        if (!input.nextStep || input.nextStep === 'none' || !input.dueAt) return { ok: false };
         const nextAction = {
           id: crypto.randomUUID(),
           kind: input.nextStep === 'sendQuote' ? ('sendQuote' as const) : ('followUp' as const),
@@ -736,9 +755,9 @@ function App() {
           updatedAt: now,
           history: [],
         };
-        if (!saveOpportunity({ ...current, nextAction, updatedAt: now })) return false;
+        if (!saveOpportunity({ ...current, nextAction, updatedAt: now })) return { ok: false };
         setOpportunities(loadOpportunities().items);
-        return true;
+        return { ok: true };
       }
       const next = transitionNextAction(
         current,
@@ -778,21 +797,25 @@ function App() {
             }
           : next.nextAction;
       const persisted = { ...next, nextAction };
-      if (
-        !saveOpportunity(persisted) ||
-        !persisted.nextAction ||
-        !recordNextActionActivity(
-          current.id,
-          currentAction.id,
-          event,
-          `Próxima acción actualizada desde la bandeja.`,
-        )
-      )
-        return false;
+      if (!persisted.nextAction) return { ok: false };
+      const saved = commitLocalFollowUpResult(
+        [OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
+        [
+          () => saveOpportunity(persisted),
+          () =>
+            recordNextActionActivity(
+              current.id,
+              currentAction.id,
+              event,
+              `Próxima acción actualizada desde la bandeja.`,
+            ),
+        ],
+      );
+      if (!saved.ok) return saved;
       setOpportunities(loadOpportunities().items);
-      return true;
+      return { ok: true };
     } catch {
-      return false;
+      return { ok: false };
     }
   }
 
