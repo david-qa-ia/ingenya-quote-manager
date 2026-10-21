@@ -131,7 +131,7 @@ export interface ProspectActionInput {
 }
 
 export function getProspectActionValidationError(input: ProspectActionInput): string | null {
-  if (input.result === 'reschedule') {
+  if (input.result === 'reschedule' || input.followUpAt?.trim()) {
     const result = localDateTimeToIso(input.followUpAt?.trim() ?? '');
     if (!result.ok) return result.error;
   }
@@ -149,7 +149,7 @@ export function registerProspectAction(prospect: Prospect, input: ProspectAction
         ? 'notInterested'
         : 'contacted';
   let followUpAt = '';
-  if (input.result === 'reschedule') {
+  if (input.followUpAt?.trim()) {
     const normalizedFollowUp = localDateTimeToIso(input.followUpAt?.trim() ?? '');
     if (!normalizedFollowUp.ok) throw new Error(normalizedFollowUp.error);
     followUpAt = normalizedFollowUp.value;

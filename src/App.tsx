@@ -9,8 +9,11 @@ import type { FollowUpInboxItem } from './types/followUpInbox';
 import type { Opportunity } from './types/opportunity';
 import { loadClients } from './utils/clientStorage';
 import { associateQuote } from './utils/quoteAssociations';
-import { loadOpportunities } from './utils/opportunityStorage';
-import { saveOpportunity } from './utils/opportunityStorage';
+import {
+  loadOpportunities,
+  OPPORTUNITIES_STORAGE_KEY,
+  saveOpportunity,
+} from './utils/opportunityStorage';
 import { AppHeader } from './components/AppHeader';
 import { LaborCatalogView } from './components/LaborCatalogView';
 import { workUnitLabels, workUnitSymbols } from './data/workUnits';
@@ -55,6 +58,7 @@ import { createCatalogQuoteLine } from './utils/quoteLineFactory';
 import { addQuickService } from './utils/quickServiceAddition';
 import { resolveActiveNavigationSection, type AppView } from './utils/appNavigation';
 import {
+  ACTIVITIES_STORAGE_KEY,
   loadActivities,
   recordAutomaticActivity,
   recordCadenceActivity,
@@ -62,7 +66,6 @@ import {
 } from './utils/activityStorage';
 import {
   OpportunityNextActionsInbox,
-  type InboxActionEvent,
   type InboxActionInput,
 } from './components/OpportunityNextActionsInbox';
 import { CadenceView } from './components/CadenceView';
@@ -70,21 +73,29 @@ import { MetricsDashboard } from './components/MetricsDashboard';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
 import { DailyWorkDashboard } from './components/DailyWorkDashboard';
-import { RegisterResultDrawer, type RegisterResultInput } from './components/RegisterResultDrawer';
-import { QuoteDetailView } from './components/QuoteDetailView';
-import { defaultProspectFilters, type ProspectFilters } from './utils/prospectWorkflow';
-import { PROSPECT_FILTERS_STORAGE_KEY } from './utils/prospectStorage';
 import {
+  RegisterResultDrawer,
+  type RegisterResultSubmitResult,
+} from './components/RegisterResultDrawer';
+import { QuoteDetailView } from './components/QuoteDetailView';
+import {
+  defaultProspectFilters,
+  registerProspectAction,
+  type ProspectFilters,
+} from './utils/prospectWorkflow';
+import { PROSPECT_FILTERS_STORAGE_KEY, saveProspectWithResult } from './utils/prospectStorage';
+import {
+  CADENCE_EXECUTIONS_STORAGE_KEY,
   cancelCadencesForCommercialClose,
   loadCadenceExecutions,
   saveCadenceExecution,
 } from './utils/cadenceStorage';
 import { transitionNextAction } from './utils/opportunityNextAction';
-import { completeCadenceAction, updateCadenceAction } from './utils/cadenceTransitions';
+import { completeCadenceAction } from './utils/cadenceTransitions';
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
 import { deriveFollowUpInbox } from './utils/followUpInbox';
 import { loadProspects } from './utils/prospectStorage';
-import { deriveGlobalSearchResults, isQuoteWithoutResponse } from './utils/globalSearch';
+import { deriveGlobalSearchResults } from './utils/globalSearch';
 import type { GlobalSearchResult } from './types/globalSearch';
 import { useWorkspace } from './context/useWorkspace';
 import { WorkspaceAccessState } from './components/WorkspaceAccessState';
@@ -92,6 +103,7 @@ import { UiIcon } from './components/UiIcon';
 import { workspaceStorageKey } from './utils/workspaceStorage';
 import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
+import { commitLocalFollowUpResult } from './utils/followUpResultTransaction';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -142,10 +154,10 @@ function App() {
     message: string;
   } | null>(null);
   const [currentView, setCurrentView] = useState<AppView>('dailyDashboard');
-  const [prospects] = useState(() => loadProspects().items);
+  const [prospects, setProspects] = useState(() => loadProspects().items);
   const [prospectFilters, setProspectFilters] = useState(loadProspectFilters);
   const [inboxContact, setInboxContact] = useState<FollowUpInboxItem | null>(null);
-  const [dashboardResult, setDashboardResult] = useState<FollowUpInboxItem | null>(null);
+  const [drawerItem, setDrawerItem] = useState<FollowUpInboxItem | null>(null);
   const [clientId, setClientId] = useState<string | undefined>();
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
@@ -229,7 +241,7 @@ function App() {
     setCurrentView('dailyDashboard');
     setProspectFilters(defaultProspectFilters);
     setInboxContact(null);
-    setDashboardResult(null);
+    setDrawerItem(null);
     setDetailOpportunityId(null);
     setDetailQuoteId(null);
     setIsSearchOpen(false);
@@ -653,49 +665,47 @@ function App() {
 
   function saveOpportunityFromDetail(next: Opportunity, event: string): boolean {
     if (!saveOpportunity(next)) return false;
-    const eventMap = {
-      complete: 'completed',
-      reschedule: 'rescheduled',
-      cancel: 'cancelled',
-      notRelevant: 'notRelevant',
-    } as const;
-    const activityEvent = eventMap[event as keyof typeof eventMap];
-    if (activityEvent && next.nextAction) {
-      recordNextActionActivity(
-        next.id,
-        next.nextAction.id,
-        activityEvent,
-        'Próxima acción actualizada desde la ficha de oportunidad.',
-      );
-    }
-    setOpportunities(loadOpportunities().items);
+    if (event === 'edited') setOpportunities(loadOpportunities().items);
     return true;
   }
 
   function handleFollowUpAction(
     item: FollowUpInboxItem,
-    event: InboxActionEvent,
     input: InboxActionInput,
-  ): boolean {
+  ): RegisterResultSubmitResult {
     const now = new Date().toISOString();
+    const event = 'completed' as const;
     try {
+      if (item.prospectId) {
+        const prospect = loadProspects().items.find((value) => value.id === item.prospectId);
+        if (!prospect) return { ok: false };
+        const result =
+          input.result === 'noAnswer'
+            ? 'noResponse'
+            : input.result === 'notInterested' || input.result === 'invalidNumber'
+              ? 'discarded'
+              : 'contacted';
+        const channel =
+          input.channel === 'whatsapp' || input.channel === 'email' ? input.channel : 'phone';
+        const next = registerProspectAction(prospect, {
+          result,
+          channel,
+          note: input.reason,
+          author: input.actor,
+          ...(input.nextStep !== 'none' && input.dueAt ? { followUpAt: input.dueAt } : {}),
+        });
+        if (!saveProspectWithResult(next).ok) return { ok: false };
+        setProspects(loadProspects().items);
+        return { ok: true };
+      }
       if (item.cadenceStep) {
+        const cadenceStep = item.cadenceStep;
         const execution = loadCadenceExecutions().items.find(
-          (value) => value.id === item.cadenceStep?.executionId,
+          (value) => value.id === cadenceStep.executionId,
         );
-        if (!execution || event === 'notRelevant') return false;
-        const updated =
-          event === 'completed'
-            ? completeCadenceAction(execution, input.actor, input.result, now)
-            : updateCadenceAction(
-                execution,
-                event === 'rescheduled' ? 'rescheduled' : 'cancelled',
-                input.actor,
-                input.reason,
-                now,
-                event === 'rescheduled' ? input.dueAt : undefined,
-              );
-        if (!saveCadenceExecution(updated)) return false;
+        if (!execution) return { ok: false };
+        const updated = completeCadenceAction(execution, input.actor, input.result, now);
+        const writes: (() => boolean)[] = [() => saveCadenceExecution(updated)];
         if (execution.target.kind === 'opportunity') {
           const targetOpportunityId = execution.target.opportunityId;
           const opportunity = loadOpportunities().items.find(
@@ -704,27 +714,51 @@ function App() {
           const action = updated.stepExecutions.find(
             (step) => step.id === updated.currentStepExecutionId,
           )?.nextAction;
-          if (
-            opportunity &&
-            !saveOpportunity({ ...opportunity, nextAction: action, updatedAt: now })
-          )
-            return false;
+          if (opportunity)
+            writes.push(() =>
+              saveOpportunity({ ...opportunity, nextAction: action, updatedAt: now }),
+            );
         }
-        recordCadenceActivity(
-          execution.target.kind === 'opportunity'
-            ? { kind: 'opportunity', opportunityId: execution.target.opportunityId }
-            : { kind: 'quote', quoteId: execution.target.quoteId },
-          `${execution.id}:${item.action?.id ?? item.cadenceStep.stepExecutionId}:${event}`,
-          `Cadencia actualizada desde la bandeja.`,
+        writes.push(() =>
+          recordCadenceActivity(
+            execution.target.kind === 'opportunity'
+              ? { kind: 'opportunity', opportunityId: execution.target.opportunityId }
+              : { kind: 'quote', quoteId: execution.target.quoteId },
+            `${execution.id}:${item.action?.id ?? cadenceStep.stepExecutionId}:${event}`,
+            `Cadencia actualizada desde la bandeja.`,
+          ),
         );
+        const saved = commitLocalFollowUpResult(
+          [CADENCE_EXECUTIONS_STORAGE_KEY, OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
+          writes,
+        );
+        if (!saved.ok) return saved;
         setOpportunities(loadOpportunities().items);
-        return true;
+        return { ok: true };
       }
-      if (!item.opportunityId) return false;
+      if (!item.opportunityId) return { ok: false };
       const current = loadOpportunities().items.find((value) => value.id === item.opportunityId);
-      if (!current) return false;
+      if (!current) return { ok: false };
       const currentAction = current.nextAction;
-      if (!currentAction) return false;
+      if (!currentAction) {
+        if (!input.nextStep || input.nextStep === 'none' || !input.dueAt) return { ok: false };
+        const nextAction = {
+          id: crypto.randomUUID(),
+          kind: input.nextStep === 'sendQuote' ? ('sendQuote' as const) : ('followUp' as const),
+          type: input.nextStep === 'sendQuote' ? ('other' as const) : input.nextStep,
+          description: input.nextStep === 'sendQuote' ? 'Enviar presupuesto' : 'Dar seguimiento',
+          dueAt: input.dueAt,
+          responsible: input.actor.trim(),
+          priority: 'medium' as const,
+          status: 'pending' as const,
+          createdAt: now,
+          updatedAt: now,
+          history: [],
+        };
+        if (!saveOpportunity({ ...current, nextAction, updatedAt: now })) return { ok: false };
+        setOpportunities(loadOpportunities().items);
+        return { ok: true };
+      }
       const next = transitionNextAction(
         current,
         event,
@@ -732,8 +766,8 @@ function App() {
         event === 'completed' ? 'Completada desde la bandeja.' : input.reason,
         now,
         {
-          dueAt: event === 'rescheduled' ? input.dueAt : undefined,
-          result: event === 'completed' ? input.result : undefined,
+          dueAt: undefined,
+          result: input.result,
         },
       );
       const nextAction =
@@ -763,21 +797,25 @@ function App() {
             }
           : next.nextAction;
       const persisted = { ...next, nextAction };
-      if (
-        !saveOpportunity(persisted) ||
-        !persisted.nextAction ||
-        !recordNextActionActivity(
-          current.id,
-          currentAction.id,
-          event,
-          `Próxima acción actualizada desde la bandeja.`,
-        )
-      )
-        return false;
+      if (!persisted.nextAction) return { ok: false };
+      const saved = commitLocalFollowUpResult(
+        [OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
+        [
+          () => saveOpportunity(persisted),
+          () =>
+            recordNextActionActivity(
+              current.id,
+              currentAction.id,
+              event,
+              `Próxima acción actualizada desde la bandeja.`,
+            ),
+        ],
+      );
+      if (!saved.ok) return saved;
       setOpportunities(loadOpportunities().items);
-      return true;
+      return { ok: true };
     } catch {
-      return false;
+      return { ok: false };
     }
   }
 
@@ -1116,47 +1154,47 @@ function App() {
     );
   }
   const currentOpportunities = loadOpportunities().items;
+  const followUpClients = loadClients();
+  const followUpExecutions = loadCadenceExecutions();
+  const followUpActivities = loadActivities();
+  const followUpItems = deriveFollowUpInbox(
+    currentOpportunities,
+    followUpClients.items,
+    savedQuotes,
+    followUpExecutions.items,
+    followUpActivities.items,
+    new Date(),
+    prospects,
+  );
+  const resultDrawer = drawerItem && (
+    <RegisterResultDrawer
+      item={drawerItem}
+      onClose={() => setDrawerItem(null)}
+      onSubmit={(input) =>
+        handleFollowUpAction(drawerItem, {
+          actor: input.actor,
+          reason: input.reason,
+          result: input.result,
+          dueAt: input.dueAt,
+          channel: input.channel,
+          nextStep: input.nextStep,
+          quoteMode: input.quoteMode,
+        })
+      }
+      onQuoteIntent={handleDashboardQuoteIntent}
+    />
+  );
 
   if (currentView === 'dailyDashboard') {
-    const clientLoad = loadClients();
-    const executionLoad = loadCadenceExecutions();
-    const activityLoad = loadActivities();
-    const items = deriveFollowUpInbox(
-      currentOpportunities,
-      clientLoad.items,
-      savedQuotes,
-      executionLoad.items,
-      activityLoad.items,
-      new Date(),
-      prospects,
-    );
     return (
       <>
         {appHeader}
         <DailyWorkDashboard
-          items={items}
-          quoteNoResponseCount={savedQuotes.filter((quote) => isQuoteWithoutResponse(quote)).length}
+          items={followUpItems}
           onShowFollowUp={() => setCurrentView('nextActions')}
-          onOpen={(item) => setDashboardResult(item)}
+          onOpen={setDrawerItem}
         />
-        {dashboardResult && (
-          <RegisterResultDrawer
-            item={dashboardResult}
-            onClose={() => setDashboardResult(null)}
-            onSubmit={(input: RegisterResultInput) =>
-              handleFollowUpAction(dashboardResult, 'completed', {
-                actor: input.actor,
-                reason: input.reason,
-                result: input.result,
-                dueAt: input.dueAt,
-                channel: input.channel,
-                nextStep: input.nextStep,
-                quoteMode: input.quoteMode,
-              })
-            }
-            onQuoteIntent={handleDashboardQuoteIntent}
-          />
-        )}
+        {resultDrawer}
       </>
     );
   }
@@ -1183,8 +1221,10 @@ function App() {
             setDetailOpportunityId(id);
             setCurrentView('opportunityDetail');
           }}
+          onOpenResult={setDrawerItem}
           onDirtyChange={setProspectHasUnsavedChanges}
         />
+        {resultDrawer}
       </>
     );
   }
@@ -1210,20 +1250,15 @@ function App() {
       <>
         {appHeader}
         <OpportunityNextActionsInbox
-          opportunities={currentOpportunities}
-          clients={loadClients().items}
-          quotes={savedQuotes}
-          executions={loadCadenceExecutions().items}
-          activities={loadActivities().items}
-          prospects={prospects}
+          items={followUpItems}
           issues={
-            [loadClients().issue, loadCadenceExecutions().issue, loadActivities().issue].filter(
+            [followUpClients.issue, followUpExecutions.issue, followUpActivities.issue].filter(
               (issue) => issue !== null,
             ) as string[]
           }
           onOpen={handleFollowUpOpen}
           onPrepareContact={setInboxContact}
-          onAction={handleFollowUpAction}
+          onRegisterResult={setDrawerItem}
         />
         {inboxContact && (
           <ContactAssistant
@@ -1258,6 +1293,7 @@ function App() {
             }}
           />
         )}
+        {resultDrawer}
       </>
     );
   }
@@ -1301,6 +1337,33 @@ function App() {
                   contactRestricted: false,
                 });
               }}
+              onRegisterResult={() => {
+                const item = followUpItems.find(
+                  (candidate) => candidate.opportunityId === opportunity.id && candidate.action,
+                );
+                if (item) {
+                  setDrawerItem(item);
+                  return;
+                }
+                const client = loadClients().items.find(
+                  (value) => value.id === opportunity.clientId,
+                );
+                setDrawerItem({
+                  id: `first-action:${opportunity.id}`,
+                  subjectType: 'opportunity',
+                  bucket: 'missing',
+                  source: 'missing',
+                  clientId: client?.id,
+                  clientName: client?.name ?? 'Cliente no disponible',
+                  clientCompany: client?.company,
+                  opportunityId: opportunity.id,
+                  opportunityName: opportunity.name,
+                  responsible: opportunity.responsibleSeller || 'Sin asignar',
+                  contactRestricted: !!client?.doNotContact,
+                  rescheduleCount: 0,
+                  priority: { score: 0, level: 'medium', reasons: ['Sin próxima acción'] },
+                });
+              }}
               onOpenQuote={handleQuoteDetailOpen}
               onCreateQuoteVersion={handleCreateQuoteVersion}
               activities={loadActivities().items}
@@ -1321,6 +1384,7 @@ function App() {
                 }}
               />
             )}
+            {resultDrawer}
           </>
         ) : (
           <main className="app-shell">

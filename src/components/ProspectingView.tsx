@@ -19,7 +19,6 @@ import { isoToLocalDateTime } from '../utils/prospectFollowUp';
 import {
   filterProspects,
   createProspectWhatsAppUrl,
-  getDueGroup,
   prospectPriorityLabels,
   prospectChannelLabels,
   prospectContactResultLabels,
@@ -44,6 +43,7 @@ import {
   loadRemoteProspects,
   type SupabaseProspectRow,
 } from '../utils/supabaseRepository';
+import type { FollowUpInboxItem } from '../types/followUpInbox';
 
 const statuses = Object.keys(prospectStatusLabels) as ProspectStatus[];
 const priorities = Object.keys(prospectPriorityLabels) as ProspectPriority[];
@@ -59,6 +59,7 @@ const activityTypeLabels = {
   note: 'Nota',
   conversionCompleted: 'Conversión completada',
 } as const;
+type DueGroup = 'overdue' | 'today' | 'upcoming';
 
 function mapRemoteProspect(row: SupabaseProspectRow): Prospect {
   return {
@@ -83,12 +84,31 @@ function mapRemoteProspect(row: SupabaseProspectRow): Prospect {
     version: row.version,
   };
 }
-type DueGroup = 'overdue' | 'today' | 'upcoming';
+
+function prospectToInboxItem(prospect: Prospect): FollowUpInboxItem {
+  return {
+    id: `prospect:${prospect.id}`,
+    subjectType: 'prospect',
+    prospectId: prospect.id,
+    bucket: 'today',
+    source: 'manual',
+    clientName: prospect.name,
+    clientCompany: prospect.company,
+    opportunityName: prospect.potentialService || undefined,
+    responsible: prospect.responsible || 'Sin asignar',
+    contactRestricted: false,
+    channel: prospect.preferredChannel === 'phone' ? 'call' : prospect.preferredChannel || 'other',
+    manualPriority: prospect.priority,
+    rescheduleCount: 0,
+    priority: { score: 0, level: prospect.priority, reasons: [] },
+  };
+}
 
 interface Props {
   initialFilters: ProspectFilters;
   onFiltersChange: (filters: ProspectFilters) => void;
   onOpenOpportunity: (id: string) => void;
+  onOpenResult: (item: FollowUpInboxItem) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -96,6 +116,7 @@ export function ProspectingView({
   initialFilters,
   onFiltersChange,
   onOpenOpportunity,
+  onOpenResult,
   onDirtyChange,
 }: Props) {
   const workspaceContext = useWorkspace();
@@ -110,14 +131,10 @@ export function ProspectingView({
   const [feedback, setFeedback] = useState('');
   const [toast, setToast] = useState('');
   const [actionProspect, setActionProspect] = useState<Prospect | null>(null);
-  const [actionInitialResult, setActionInitialResult] =
-    useState<ProspectContactResult>('contacted');
-  const [inboxSelectedId, setInboxSelectedId] = useState<string | null>(null);
-  const [inboxGroup, setInboxGroup] = useState<DueGroup>('today');
+  const [actionInitialResult] = useState<ProspectContactResult>('contacted');
   const [conversionTarget, setConversionTarget] = useState<Prospect | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const selected = prospects.find((item) => item.id === selectedId);
-  const inboxSelected = prospects.find((item) => item.id === inboxSelectedId);
   const visible = useMemo(() => filterProspects(prospects, filters), [prospects, filters]);
   const rows = useMemo(() => previewProspectCsv(csv, prospects), [csv, prospects]);
   const validRows = rows.filter((row) => !row.reason && !row.duplicate);
@@ -126,14 +143,6 @@ export function ProspectingView({
     const timeout = window.setTimeout(() => setToast(''), 3000);
     return () => window.clearTimeout(timeout);
   }, [toast]);
-  useEffect(() => {
-    if (!inboxSelectedId || actionProspect) return;
-    function closePanel(event: KeyboardEvent) {
-      if (event.key === 'Escape') setInboxSelectedId(null);
-    }
-    document.addEventListener('keydown', closePanel);
-    return () => document.removeEventListener('keydown', closePanel);
-  }, [actionProspect, inboxSelectedId]);
   useEffect(() => {
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
     if (!isAuthConfigured() || !workspaceId) return;
@@ -290,29 +299,20 @@ export function ProspectingView({
     );
   if (selected)
     return (
-      <ProspectDetail
-        prospect={selected}
-        initialContactChannel={initialContactChannel}
-        onBack={() => setSelectedId(null)}
-        onSave={save}
-        onReload={refresh}
-        feedback={feedback}
-        onOpenOpportunity={onOpenOpportunity}
-        onDirtyChange={onDirtyChange}
-      />
+      <>
+        <ProspectDetail
+          prospect={selected}
+          initialContactChannel={initialContactChannel}
+          onBack={() => setSelectedId(null)}
+          onSave={save}
+          onReload={refresh}
+          feedback={feedback}
+          onOpenOpportunity={onOpenOpportunity}
+          onDirtyChange={onDirtyChange}
+          onRegisterResult={() => onOpenResult(prospectToInboxItem(selected))}
+        />
+      </>
     );
-  const grouped = (group: DueGroup) =>
-    sortProspectsForContact(visible.filter((item) => getDueGroup(item) === group));
-  const inboxGroups: { key: DueGroup; label: string }[] = [
-    { key: 'overdue', label: 'Vencidos' },
-    { key: 'today', label: 'Hoy' },
-    { key: 'upcoming', label: 'Próximos' },
-  ];
-  const dailyDate = new Intl.DateTimeFormat('es-AR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  }).format(new Date());
   return (
     <main className="app-shell prospecting-shell">
       {toast && (
@@ -392,77 +392,6 @@ export function ProspectingView({
           </button>
         </section>
       )}
-      <section className="quote-card prospect-inbox">
-        <div className="quote-heading">
-          <div>
-            <p className="eyebrow">Bandeja diaria</p>
-            <h2>A quién contactar hoy</h2>
-            <p className="prospect-daily-date">Hoy, {dailyDate}</p>
-          </div>
-        </div>
-        <div
-          className="prospect-inbox-tabs"
-          role="tablist"
-          aria-label="Categorías de la bandeja diaria"
-        >
-          {inboxGroups.map((group) => (
-            <button
-              key={group.key}
-              className={`prospect-inbox-tab ${inboxGroup === group.key ? 'prospect-inbox-tab-active' : ''}`}
-              type="button"
-              role="tab"
-              aria-selected={inboxGroup === group.key}
-              onClick={() => setInboxGroup(group.key)}
-            >
-              <span>{group.label}</span>
-              <strong>{grouped(group.key).length}</strong>
-            </button>
-          ))}
-        </div>
-        <div
-          className={`prospect-inbox-layout ${inboxSelected ? 'prospect-inbox-detail-open' : ''}`}
-        >
-          <div className="prospect-inbox-queue">
-            <div className="prospect-queue-list" role="tabpanel">
-              {grouped(inboxGroup).length ? (
-                grouped(inboxGroup).map((prospect) => (
-                  <ProspectQueueRow
-                    key={prospect.id}
-                    prospect={prospect}
-                    group={inboxGroup}
-                    isSelected={prospect.id === inboxSelectedId}
-                    onSelect={() => setInboxSelectedId(prospect.id)}
-                    onToast={setToast}
-                    onRegister={() => {
-                      setActionInitialResult('contacted');
-                      setActionProspect(prospect);
-                    }}
-                  />
-                ))
-              ) : (
-                <div className="empty-state">
-                  <h3>No hay prospectos en esta categoría</h3>
-                  <p>Elegí otra categoría de la bandeja diaria para continuar.</p>
-                </div>
-              )}
-            </div>
-          </div>
-          {inboxSelected && (
-            <ProspectInboxDetail
-              prospect={inboxSelected}
-              onClose={() => setInboxSelectedId(null)}
-              onCopy={copyContact}
-              onOpen={() => setSelectedId(inboxSelected.id)}
-              onRegister={(result = 'contacted') => {
-                setActionInitialResult(result);
-                setActionProspect(inboxSelected);
-              }}
-              onQualify={() => setConversionTarget(inboxSelected)}
-              onOpenOpportunity={onOpenOpportunity}
-            />
-          )}
-        </div>
-      </section>
       <section className="quote-card prospect-list">
         <div className="quote-heading">
           <div>
@@ -695,7 +624,7 @@ function ProspectRow({
   );
 }
 
-function ProspectQueueRow({
+export function ProspectQueueRow({
   prospect,
   group,
   isSelected,
@@ -790,7 +719,7 @@ function ProspectQueueRow({
   );
 }
 
-function ProspectInboxDetail({
+export function ProspectInboxDetail({
   prospect,
   onClose,
   onCopy,
@@ -1121,6 +1050,7 @@ function ProspectDetail({
   onOpenOpportunity,
   onReload,
   onDirtyChange,
+  onRegisterResult,
 }: {
   prospect: Prospect;
   initialContactChannel: ProspectChannel;
@@ -1131,6 +1061,7 @@ function ProspectDetail({
   onOpenOpportunity: (id: string) => void;
   onReload: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  onRegisterResult?: () => void;
 }) {
   const [draft, setDraft] = useState(prospect);
   const [isEditing, setIsEditing] = useState(isNew);
@@ -1268,6 +1199,11 @@ function ProspectDetail({
             </>
           )}
         </div>
+        {!isNew && onRegisterResult && (
+          <button className="button button-primary" type="button" onClick={onRegisterResult}>
+            Registrar resultado
+          </button>
+        )}
       </header>
       {feedback && (
         <p className="commercial-note" role="status">

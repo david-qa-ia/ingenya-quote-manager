@@ -4281,7 +4281,7 @@ button.opportunity-nav-item:hover {
 .daily-dashboard-columns,
 .daily-dashboard-row {
   display: grid;
-  grid-template-columns: 1.4fr 0.9fr 1fr 0.6fr 1.2fr 0.9fr 24px;
+  grid-template-columns: 1.4fr 0.9fr 1fr 0.6fr 1.2fr 1.35fr;
   align-items: center;
   gap: 14px;
 }
@@ -4309,23 +4309,13 @@ button.opportunity-nav-item:hover {
 .daily-dashboard-row .button {
   white-space: nowrap;
 }
-.daily-row-menu {
-  display: grid;
-  width: 24px;
-  height: 36px;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  color: #263241;
-  background: transparent;
-  font-size: 1.5rem;
-  line-height: 1;
-  cursor: pointer;
+.daily-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.daily-row-menu:hover,
-.daily-row-menu:focus-visible {
-  background: #eef2f4;
+.daily-row-actions .commercial-warning {
+  flex-basis: 100%;
 }
 .daily-type-badge {
   background: #e9f1ff;
@@ -4472,7 +4462,8 @@ body,
   .daily-dashboard-row {
     grid-template-columns: 1fr;
   }
-  .daily-dashboard-row .button {
+  .daily-dashboard-row .button,
+  .daily-row-actions {
     width: 100%;
   }
 }

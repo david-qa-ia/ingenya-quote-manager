@@ -1,32 +1,16 @@
 import { useState } from 'react';
-import type { Activity } from '../types/activity';
-import type { CadenceExecution } from '../types/cadence';
-import type { Client } from '../types/client';
 import type { FollowUpFilters, FollowUpInboxItem } from '../types/followUpInbox';
-import type { Opportunity } from '../types/opportunity';
-import type { Prospect } from '../types/prospect';
-import type { SavedQuote } from '../types/quote';
-import {
-  defaultFollowUpFilters,
-  deriveFollowUpInbox,
-  filterFollowUpInbox,
-} from '../utils/followUpInbox';
+import { defaultFollowUpFilters, filterFollowUpInbox } from '../utils/followUpInbox';
 import { businessTimeZone } from '../utils/opportunityNextAction';
 import type { RegisterResultInput } from './RegisterResultDrawer';
 
 interface Props {
-  opportunities: readonly Opportunity[];
-  clients: readonly Client[];
-  quotes: readonly SavedQuote[];
-  executions: readonly CadenceExecution[];
-  activities: readonly Activity[];
-  prospects?: readonly Prospect[];
+  items: readonly FollowUpInboxItem[];
   issues: readonly string[];
   onOpen: (item: FollowUpInboxItem) => void;
   onPrepareContact: (item: FollowUpInboxItem) => void;
-  onAction: (item: FollowUpInboxItem, event: InboxActionEvent, input: InboxActionInput) => boolean;
+  onRegisterResult: (item: FollowUpInboxItem) => void;
 }
-export type InboxActionEvent = 'completed' | 'rescheduled' | 'cancelled' | 'notRelevant';
 export interface InboxActionInput {
   actor: string;
   reason: string;
@@ -53,76 +37,21 @@ const channelLabels = {
 const priorityLabels = { high: 'Alta', medium: 'Media', low: 'Baja' } as const;
 
 export function OpportunityNextActionsInbox({
-  opportunities,
-  clients,
-  quotes,
-  executions,
-  activities,
-  prospects = [],
+  items,
   issues,
   onOpen,
   onPrepareContact,
-  onAction,
+  onRegisterResult,
 }: Props) {
   const [filters, setFilters] = useState<FollowUpFilters>(defaultFollowUpFilters);
-  const [selected, setSelected] = useState<{
-    item: FollowUpInboxItem;
-    event: InboxActionEvent;
-  } | null>(null);
-  const [actor, setActor] = useState('');
-  const [reason, setReason] = useState('');
-  const [result, setResult] = useState('');
-  const [dueAt, setDueAt] = useState('');
-  const [actionError, setActionError] = useState('');
   const now = new Date();
-  const all = deriveFollowUpInbox(
-    opportunities,
-    clients,
-    quotes,
-    executions,
-    activities,
-    now,
-    prospects,
-  );
+  const all = items;
   const visible = filterFollowUpInbox(all, filters, now);
   const responsibleOptions = [...new Set(all.map((item) => item.responsible))].sort((a, b) =>
     a.localeCompare(b, 'es'),
   );
   const set = <K extends keyof FollowUpFilters>(key: K, value: FollowUpFilters[K]) =>
     setFilters((current) => ({ ...current, [key]: value }));
-  function startAction(item: FollowUpInboxItem, event: InboxActionEvent) {
-    setSelected({ item, event });
-    setActor(item.responsible === 'Sin asignar' ? '' : item.responsible);
-    setReason('');
-    setResult('');
-    setDueAt('');
-    setActionError('');
-  }
-  function submitAction(event: React.FormEvent) {
-    event.preventDefault();
-    if (!selected) return;
-    if (
-      !actor.trim() ||
-      (selected.event === 'completed' && !result.trim()) ||
-      (selected.event !== 'completed' && !reason.trim()) ||
-      (selected.event === 'rescheduled' && !dueAt)
-    ) {
-      setActionError('Completá los datos obligatorios.');
-      return;
-    }
-    if (
-      !onAction(selected.item, selected.event, {
-        actor,
-        reason,
-        result,
-        dueAt: dueAt ? new Date(`${dueAt}:00-03:00`).toISOString() : '',
-      })
-    ) {
-      setActionError('No se pudo guardar el cambio.');
-      return;
-    }
-    setSelected(null);
-  }
   return (
     <main className="app-shell follow-up-inbox">
       <header className="saved-quotes-header">
@@ -320,35 +249,12 @@ export function OpportunityNextActionsInbox({
                             </button>
                           )}
                           <button
-                            className="button button-line"
+                            className="button button-primary"
                             type="button"
-                            onClick={() => startAction(item, 'completed')}
+                            onClick={() => onRegisterResult(item)}
                           >
-                            Completar
+                            Registrar resultado
                           </button>
-                          <button
-                            className="button button-line"
-                            type="button"
-                            onClick={() => startAction(item, 'rescheduled')}
-                          >
-                            Reprogramar
-                          </button>
-                          <button
-                            className="button button-link"
-                            type="button"
-                            onClick={() => startAction(item, 'cancelled')}
-                          >
-                            Cancelar
-                          </button>
-                          {!item.cadenceStep && (
-                            <button
-                              className="button button-link"
-                              type="button"
-                              onClick={() => startAction(item, 'notRelevant')}
-                            >
-                              No relevante
-                            </button>
-                          )}
                         </>
                       )}
                     </div>
@@ -359,63 +265,6 @@ export function OpportunityNextActionsInbox({
           </section>
         );
       })}
-      {selected && (
-        <div className="modal-backdrop">
-          <form className="confirmation-modal commercial-form" onSubmit={submitAction}>
-            <h2>
-              {selected.event === 'completed'
-                ? 'Registrar resultado'
-                : selected.event === 'rescheduled'
-                  ? 'Reprogramar acción'
-                  : selected.event === 'cancelled'
-                    ? 'Cancelar acción'
-                    : 'Declarar no relevante'}
-            </h2>
-            <label className="field">
-              <span>Registrado por</span>
-              <input value={actor} onChange={(event) => setActor(event.target.value)} />
-            </label>
-            {selected.event === 'completed' ? (
-              <label className="field">
-                <span>Resultado</span>
-                <textarea value={result} onChange={(event) => setResult(event.target.value)} />
-              </label>
-            ) : (
-              <label className="field">
-                <span>Motivo</span>
-                <textarea value={reason} onChange={(event) => setReason(event.target.value)} />
-              </label>
-            )}
-            {selected.event === 'rescheduled' && (
-              <label className="field">
-                <span>Nueva fecha y hora</span>
-                <input
-                  type="datetime-local"
-                  value={dueAt}
-                  onChange={(event) => setDueAt(event.target.value)}
-                />
-              </label>
-            )}
-            {actionError && (
-              <p className="commercial-warning" role="alert">
-                {actionError}
-              </p>
-            )}
-            <div className="confirmation-actions">
-              <button
-                className="button button-line"
-                type="button"
-                onClick={() => setSelected(null)}
-              >
-                Volver
-              </button>
-              <button className="button button-primary" type="submit">
-                Confirmar
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
     </main>
   );
 }

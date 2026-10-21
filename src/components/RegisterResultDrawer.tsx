@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
+import type { FollowUpResultSaveResult } from '../utils/followUpResultTransaction';
 
 export type ResultChannel = 'call' | 'whatsapp' | 'email' | 'meeting';
 export type ResultNextStep = 'none' | 'call' | 'sendQuote' | 'email' | 'whatsapp' | 'meeting';
@@ -14,10 +15,14 @@ export interface RegisterResultInput {
   quoteMode?: 'new' | 'existing';
 }
 
+export type RegisterResultSubmitResult = FollowUpResultSaveResult;
+
 interface Props {
   item: FollowUpInboxItem;
   onClose: () => void;
-  onSubmit: (input: RegisterResultInput) => boolean;
+  onSubmit: (
+    input: RegisterResultInput,
+  ) => RegisterResultSubmitResult | Promise<RegisterResultSubmitResult>;
   onQuoteIntent?: (item: FollowUpInboxItem, mode: 'new' | 'existing') => void;
 }
 
@@ -145,6 +150,8 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
   const [note, setNote] = useState('');
   const [quoteMode, setQuoteMode] = useState<'new' | 'existing'>('new');
   const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [recoveryRequired, setRecoveryRequired] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const initials = item.clientName
     .split(/\s+/)
@@ -156,9 +163,27 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
 
   useEffect(() => closeRef.current?.focus(), []);
 
-  function submit() {
-    if (!result || !actor.trim() || (nextStep !== 'none' && !dueAt)) {
-      setError('Completá resultado, responsable y la fecha del próximo paso.');
+  useEffect(() => {
+    function preventEscape(event: KeyboardEvent) {
+      if (isSaving && event.key === 'Escape') event.preventDefault();
+    }
+    document.addEventListener('keydown', preventEscape);
+    return () => document.removeEventListener('keydown', preventEscape);
+  }, [isSaving]);
+
+  async function submit() {
+    if (isSaving || recoveryRequired) return;
+    if (
+      !result ||
+      !actor.trim() ||
+      (nextStep !== 'none' && !dueAt) ||
+      (!item.action && nextStep === 'none')
+    ) {
+      setError(
+        item.action
+          ? 'Completá resultado, responsable y la fecha del próximo paso.'
+          : 'Esta oportunidad no tiene una acción pendiente. Elegí el próximo paso y su fecha.',
+      );
       return;
     }
     const input: RegisterResultInput = {
@@ -170,9 +195,22 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
       nextStep,
       ...(nextStep === 'sendQuote' ? { quoteMode } : {}),
     };
-    if (!onSubmit(input)) {
+    setIsSaving(true);
+    try {
+      const saved = await onSubmit(input);
+      if (!saved.ok) {
+        setRecoveryRequired(saved.recoveryRequired === true);
+        setError(
+          saved.message ??
+            'No se pudo guardar el resultado. Revisá los datos e intentá nuevamente.',
+        );
+        return;
+      }
+    } catch {
       setError('No se pudo guardar el resultado. Revisá los datos e intentá nuevamente.');
       return;
+    } finally {
+      setIsSaving(false);
     }
     if (nextStep === 'sendQuote') onQuoteIntent?.(item, quoteMode);
     onClose();
@@ -181,7 +219,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
   return (
     <div
       className="modal-backdrop"
-      onMouseDown={(event) => event.currentTarget === event.target && onClose()}
+      onMouseDown={(event) => event.currentTarget === event.target && !isSaving && onClose()}
     >
       <aside
         className="result-drawer"
@@ -204,6 +242,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
+            disabled={isSaving}
           >
             ×
           </button>
@@ -317,11 +356,21 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
           )}
         </div>
         <div className="result-drawer-actions">
-          <button className="button button-line" type="button" onClick={onClose}>
+          <button
+            className="button button-line"
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+          >
             Cancelar
           </button>
-          <button className="button button-primary" type="button" onClick={submit}>
-            Guardar resultado
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={() => void submit()}
+            disabled={isSaving || recoveryRequired}
+          >
+            {isSaving ? 'Guardando…' : 'Guardar resultado'}
           </button>
         </div>
       </aside>
