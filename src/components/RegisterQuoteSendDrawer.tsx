@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SavedQuote } from '../types/quote';
+import type { NextAction } from '../types/opportunity';
 import { UiIcon } from './UiIcon';
 
 export type QuoteSendChannel = 'whatsapp' | 'email' | 'meeting' | 'other';
@@ -10,11 +11,13 @@ export interface QuoteSendInput {
   note: string;
   nextStep: 'none' | 'call' | 'whatsapp' | 'email' | 'meeting';
   nextStepAt: string;
+  replaceExistingNextAction: boolean;
 }
 interface Props {
   quote: SavedQuote;
   onClose(): void;
   onSubmit(input: QuoteSendInput): Promise<{ ok: boolean; error?: string }>;
+  existingNextAction?: NextAction;
 }
 const channelLabels: Record<QuoteSendChannel, string> = {
   whatsapp: 'WhatsApp',
@@ -36,13 +39,14 @@ function argentinaLocalDateTime(date = new Date()): string {
     .reduce<Record<string, string>>((value, part) => ({ ...value, [part.type]: part.value }), {});
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
-export function RegisterQuoteSendDrawer({ quote, onClose, onSubmit }: Props) {
+export function RegisterQuoteSendDrawer({ quote, onClose, onSubmit, existingNextAction }: Props) {
   const [channel, setChannel] = useState<QuoteSendChannel>('whatsapp');
   const [sentAt, setSentAt] = useState(argentinaLocalDateTime);
   const [responsible, setResponsible] = useState('');
   const [note, setNote] = useState('');
   const [nextStep, setNextStep] = useState<QuoteSendInput['nextStep']>('none');
   const [nextStepAt, setNextStepAt] = useState('');
+  const [replaceExistingNextAction, setReplaceExistingNextAction] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const lockRef = useRef(false);
@@ -71,6 +75,7 @@ export function RegisterQuoteSendDrawer({ quote, onClose, onSubmit }: Props) {
         note: note.trim(),
         nextStep,
         nextStepAt: nextStepAt ? new Date(`${nextStepAt}:00-03:00`).toISOString() : '',
+        replaceExistingNextAction,
       });
       if (result.ok) onClose();
       else setError(result.error ?? 'No se pudo confirmar el envío.');
@@ -132,6 +137,31 @@ export function RegisterQuoteSendDrawer({ quote, onClose, onSubmit }: Props) {
             ))}
           </div>
         </fieldset>
+        {existingNextAction && nextStep !== 'none' && (
+          <fieldset disabled={saving}>
+            <legend>Tarea pendiente actual</legend>
+            <p className="commercial-note">
+              {existingNextAction.description} · {existingNextAction.type} ·{' '}
+              {new Date(existingNextAction.dueAt).toLocaleString('es-AR')}
+            </p>
+            <label>
+              <input
+                type="radio"
+                checked={!replaceExistingNextAction}
+                onChange={() => setReplaceExistingNextAction(false)}
+              />{' '}
+              Conservar tarea actual
+            </label>
+            <label>
+              <input
+                type="radio"
+                checked={replaceExistingNextAction}
+                onChange={() => setReplaceExistingNextAction(true)}
+              />{' '}
+              Reemplazar por el nuevo seguimiento
+            </label>
+          </fieldset>
+        )}
         <label className="field">
           <span>Fecha y hora de envío</span>
           <input

@@ -2,6 +2,32 @@ import type { Prospect } from '../types/prospect';
 import type { PreparedProspectImport } from './prospectImportTransaction';
 import { getSupabaseConfig, loadAuthSession } from './authService';
 
+export async function registerRemoteQuoteSend(input: {
+  workspaceId: string;
+  quoteVersionId: string;
+  expectedVersion: number;
+  channel: string;
+  recipient: string;
+  sentAt: string;
+  note: string;
+  idempotencyKey: string;
+}): Promise<void> {
+  await request('/rest/v1/rpc/register_quote_send', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_workspace_id: input.workspaceId,
+      p_quote_version_id: input.quoteVersionId,
+      p_expected_version: input.expectedVersion,
+      p_channel: input.channel,
+      p_recipient: input.recipient,
+      p_sent_at: input.sentAt,
+      p_note: input.note,
+      p_idempotency_key: input.idempotencyKey,
+      p_request_id: crypto.randomUUID(),
+    }),
+  });
+}
+
 export class SupabaseRepositoryError extends Error {
   readonly code: 'not-configured' | 'session-expired' | 'network' | 'conflict' | 'server';
 

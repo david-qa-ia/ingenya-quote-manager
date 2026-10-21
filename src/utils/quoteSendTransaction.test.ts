@@ -85,4 +85,42 @@ describe('quote send transaction', () => {
       }).ok,
     ).toBe(false);
   });
+  it('preserves a pending action unless replacement is explicitly chosen', () => {
+    memory.set(SAVED_QUOTES_STORAGE_KEY, JSON.stringify([quote]));
+    memory.set(ACTIVITIES_STORAGE_KEY, '[]');
+    memory.set(
+      OPPORTUNITIES_STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'opp-1',
+          clientId: 'client',
+          name: 'Obra',
+          address: '',
+          estimatedStartDate: '',
+          responsibleSeller: 'David',
+          createdAt: '2026-10-20T10:00:00.000Z',
+          updatedAt: '2026-10-20T10:00:00.000Z',
+          nextAction: {
+            id: 'old',
+            type: 'email',
+            description: 'Tarea actual',
+            dueAt: '2026-10-22T09:00:00.000Z',
+            responsible: 'David',
+            priority: 'medium',
+            status: 'pending',
+            createdAt: '2026-10-20T10:00:00.000Z',
+            updatedAt: '2026-10-20T10:00:00.000Z',
+            history: [],
+          },
+        },
+      ]),
+    );
+    const result = commitLocalQuoteSend({
+      quote,
+      audit: { changedAt: '2026-10-21T10:00:00.000Z', changedBy: 'David', reason: 'Enviado' },
+      nextStep: { type: 'call', dueAt: '2026-10-23T10:00:00.000Z' },
+    });
+    expect(result.ok).toBe(true);
+    expect(JSON.parse(memory.get(OPPORTUNITIES_STORAGE_KEY)!)[0].nextAction.id).toBe('old');
+  });
 });

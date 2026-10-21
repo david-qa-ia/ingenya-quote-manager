@@ -16,6 +16,7 @@ export interface QuoteSendTransactionInput {
 export function commitLocalQuoteSend(input: QuoteSendTransactionInput): {
   ok: boolean;
   error?: string;
+  recoveryRequired?: boolean;
 } {
   const keys = [SAVED_QUOTES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY, OPPORTUNITIES_STORAGE_KEY];
   const snapshots = new Map<string, string | null>();
@@ -98,13 +99,19 @@ export function commitLocalQuoteSend(input: QuoteSendTransactionInput): {
     );
     return { ok: true };
   } catch {
-    for (const [key, snapshot] of snapshots) {
-      if (snapshot === null) localStorage.removeItem(key);
-      else localStorage.setItem(key, snapshot);
+    try {
+      for (const [key, snapshot] of snapshots) {
+        if (snapshot === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, snapshot);
+      }
+      return { ok: false, error: 'No se pudo registrar el envío. Se restauraron los cambios.' };
+    } catch {
+      return {
+        ok: false,
+        recoveryRequired: true,
+        error:
+          'No se pudo verificar la restauración local. No repitas el envío; recuperá el registro antes de continuar.',
+      };
     }
-    return {
-      ok: false,
-      error: 'No se pudo registrar el envío. No se guardaron cambios parciales.',
-    };
   }
 }

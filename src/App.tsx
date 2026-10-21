@@ -105,6 +105,8 @@ import { workspaceStorageKey } from './utils/workspaceStorage';
 import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
 import { commitLocalFollowUpResult } from './utils/followUpResultTransaction';
+import { isAuthConfigured } from './utils/authService';
+import { registerRemoteQuoteSend, SupabaseRepositoryError } from './utils/supabaseRepository';
 import { commitLocalQuoteSend } from './utils/quoteSendTransaction';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
@@ -165,6 +167,7 @@ function App() {
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
   const [quoteSendTarget, setQuoteSendTarget] = useState<SavedQuote | null>(null);
+  const [quoteSendRecoveryRequired, setQuoteSendRecoveryRequired] = useState(false);
   const [prospectHasUnsavedChanges, setProspectHasUnsavedChanges] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -919,6 +922,8 @@ function App() {
   }
 
   async function handleQuoteSend(input: QuoteSendInput): Promise<{ ok: boolean; error?: string }> {
+    if (quoteSendRecoveryRequired)
+      return { ok: false, error: 'Este envío requiere recuperación. No repitas la confirmación.' };
     const quote = quoteSendTarget;
     if (!quote) return { ok: false, error: 'No se encontró el presupuesto.' };
     const recipient =
@@ -927,6 +932,15 @@ function App() {
         : input.channel === 'email'
           ? loadClients().items.find((item) => item.id === quote.clientId)?.email
           : 'Registro comercial';
+    const normalizedPhone = recipient?.replace(/\D/g, '') ?? '';
+    const validEmail =
+      typeof recipient === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient);
+    if (input.channel === 'whatsapp' && !/^\d{7,15}$/.test(normalizedPhone))
+      return { ok: false, error: 'El contacto no tiene un teléfono válido para WhatsApp.' };
+    if (input.channel === 'email' && !validEmail)
+      return { ok: false, error: 'El contacto no tiene un email válido.' };
+    if (input.channel === 'other' && !input.note.trim())
+      return { ok: false, error: 'Indicá una nota para registrar otro canal.' };
     const audit: Quote['commercialStatusAudit'] = {
       changedAt: input.sentAt,
       changedBy: input.responsible,
@@ -934,17 +948,50 @@ function App() {
         input.note ||
         `Envío registrado por ${input.channel === 'whatsapp' ? 'WhatsApp' : input.channel === 'email' ? 'email' : input.channel === 'meeting' ? 'reunión' : 'otro canal'}.`,
       ...(input.channel === 'whatsapp' || input.channel === 'email'
-        ? { channel: input.channel, recipient: recipient ?? '' }
+        ? {
+            channel: input.channel,
+            recipient: input.channel === 'whatsapp' ? normalizedPhone : recipient!,
+          }
         : {}),
     };
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (isAuthConfigured() && workspaceId) {
+      try {
+        await registerRemoteQuoteSend({
+          workspaceId,
+          quoteVersionId: quote.id,
+          expectedVersion: quote.version ?? 1,
+          channel: input.channel,
+          recipient:
+            input.channel === 'whatsapp'
+              ? normalizedPhone
+              : input.channel === 'email'
+                ? recipient!
+                : 'Registro comercial',
+          sentAt: input.sentAt,
+          note: audit.reason,
+          idempotencyKey: `quote-send:${quote.id}`,
+        });
+      } catch (error) {
+        if (!(error instanceof SupabaseRepositoryError) || error.code !== 'network')
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : 'No se pudo confirmar el envío remoto.',
+          };
+      }
+    }
     const saved = commitLocalQuoteSend({
       quote,
       audit,
       ...(input.nextStep !== 'none' && input.nextStepAt
         ? { nextStep: { type: input.nextStep, dueAt: input.nextStepAt } }
         : {}),
+      replaceExistingNextAction: input.replaceExistingNextAction,
     });
-    if (!saved.ok) return saved;
+    if (!saved.ok) {
+      if (saved.recoveryRequired) setQuoteSendRecoveryRequired(true);
+      return saved;
+    }
     setCommercialStatus('sent');
     setCommercialStatusAudit(audit);
     setSentAudit(audit);
@@ -1535,6 +1582,9 @@ function App() {
             quote={quoteSendTarget}
             onClose={() => setQuoteSendTarget(null)}
             onSubmit={handleQuoteSend}
+            existingNextAction={
+              opportunity?.nextAction?.status === 'pending' ? opportunity.nextAction : undefined
+            }
           />
         )}
       </>
