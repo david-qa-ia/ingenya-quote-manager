@@ -78,6 +78,7 @@ import {
   type RegisterResultSubmitResult,
 } from './components/RegisterResultDrawer';
 import { QuoteDetailView } from './components/QuoteDetailView';
+import { RegisterQuoteSendDrawer, type QuoteSendInput } from './components/RegisterQuoteSendDrawer';
 import {
   defaultProspectFilters,
   registerProspectAction,
@@ -104,6 +105,7 @@ import { workspaceStorageKey } from './utils/workspaceStorage';
 import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
 import { commitLocalFollowUpResult } from './utils/followUpResultTransaction';
+import { commitLocalQuoteSend } from './utils/quoteSendTransaction';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -162,6 +164,7 @@ function App() {
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
+  const [quoteSendTarget, setQuoteSendTarget] = useState<SavedQuote | null>(null);
   const [prospectHasUnsavedChanges, setProspectHasUnsavedChanges] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -915,6 +918,69 @@ function App() {
     }
   }
 
+  async function handleQuoteSend(input: QuoteSendInput): Promise<{ ok: boolean; error?: string }> {
+    const quote = quoteSendTarget;
+    if (!quote) return { ok: false, error: 'No se encontró el presupuesto.' };
+    const recipient =
+      input.channel === 'whatsapp'
+        ? loadClients().items.find((item) => item.id === quote.clientId)?.phone
+        : input.channel === 'email'
+          ? loadClients().items.find((item) => item.id === quote.clientId)?.email
+          : 'Registro comercial';
+    const audit: Quote['commercialStatusAudit'] = {
+      changedAt: input.sentAt,
+      changedBy: input.responsible,
+      reason:
+        input.note ||
+        `Envío registrado por ${input.channel === 'whatsapp' ? 'WhatsApp' : input.channel === 'email' ? 'email' : input.channel === 'meeting' ? 'reunión' : 'otro canal'}.`,
+      ...(input.channel === 'whatsapp' || input.channel === 'email'
+        ? { channel: input.channel, recipient: recipient ?? '' }
+        : {}),
+    };
+    const saved = commitLocalQuoteSend({
+      quote,
+      audit,
+      ...(input.nextStep !== 'none' && input.nextStepAt
+        ? { nextStep: { type: input.nextStep, dueAt: input.nextStepAt } }
+        : {}),
+    });
+    if (!saved.ok) return saved;
+    setCommercialStatus('sent');
+    setCommercialStatusAudit(audit);
+    setSentAudit(audit);
+    setSavedQuotes(loadSavedQuotes());
+    setOpportunities(loadOpportunities().items);
+    setQuoteSendTarget(null);
+    return { ok: true };
+  }
+
+  function handleQuoteChangeRequest(quote: SavedQuote, reason: string, responsible: string) {
+    const now = new Date().toISOString();
+    const next: SavedQuote = {
+      ...quote,
+      id: createQuoteId(),
+      commercialStatus: 'prepared',
+      commercialStatusAudit: {
+        changedAt: now,
+        changedBy: responsible,
+        reason: 'Nueva versión creada por pedido de cambio.',
+      },
+      sentAudit: undefined,
+      version: (quote.version ?? 1) + 1,
+      basedOnQuoteId: quote.id,
+      changeRequest: { requestedAt: now, requestedBy: responsible, reason },
+      savedAt: now,
+    };
+    if (!saveQuote(next)) return;
+    recordAutomaticActivity(
+      { kind: 'quote', quoteId: quote.id },
+      'commercialStatusChanged',
+      `Pedido de cambio registrado: ${reason}`,
+    );
+    setSavedQuotes(loadSavedQuotes());
+    setDetailQuoteId(next.id);
+  }
+
   function handleFinalizationRequest() {
     setSaveFeedback(null);
     setFinalizationFeedback(null);
@@ -1440,7 +1506,16 @@ function App() {
           }}
           onPdf={handleQuoteDetailPdfDownload}
           onStatus={(_quote, status, audit) => handleCommercialStatusChange(status, audit)}
+          onRegisterSend={setQuoteSendTarget}
+          onRequestChange={handleQuoteChangeRequest}
         />
+        {quoteSendTarget && (
+          <RegisterQuoteSendDrawer
+            quote={quoteSendTarget}
+            onClose={() => setQuoteSendTarget(null)}
+            onSubmit={handleQuoteSend}
+          />
+        )}
       </>
     );
   }

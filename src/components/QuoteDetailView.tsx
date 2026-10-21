@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { UiIcon } from './UiIcon';
 import { workUnitSymbols } from '../data/workUnits';
 import type { Client } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
@@ -21,18 +22,28 @@ interface Props {
     status: CommercialStatus,
     audit: CommercialStatusAudit,
   ): string | null;
+  onRegisterSend(quote: SavedQuote): void;
+  onRequestChange(quote: SavedQuote, reason: string, responsible: string): void;
 }
 
-export function QuoteDetailView({ quote, client, opportunity, onBack, onPdf, onStatus }: Props) {
+export function QuoteDetailView({
+  quote,
+  client,
+  opportunity,
+  onBack,
+  onPdf,
+  onStatus,
+  onRegisterSend,
+  onRequestChange,
+}: Props) {
   const [target, setTarget] = useState<CommercialStatus | null>(null);
   const [author, setAuthor] = useState('');
   const [reason, setReason] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [changeReason, setChangeReason] = useState('');
+  const [changeResponsible, setChangeResponsible] = useState('');
   const [loadingPdf, setLoadingPdf] = useState(false);
-  const [sendChannel, setSendChannel] = useState<'whatsapp' | 'email' | null>(null);
-  const [sendAuthor, setSendAuthor] = useState('');
-  const [sendReason, setSendReason] = useState('');
-  const [sendError, setSendError] = useState('');
   const total = calculateQuoteTotal(quote.lines);
   const targets = getCommercialTransitionTargets(quote.commercialStatus, quote.status);
   const displayName = opportunity?.name || quote.projectName || 'Presupuesto';
@@ -56,43 +67,11 @@ export function QuoteDetailView({ quote, client, opportunity, onBack, onPdf, onS
     setTarget(null);
   }
 
-  function openSend(channel: 'whatsapp' | 'email') {
-    setSendChannel(channel);
-    setSendError('');
-    setSendReason('');
-  }
-
-  function closeSend() {
-    setSendChannel(null);
-    setSendError('');
-  }
-
-  function confirmSend() {
-    if (!sendChannel) return;
-    const recipient = sendChannel === 'whatsapp' ? client?.phone : client?.email;
-    if (!recipient) {
-      setSendError('El contacto no tiene un destinatario válido para este canal.');
-      return;
-    }
-    const audit: CommercialStatusAudit = {
-      changedAt: new Date().toISOString(),
-      changedBy: sendAuthor.trim(),
-      reason: sendReason.trim(),
-      channel: sendChannel,
-      recipient,
-    };
-    const error = onStatus(quote, 'sent', audit);
-    if (error) {
-      setSendError(error);
-      return;
-    }
-    const destination =
-      sendChannel === 'whatsapp'
-        ? `https://wa.me/${recipient.replace(/\D/g, '')}`
-        : `mailto:${recipient}`;
-    closeSend();
-    setFeedback(`Envío por ${sendChannel === 'whatsapp' ? 'WhatsApp' : 'email'} registrado.`);
-    window.open(destination, '_blank', 'noopener,noreferrer');
+  const phone = client?.phone?.replace(/\D/g, '');
+  const email = client?.email?.trim();
+  function openExternal(url: string, message: string) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setFeedback(message);
   }
 
   return (
@@ -181,29 +160,94 @@ export function QuoteDetailView({ quote, client, opportunity, onBack, onPdf, onS
                 onClick={pdf}
                 disabled={loadingPdf || !quote.lines.length}
               >
-                {loadingPdf ? 'Generando…' : '▧ Ver PDF'}
+                <UiIcon name="document" /> {loadingPdf ? 'Generando…' : 'Descargar PDF'}
               </button>
               <button
                 className="button button-line"
                 type="button"
-                onClick={() => openSend('whatsapp')}
-                disabled={!client?.phone || !targets.includes('sent')}
+                onClick={() =>
+                  phone &&
+                  openExternal(
+                    `https://wa.me/${phone}`,
+                    'WhatsApp abierto. Registrá el envío cuando lo hayas compartido.',
+                  )
+                }
+                disabled={!phone}
+                title={!phone ? 'Falta un teléfono válido.' : undefined}
               >
-                ◉ Enviar por WhatsApp
+                <UiIcon name="whatsapp" /> Abrir WhatsApp
               </button>
               <button
                 className="button button-line"
                 type="button"
-                onClick={() => openSend('email')}
-                disabled={!client?.email || !targets.includes('sent')}
+                onClick={() =>
+                  email &&
+                  openExternal(
+                    `mailto:${email}?subject=${encodeURIComponent(`Presupuesto ${quote.id}`)}&body=${encodeURIComponent(`Hola, te comparto el presupuesto ${quote.id}.`)}`,
+                    'Cliente de email preparado. Registrá el envío cuando lo hayas compartido.',
+                  )
+                }
+                disabled={!email}
+                title={!email ? 'Falta un email válido.' : undefined}
               >
-                ✉ Enviar por email
+                <UiIcon name="email" /> Preparar email
+              </button>
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={() => onRegisterSend(quote)}
+                disabled={!targets.includes('sent')}
+              >
+                <UiIcon name="send" /> Registrar envío
               </button>
             </div>
             {feedback && (
               <p className="quote-detail-feedback" role="status">
                 {feedback}
               </p>
+            )}
+          </section>
+          <section
+            className="quote-detail-card quote-version-history"
+            aria-labelledby="quote-version-history"
+          >
+            <h2 id="quote-version-history">Historial de versiones</h2>
+            <article
+              className={
+                quote.commercialStatus === 'sent'
+                  ? 'quote-version-row sent'
+                  : 'quote-version-row current'
+              }
+            >
+              <strong>V{quote.version ?? 1}</strong>
+              <div>
+                <b>
+                  {quote.commercialStatus === 'sent'
+                    ? `Enviada${quote.sentAudit?.channel ? ` por ${quote.sentAudit.channel === 'whatsapp' ? 'WhatsApp' : 'email'}` : ''}`
+                    : 'Vigente'}
+                </b>
+                <p>{quote.changeRequest?.reason || 'Versión comercial actual del presupuesto.'}</p>
+              </div>
+              <small>
+                {quote.sentAudit
+                  ? `${new Date(quote.sentAudit.changedAt).toLocaleDateString('es-AR')} · ${quote.sentAudit.changedBy}`
+                  : `Actualizada el ${new Date(quote.savedAt).toLocaleDateString('es-AR')}`}
+              </small>
+            </article>
+            {quote.commercialStatus === 'sent' && (
+              <>
+                <p className="commercial-note">
+                  La versión enviada queda preservada. Para aplicar cambios, registrá el pedido y
+                  creá una nueva versión.
+                </p>
+                <button
+                  className="button button-line"
+                  type="button"
+                  onClick={() => setChangeOpen(true)}
+                >
+                  Registrar pedido de cambio
+                </button>
+              </>
             )}
           </section>
           <section className="quote-detail-card quote-status-card">
@@ -226,7 +270,7 @@ export function QuoteDetailView({ quote, client, opportunity, onBack, onPdf, onS
                 <button
                   className="button button-primary"
                   type="button"
-                  onClick={() => openSend(client?.phone ? 'whatsapp' : 'email')}
+                  onClick={() => onRegisterSend(quote)}
                 >
                   Registrar envío
                 </button>
@@ -310,39 +354,45 @@ export function QuoteDetailView({ quote, client, opportunity, onBack, onPdf, onS
           </section>
         </div>
       )}
-      {sendChannel && (
+      {changeOpen && (
         <div className="modal-backdrop">
           <section className="confirmation-modal" role="dialog" aria-modal="true">
-            <h2>Confirmar envío por {sendChannel === 'whatsapp' ? 'WhatsApp' : 'email'}</h2>
+            <h2>Registrar pedido de cambio</h2>
             <p>
-              Abrir el canal no registra el envío. Confirmá que el mensaje fue enviado para guardar
-              la auditoría.
-            </p>
-            <p className="commercial-note">
-              Destinatario: {sendChannel === 'whatsapp' ? client?.phone : client?.email}
+              La versión enviada se conserva como historial y se crea una nueva versión vigente.
             </p>
             <label className="field">
               <span>Responsable</span>
-              <input value={sendAuthor} onChange={(event) => setSendAuthor(event.target.value)} />
-            </label>
-            <label className="field">
-              <span>Resultado o nota</span>
-              <textarea
-                value={sendReason}
-                onChange={(event) => setSendReason(event.target.value)}
+              <input
+                value={changeResponsible}
+                onChange={(event) => setChangeResponsible(event.target.value)}
               />
             </label>
-            {sendError && (
-              <p className="commercial-warning" role="alert">
-                {sendError}
-              </p>
-            )}
+            <label className="field">
+              <span>Pedido de cambio</span>
+              <textarea
+                value={changeReason}
+                onChange={(event) => setChangeReason(event.target.value)}
+              />
+            </label>
             <div className="confirmation-actions">
-              <button className="button button-line" type="button" onClick={closeSend}>
+              <button
+                className="button button-line"
+                type="button"
+                onClick={() => setChangeOpen(false)}
+              >
                 Cancelar
               </button>
-              <button className="button button-primary" type="button" onClick={confirmSend}>
-                Confirmar envío y abrir canal
+              <button
+                className="button button-primary"
+                type="button"
+                disabled={!changeReason.trim() || !changeResponsible.trim()}
+                onClick={() => {
+                  onRequestChange(quote, changeReason.trim(), changeResponsible.trim());
+                  setChangeOpen(false);
+                }}
+              >
+                Crear nueva versión
               </button>
             </div>
           </section>
