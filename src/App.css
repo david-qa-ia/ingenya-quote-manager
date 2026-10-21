@@ -264,6 +264,155 @@
   overflow: auto;
   color: var(--text-muted);
 }
+.prospect-import-file,
+.prospect-import-actions,
+.prospect-import-config,
+.prospect-first-contact {
+  display: grid;
+  gap: 14px;
+}
+.prospect-import-file {
+  grid-template-columns: minmax(0, auto) auto;
+  align-items: center;
+  justify-content: start;
+  margin: 18px 0;
+}
+.prospect-import-file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.prospect-import-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.prospect-import-summary strong {
+  display: grid;
+  gap: 3px;
+  min-height: 76px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+.prospect-import-summary strong:nth-child(2) {
+  color: #9b6800;
+  background: #fff6df;
+}
+.prospect-import-summary strong:nth-child(3) {
+  color: #b52929;
+  background: #fff0f0;
+}
+.prospect-import-summary span {
+  font-size: 1.8rem;
+}
+.prospect-import-table {
+  margin-bottom: 22px;
+}
+@media (min-width: 801px) {
+  .table-scroll.prospect-import-table {
+    overflow-x: visible;
+  }
+  .prospect-import-table table {
+    min-width: 0;
+    width: 100%;
+  }
+}
+.prospect-import-invalid {
+  background: #fff0f0;
+}
+.prospect-import-duplicate {
+  background: #fff8e8;
+}
+.prospect-first-contact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.prospect-first-contact legend {
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+  color: var(--text-heading);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+.prospect-import-choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.prospect-import-choice input {
+  grid-row: span 2;
+  accent-color: var(--accent);
+}
+.prospect-import-choice small {
+  color: var(--text-muted);
+}
+.prospect-import-choice-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.prospect-import-config {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 14px;
+}
+.prospect-import-actions {
+  grid-template-columns: auto minmax(260px, max-content);
+  justify-content: end;
+  margin-top: 18px;
+}
+@media (max-width: 800px) {
+  .prospect-import-summary,
+  .prospect-first-contact,
+  .prospect-import-config {
+    grid-template-columns: 1fr 1fr;
+  }
+  .prospect-import-config .field {
+    min-width: 0;
+  }
+}
+@media (max-width: 640px) {
+  .prospect-import-summary,
+  .prospect-first-contact,
+  .prospect-import-config,
+  .prospect-import-actions {
+    grid-template-columns: 1fr;
+  }
+  .prospect-import-actions {
+    justify-content: stretch;
+  }
+  .prospect-import-actions .button {
+    width: 100%;
+  }
+  .prospect-import-file {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+}
+
+@media (min-width: 801px) {
+  .table-scroll.prospect-import-table {
+    overflow-x: visible;
+  }
+  .prospect-import-table table {
+    min-width: 0;
+    width: 100%;
+  }
+  .prospect-import-table th,
+  .prospect-import-table td {
+    padding: 12px 14px;
+    white-space: normal;
+  }
+}
 .prospect-groups {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Prospect } from '../types/prospect';
-import { parseCsvLine, previewProspectCsv } from './prospectImport';
+import {
+  analyzeProspectCsv,
+  argentinaDateTimeToIso,
+  hasUsableContact,
+  parseCsvLine,
+  previewProspectCsv,
+} from './prospectImport';
 
 const existing: Prospect = {
   id: 'p1',
@@ -45,5 +51,39 @@ describe('prospect CSV import', () => {
       potentialService: 'Pintura, interior',
     });
     expect(parseCsvLine('"a""b",c', ',')).toEqual(['a"b', 'c']);
+  });
+  it('rejects empty files and incorrect headers before import', () => {
+    expect(analyzeProspectCsv('', []).headerError).toContain('vacío');
+    expect(analyzeProspectCsv('company,email\nSur,ana@sur.com', []).headerError).toContain(
+      'encabezados',
+    );
+  });
+  it('calculates compatible contacts for the selected channel only', () => {
+    const input = {
+      name: 'Ana',
+      company: '',
+      phone: '341 555 0101',
+      email: 'ana@sur.com',
+      source: '',
+      potentialService: '',
+      notes: '',
+      status: 'uncontacted' as const,
+      priority: 'medium' as const,
+      priorityReason: '',
+      nextAction: '',
+      nextActionAt: '',
+      responsible: '',
+      preferredChannel: '' as const,
+    };
+    expect(hasUsableContact(input, 'phone')).toBe(true);
+    expect(hasUsableContact({ ...input, phone: '' }, 'whatsapp')).toBe(false);
+    expect(hasUsableContact({ ...input, email: 'none' }, 'email')).toBe(false);
+  });
+  it('stores selected Argentina time as a stable instant', () => {
+    expect(argentinaDateTimeToIso('2026-10-21T10:00')).toEqual({
+      ok: true,
+      value: '2026-10-21T13:00:00.000Z',
+    });
+    expect(argentinaDateTimeToIso('2026-02-30T10:00').ok).toBe(false);
   });
 });
