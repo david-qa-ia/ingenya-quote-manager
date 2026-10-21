@@ -105,6 +105,19 @@ describe('prospect workflow', () => {
       followUpAt: persistedFollowUp.value,
     });
   });
+  it('accepts the ISO date emitted by the unified result drawer', () => {
+    const updated = registerProspectAction(prospect, {
+      result: 'contacted',
+      channel: 'phone',
+      note: 'Seguimiento confirmado.',
+      followUpAt: '2026-10-16T13:30:00.000Z',
+    });
+    expect(updated.nextActionAt).toBe('2026-10-16T13:30:00.000Z');
+    expect(updated.activities.at(-1)).toMatchObject({
+      result: 'contacted',
+      followUpAt: '2026-10-16T13:30:00.000Z',
+    });
+  });
   it('builds a direct WhatsApp URL only for confirmed phones', () => {
     expect(createProspectWhatsAppUrl('341 555-0101')).toBe('https://wa.me/3415550101');
     expect(createProspectWhatsAppUrl('1111111111')).toBeNull();
