@@ -3110,11 +3110,17 @@ button.opportunity-nav-item:hover {
     z-index: 30;
   }
   .app-sidebar-header .main-header,
-  .app-sidebar-header .header-container,
-  .app-sidebar-header .main-header-content {
+  .app-sidebar-header .header-container {
     background: transparent;
     display: flex;
     flex-direction: column;
+    height: 100%;
+    padding: 0;
+    width: 100%;
+  }
+  .app-sidebar-header .main-header-content {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
     height: 100%;
     padding: 0;
     width: 100%;
@@ -3134,10 +3140,13 @@ button.opportunity-nav-item:hover {
     margin: 7px 0 36px 2px;
   }
   .app-sidebar-header .workspace-switcher {
+    grid-row: 2;
+    margin-top: 0;
     order: 2;
   }
   .app-sidebar-header .primary-navigation {
     align-items: stretch;
+    grid-row: 3;
     order: 3;
     display: flex;
     flex: 1;
@@ -4597,10 +4606,13 @@ body,
    each item occupies the available column instead of forcing a wide row. */
 @media (min-width: 641px) and (max-width: 800px) {
   .app-sidebar-header .workspace-switcher {
+    grid-row: 2;
+    margin-top: 0;
     order: 2;
   }
   .app-sidebar-header .primary-navigation {
     align-items: stretch;
+    grid-row: 3;
     order: 3;
     display: flex;
     flex-direction: column;
