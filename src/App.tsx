@@ -70,6 +70,7 @@ import {
   type InboxActionInput,
 } from './components/OpportunityNextActionsInbox';
 import { MetricsDashboard } from './components/MetricsDashboard';
+import { CadenceView } from './components/CadenceView';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
 import { DailyWorkDashboard } from './components/DailyWorkDashboard';
@@ -1457,7 +1458,16 @@ function App() {
     );
   }
 
-  if (currentView === 'nextActions' || currentView === 'cadences') {
+  if (currentView === 'cadences') {
+    return (
+      <>
+        {appHeader}
+        <CadenceView onBack={() => setCurrentView('nextActions')} />
+      </>
+    );
+  }
+
+  if (currentView === 'nextActions') {
     return (
       <>
         {appHeader}
@@ -1471,6 +1481,7 @@ function App() {
           onOpen={handleFollowUpOpen}
           onPrepareContact={setInboxContact}
           onRegisterResult={setDrawerItem}
+          onShowCadences={() => setCurrentView('cadences')}
         />
         {inboxContact && (
           <ContactAssistant

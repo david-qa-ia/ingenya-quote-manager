@@ -106,14 +106,18 @@ export function SettingsView({ membership, onRetryConnection, onShowServices }: 
       </section>
 
       <section className="settings-card system-health-services">
-        <div>
-          <h2>Servicios y precios</h2>
-          <p className="settings-muted">
-            Administrá los servicios reutilizables y sus precios sugeridos para este espacio.
-          </p>
-        </div>
-        <button className="button button-line" type="button" onClick={onShowServices}>
-          <UiIcon name="activity" /> Mis servicios y precios
+        <button
+          className="settings-service-access"
+          type="button"
+          onClick={onShowServices}
+          aria-label="Abrir Mis servicios y precios"
+        >
+          <UiIcon name="activity" className="settings-service-access-icon" />
+          <span className="settings-service-access-copy">
+            <strong>Mis servicios y precios</strong>
+            <small>Administrá los servicios y valores que usás al crear presupuestos</small>
+          </span>
+          <UiIcon name="chevron-right" className="settings-service-access-chevron" />
         </button>
       </section>
 

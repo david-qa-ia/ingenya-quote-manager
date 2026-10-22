@@ -10,6 +10,7 @@ interface Props {
   onOpen: (item: FollowUpInboxItem) => void;
   onPrepareContact: (item: FollowUpInboxItem) => void;
   onRegisterResult: (item: FollowUpInboxItem) => void;
+  onShowCadences: () => void;
 }
 export interface InboxActionInput {
   actor: string;
@@ -42,6 +43,7 @@ export function OpportunityNextActionsInbox({
   onOpen,
   onPrepareContact,
   onRegisterResult,
+  onShowCadences,
 }: Props) {
   const [filters, setFilters] = useState<FollowUpFilters>(defaultFollowUpFilters);
   const now = new Date();
@@ -69,6 +71,15 @@ export function OpportunityNextActionsInbox({
           disponibles.
         </p>
       )}
+      <section className="follow-up-cadences-access" aria-label="Automatizaciones de seguimiento">
+        <div>
+          <strong>Automatizaciones de seguimiento</strong>
+          <span>Administrá recordatorios y secuencias para tareas comerciales</span>
+        </div>
+        <button className="button button-line" type="button" onClick={onShowCadences}>
+          Ver automatizaciones
+        </button>
+      </section>
       <section className="follow-up-summary" aria-label="Resumen de seguimiento">
         {(Object.keys(bucketLabels) as (keyof typeof bucketLabels)[]).map((bucket) => (
           <button
