@@ -3,6 +3,7 @@ import type { Prospect } from '../types/prospect';
 import { localDateTimeToIso } from './prospectFollowUp';
 import {
   filterProspects,
+  createProspectInstagramUrl,
   createProspectWhatsAppUrl,
   getProspectActionValidationError,
   getDueGroup,
@@ -81,7 +82,7 @@ describe('prospect workflow', () => {
       note: 'Pide contacto el jueves.',
       followUpAt: '2026-10-16T10:30',
     });
-    expect(updated.status).toBe('contacted');
+    expect(updated.status).toBe('uncontacted');
     expect(updated.nextActionAt).toBe(persistedFollowUp.value);
     expect(updated.activities.at(-1)).toMatchObject({
       prospectId: 'p1',
@@ -100,6 +101,7 @@ describe('prospect workflow', () => {
       note: 'Enviar propuesta luego de confirmar medidas.',
       followUpAt: '2026-10-16T10:30',
     });
+    expect(updated.status).toBe('uncontacted');
     expect(updated.activities.at(-1)).toMatchObject({
       result: 'contacted',
       followUpAt: persistedFollowUp.value,
@@ -121,6 +123,8 @@ describe('prospect workflow', () => {
   it('builds a direct WhatsApp URL only for confirmed phones', () => {
     expect(createProspectWhatsAppUrl('341 555-0101')).toBe('https://wa.me/3415550101');
     expect(createProspectWhatsAppUrl('1111111111')).toBeNull();
+    expect(createProspectInstagramUrl('@ingenya')).toBe('https://www.instagram.com/ingenya/');
+    expect(createProspectInstagramUrl('not a profile')).toBeNull();
   });
   it('groups only active prospects by the saved follow-up date', () => {
     const today = new Date('2026-10-15T12:00:00Z');
@@ -140,7 +144,7 @@ describe('prospect workflow', () => {
     const fromPanel = registerProspectAction({ ...prospect, id: 'panel' }, input);
     const fromDetail = registerProspectAction({ ...prospect, id: 'detail' }, input);
     [fromList, fromPanel, fromDetail].forEach((updated) => {
-      expect(updated.status).toBe('contacted');
+      expect(updated.status).toBe('uncontacted');
       expect(updated.nextActionAt).toBe(persistedFollowUp.value);
       expect(updated.activities.at(-1)).toMatchObject({
         prospectId: updated.id,

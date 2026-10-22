@@ -235,6 +235,7 @@ export function deriveFollowUpInbox(
       opportunityName: prospect.potentialService || undefined,
       phone: !isPendingPhone(prospect.phone) ? prospect.phone : undefined,
       email: !isPendingEmail(prospect.email) ? prospect.email : undefined,
+      instagram: prospect.instagram?.trim() || undefined,
       contactRestricted: false,
       responsible: prospect.responsible || 'Sin asignar',
       channel,

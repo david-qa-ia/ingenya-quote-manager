@@ -99,6 +99,7 @@ import { deriveFollowUpInbox } from './utils/followUpInbox';
 import { loadProspects } from './utils/prospectStorage';
 import { deriveGlobalSearchResults } from './utils/globalSearch';
 import type { GlobalSearchResult } from './types/globalSearch';
+import type { Prospect } from './types/prospect';
 import { useWorkspace } from './context/useWorkspace';
 import { WorkspaceAccessState } from './components/WorkspaceAccessState';
 import { UiIcon } from './components/UiIcon';
@@ -107,7 +108,13 @@ import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
 import { commitLocalFollowUpResult } from './utils/followUpResultTransaction';
 import { isAuthConfigured } from './utils/authService';
-import { registerRemoteQuoteSend, SupabaseRepositoryError } from './utils/supabaseRepository';
+import {
+  loadRemoteProspects,
+  registerRemoteProspectResult,
+  registerRemoteQuoteSend,
+  SupabaseRepositoryError,
+  type SupabaseProspectRow,
+} from './utils/supabaseRepository';
 import { commitLocalQuoteSend, hasQuoteSendRecovery } from './utils/quoteSendTransaction';
 import {
   saveDirectClientQuote,
@@ -115,12 +122,42 @@ import {
   type DirectQuoteFollowUpInput,
 } from './utils/directClientQuote';
 import { convertDirectQuoteToOpportunity } from './utils/directQuoteConversion';
+import {
+  clearProspectResultRecovery,
+  loadProspectResultRecovery,
+  saveProspectResultRecovery,
+} from './utils/prospectResultRecovery';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'medium',
   timeStyle: 'short',
 });
+
+function mapRemoteProspectForInbox(row: SupabaseProspectRow): Prospect {
+  return {
+    id: row.id,
+    name: row.name,
+    company: row.company,
+    phone: row.phone,
+    email: row.email,
+    instagram: row.instagram ?? '',
+    source: row.source,
+    potentialService: row.potential_service,
+    notes: row.notes,
+    status: row.status,
+    priority: row.priority,
+    priorityReason: row.priority_reason,
+    nextAction: row.next_action,
+    nextActionAt: row.next_action_at ?? '',
+    responsible: row.responsible,
+    preferredChannel: row.preferred_channel ?? '',
+    activities: [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    version: row.version,
+  };
+}
 
 function createLineId(): string {
   return crypto.randomUUID();
@@ -167,6 +204,7 @@ function App() {
   const [currentView, setCurrentView] = useState<AppView>('dailyDashboard');
   const [prospects, setProspects] = useState(() => loadProspects().items);
   const [prospectFilters, setProspectFilters] = useState(loadProspectFilters);
+  const [requestedProspectId, setRequestedProspectId] = useState<string | null>(null);
   const [inboxContact, setInboxContact] = useState<FollowUpInboxItem | null>(null);
   const [drawerItem, setDrawerItem] = useState<FollowUpInboxItem | null>(null);
   const [clientId, setClientId] = useState<string | undefined>();
@@ -283,6 +321,40 @@ function App() {
       wasFinalizationConfirmationOpenRef.current = false;
     }
   }, [isFinalizationConfirmationOpen]);
+
+  useEffect(() => {
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (!isAuthConfigured() || !isWorkspaceUuid(workspaceId)) return;
+    let cancelled = false;
+    loadRemoteProspects(workspaceId)
+      .then((rows) => {
+        if (cancelled) return;
+        const localProspects = loadProspects().items;
+        const next = rows.map((row) => {
+          const remote = mapRemoteProspectForInbox(row);
+          const local = localProspects.find((prospect) => prospect.id === remote.id);
+          if (local?.status === 'converted' && remote.status !== 'converted') {
+            return {
+              ...remote,
+              status: 'converted' as const,
+              nextAction: '',
+              nextActionAt: '',
+              conversion: local.conversion,
+              activities: local.activities,
+            };
+          }
+          return { ...remote, activities: local?.activities ?? [] };
+        });
+        next.forEach((prospect) => saveProspectWithResult(prospect));
+        setProspects(next);
+      })
+      .catch(() => {
+        // The local mirror remains available when the remote read is temporarily unavailable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceContext.session?.activeWorkspaceId]);
 
   useEffect(() => {
     if (!isFinalizationConfirmationOpen) return;
@@ -638,6 +710,11 @@ function App() {
   }
 
   function handleFollowUpOpen(item: FollowUpInboxItem) {
+    if (item.prospectId) {
+      setRequestedProspectId(item.prospectId);
+      setCurrentView('prospects');
+      return;
+    }
     if (item.opportunityId) {
       setDetailOpportunityId(item.opportunityId);
       setCurrentView('opportunityDetail');
@@ -699,16 +776,16 @@ function App() {
     return true;
   }
 
-  function handleFollowUpAction(
+  async function handleFollowUpAction(
     item: FollowUpInboxItem,
     input: InboxActionInput,
-  ): RegisterResultSubmitResult {
+  ): Promise<RegisterResultSubmitResult> {
     const now = new Date().toISOString();
     const event = 'completed' as const;
     try {
       if (item.prospectId) {
         const prospect = loadProspects().items.find((value) => value.id === item.prospectId);
-        if (!prospect) return { ok: false };
+        if (!prospect) return { ok: false, message: 'No se encontró el prospecto.' };
         const result =
           input.result === 'noAnswer'
             ? 'noResponse'
@@ -716,7 +793,9 @@ function App() {
               ? 'discarded'
               : 'contacted';
         const channel =
-          input.channel === 'whatsapp' || input.channel === 'email' ? input.channel : 'phone';
+          input.channel === 'whatsapp' || input.channel === 'email' || input.channel === 'instagram'
+            ? input.channel
+            : 'phone';
         const next = registerProspectAction(prospect, {
           result,
           channel,
@@ -724,8 +803,43 @@ function App() {
           author: input.actor,
           ...(input.nextStep !== 'none' && input.dueAt ? { followUpAt: input.dueAt } : {}),
         });
-        if (!saveProspectWithResult(next).ok) return { ok: false };
+        const workspaceId = workspaceContext.session?.activeWorkspaceId;
+        if (isAuthConfigured() && !isWorkspaceUuid(workspaceId))
+          return {
+            ok: false,
+            message:
+              'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
+          };
+        if (isAuthConfigured() && workspaceId) {
+          const remote = await registerRemoteProspectResult({
+            workspaceId,
+            prospectId: prospect.id,
+            expectedVersion: prospect.version ?? 1,
+            result,
+            channel,
+            note: input.reason,
+            followUpAt: next.nextActionAt || undefined,
+            responsible: input.actor,
+            idempotencyKey: `prospect-result:${prospect.id}:${prospect.version ?? 1}:${result}:${channel}:${input.dueAt}`,
+          });
+          if (!remote.ok) return { ok: false, message: remote.message };
+          next.version = remote.version;
+        }
+        if (!saveProspectWithResult(next).ok) {
+          if (isAuthConfigured() && workspaceId) {
+            saveProspectResultRecovery({ workspaceId, prospect: next });
+            return {
+              ok: false,
+              recoveryRequired: true,
+              message:
+                'El resultado se guardó en Supabase, pero falta actualizar este equipo. Recuperá el guardado sin repetir la acción.',
+            };
+          }
+          return { ok: false, message: 'No se pudo guardar el resultado localmente.' };
+        }
+        clearProspectResultRecovery();
         setProspects(loadProspects().items);
+        window.dispatchEvent(new Event('ingenya:prospects-updated'));
         return { ok: true };
       }
       if (item.cadenceStep) {
@@ -844,8 +958,14 @@ function App() {
       if (!saved.ok) return saved;
       setOpportunities(loadOpportunities().items);
       return { ok: true };
-    } catch {
-      return { ok: false };
+    } catch (error) {
+      return {
+        ok: false,
+        message:
+          error instanceof SupabaseRepositoryError
+            ? error.message
+            : 'No se pudo guardar el resultado. Revisá los datos e intentá nuevamente.',
+      };
     }
   }
 
@@ -1367,6 +1487,31 @@ function App() {
   }
   const currentOpportunities = loadOpportunities().items;
   const followUpClients = loadClients();
+  function recoverProspectResult(item: FollowUpInboxItem): RegisterResultSubmitResult {
+    const recovery = loadProspectResultRecovery();
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (
+      !recovery ||
+      recovery.prospect.id !== item.prospectId ||
+      recovery.workspaceId !== workspaceId
+    )
+      return {
+        ok: false,
+        recoveryRequired: true,
+        message: 'No hay una recuperación disponible para este prospecto.',
+      };
+    if (!saveProspectWithResult(recovery.prospect))
+      return {
+        ok: false,
+        recoveryRequired: true,
+        message: 'No se pudo recuperar el espejo local. Intentá nuevamente.',
+      };
+    clearProspectResultRecovery();
+    setProspects(loadProspects().items);
+    window.dispatchEvent(new Event('ingenya:prospects-updated'));
+    return { ok: true };
+  }
+
   const followUpExecutions = loadCadenceExecutions();
   const followUpActivities = loadActivities();
   const followUpItems = deriveFollowUpInbox(
@@ -1394,6 +1539,7 @@ function App() {
         })
       }
       onQuoteIntent={handleDashboardQuoteIntent}
+      onRecover={drawerItem.prospectId ? () => recoverProspectResult(drawerItem) : undefined}
     />
   );
 
@@ -1434,6 +1580,8 @@ function App() {
             setCurrentView('opportunityDetail');
           }}
           onOpenResult={setDrawerItem}
+          openProspectId={requestedProspectId}
+          onOpenProspectHandled={() => setRequestedProspectId(null)}
           onProspectsChanged={setProspects}
           onDirtyChange={setProspectHasUnsavedChanges}
         />

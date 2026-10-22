@@ -1,10 +1,12 @@
 import type { Client } from '../types/client';
+import type { Activity, ActivityType } from '../types/activity';
 import type { NextActionType, Opportunity } from '../types/opportunity';
 import type { Prospect, ProspectConversionDraft } from '../types/prospect';
 import { saveClient } from './clientStorage';
 import { localDateTimeToIso } from './prospectFollowUp';
 import { saveOpportunity } from './opportunityStorage';
 import { saveProspectWithResult } from './prospectStorage';
+import { loadActivities, saveActivity } from './activityStorage';
 
 export interface ProspectConversionInput {
   opportunityName: string;
@@ -42,7 +44,7 @@ export function getProspectConversionValidationError(
   }
   if (!input.nextStep.trim()) return 'Ingresá el próximo paso.';
   if (
-    !['call', 'whatsapp', 'email', 'meeting', 'waitForResponse', 'other'].includes(
+    !['call', 'whatsapp', 'email', 'instagram', 'meeting', 'waitForResponse', 'other'].includes(
       input.nextStepChannel,
     )
   )
@@ -93,7 +95,8 @@ function buildClient(draft: ProspectConversionDraft, now: string): Client {
     ...(draft.clientCompany ? { company: draft.clientCompany } : {}),
     phone: draft.clientPhone,
     email: draft.clientEmail,
-    preferredChannel: draft.clientPreferredChannel,
+    preferredChannel:
+      draft.clientPreferredChannel === 'instagram' ? '' : draft.clientPreferredChannel,
     contactConsent: false,
     createdAt: now,
     updatedAt: now,
@@ -139,6 +142,76 @@ function buildOpportunity(draft: ProspectConversionDraft, now: string): Opportun
   };
 }
 
+function toOpportunityActivity(
+  prospect: Prospect,
+  draft: ProspectConversionDraft,
+  activity: Prospect['activities'][number],
+): Activity {
+  const channel = activity.channel;
+  const type: ActivityType =
+    activity.type === 'contactResult' && channel === 'phone'
+      ? 'call'
+      : channel === 'whatsapp'
+        ? 'whatsapp'
+        : channel === 'email'
+          ? 'email'
+          : 'relevantChange';
+  const callResult =
+    activity.result === 'contacted'
+      ? 'effectiveContact'
+      : activity.result === 'noResponse'
+        ? 'noAnswer'
+        : activity.result === 'reschedule'
+          ? 'callBack'
+          : 'notInterested';
+  const result =
+    type === 'call'
+      ? callResult
+      : activity.result === 'contacted'
+        ? 'Contacto registrado'
+        : activity.result === 'noResponse'
+          ? 'Sin respuesta'
+          : activity.result === 'reschedule'
+            ? 'Seguimiento reprogramado'
+            : activity.result === 'discarded'
+              ? 'Contacto descartado'
+              : activity.type === 'conversionCompleted'
+                ? 'Conversión completada'
+                : 'Actividad de prospecto';
+  const channelLabel =
+    channel === 'phone'
+      ? 'Llamada'
+      : channel === 'whatsapp'
+        ? 'WhatsApp'
+        : channel === 'email'
+          ? 'Email'
+          : channel === 'instagram'
+            ? 'Instagram'
+            : '';
+  return {
+    id: `prospect-history:${draft.opportunityId}:${activity.id}`,
+    type,
+    occurredAt: activity.occurredAt,
+    author: activity.author?.trim() || prospect.responsible || draft.responsible,
+    result,
+    note: [channelLabel, activity.description, activity.note].filter(Boolean).join(' · '),
+    subject: { kind: 'opportunity', opportunityId: draft.opportunityId },
+    source: 'automatic',
+    noteRevisions: [],
+  };
+}
+
+export function mirrorProspectActivitiesToOpportunity(
+  prospect: Prospect,
+  draft: ProspectConversionDraft,
+): boolean {
+  const existing = new Set(loadActivities().items.map((activity) => activity.id));
+  return prospect.activities.every((activity) => {
+    const target = toOpportunityActivity(prospect, draft, activity);
+    return existing.has(target.id) || saveActivity(target);
+  });
+}
+
 export type ProspectConversionResult =
   { ok: true; prospect: Prospect } | { ok: false; error: string };
 
@@ -179,6 +252,12 @@ export function resumeProspectConversion(
     return {
       ok: false,
       error: 'No se pudo guardar la oportunidad. La conversión quedó pendiente para reintentar.',
+    };
+  if (!mirrorProspectActivitiesToOpportunity(prospect, draft))
+    return {
+      ok: false,
+      error:
+        'La oportunidad fue guardada, pero no se pudo trasladar el historial. Reintentá la conversión.',
     };
   const completed: Prospect = {
     ...prospect,

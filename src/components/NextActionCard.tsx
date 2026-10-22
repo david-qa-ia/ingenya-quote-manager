@@ -11,6 +11,7 @@ const labels = {
   call: 'Llamada',
   whatsapp: 'WhatsApp',
   email: 'Email',
+  instagram: 'Instagram',
   meeting: 'Reunión',
   waitForResponse: 'Esperar respuesta',
   other: 'Otra',

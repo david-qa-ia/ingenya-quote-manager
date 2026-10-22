@@ -1,4 +1,4 @@
-import type { Prospect } from '../types/prospect';
+import type { Prospect, ProspectActivity } from '../types/prospect';
 import type { PreparedProspectImport } from './prospectImportTransaction';
 import { getSupabaseConfig, loadAuthSession } from './authService';
 
@@ -73,6 +73,102 @@ export async function registerRemoteQuoteSend(input: {
   };
 }
 
+export type RemoteProspectResult =
+  | { ok: true; idempotent: boolean; version: number }
+  | { ok: false; reason: 'conflict'; message: string; version?: number };
+
+export async function registerRemoteProspectResult(input: {
+  workspaceId: string;
+  prospectId: string;
+  expectedVersion: number;
+  result: string;
+  channel: 'phone' | 'whatsapp' | 'email' | 'instagram';
+  note: string;
+  followUpAt?: string;
+  responsible: string;
+  idempotencyKey: string;
+}): Promise<RemoteProspectResult> {
+  const result = await request<{ code?: string; version?: number; idempotent?: boolean }>(
+    '/rest/v1/rpc/register_prospect_result',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_workspace_id: input.workspaceId,
+        p_prospect_id: input.prospectId,
+        p_expected_version: input.expectedVersion,
+        p_result: input.result,
+        p_channel: input.channel === 'phone' ? 'call' : input.channel,
+        p_note: input.note,
+        p_follow_up_at: input.followUpAt || null,
+        p_responsible: input.responsible,
+        p_idempotency_key: input.idempotencyKey,
+        p_request_id: crypto.randomUUID(),
+      }),
+    },
+  );
+  if (result.code === 'CONFLICT')
+    return {
+      ok: false,
+      reason: 'conflict',
+      version: result.version,
+      message: 'El prospecto cambió antes de guardar el resultado. Recargá y revisá los datos.',
+    };
+  if (result.code !== 'OK' || !Number.isInteger(result.version))
+    throw new SupabaseRepositoryError(
+      'server',
+      'Supabase no confirmó el resultado y próximo paso del prospecto.',
+    );
+  return { ok: true, idempotent: Boolean(result.idempotent), version: result.version as number };
+}
+
+export type RemoteProspectConversionResult =
+  | { ok: true; idempotent: boolean; version: number; opportunityId: string }
+  | { ok: false; reason: 'conflict'; message: string; version?: number };
+
+export async function convertRemoteProspectToOpportunity(input: {
+  workspaceId: string;
+  prospectId: string;
+  expectedVersion: number;
+  idempotencyKey: string;
+}): Promise<RemoteProspectConversionResult> {
+  const result = await request<{
+    code?: string;
+    version?: number;
+    opportunityId?: string;
+    idempotent?: boolean;
+    currentVersion?: number;
+  }>('/rest/v1/rpc/convert_prospect_to_opportunity', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_workspace_id: input.workspaceId,
+      p_prospect_id: input.prospectId,
+      p_expected_version: input.expectedVersion,
+      p_idempotency_key: input.idempotencyKey,
+      p_request_id: crypto.randomUUID(),
+    }),
+  });
+  if (result.code === 'CONFLICT') {
+    return {
+      ok: false,
+      reason: 'conflict',
+      version: result.currentVersion,
+      message: 'El prospecto cambió antes de crear la oportunidad. Recargá y revisá los datos.',
+    };
+  }
+  if (result.code !== 'OK' || !Number.isInteger(result.version) || !result.opportunityId) {
+    throw new SupabaseRepositoryError(
+      'server',
+      'Supabase no confirmó la conversión del prospecto.',
+    );
+  }
+  return {
+    ok: true,
+    idempotent: Boolean(result.idempotent),
+    version: result.version as number,
+    opportunityId: result.opportunityId,
+  };
+}
+
 export class SupabaseRepositoryError extends Error {
   readonly code: 'not-configured' | 'session-expired' | 'network' | 'conflict' | 'server';
 
@@ -120,6 +216,7 @@ export interface SupabaseProspectRow {
   company: string;
   phone: string;
   email: string;
+  instagram?: string;
   source: string;
   potential_service: string;
   notes: string;
@@ -145,6 +242,101 @@ export async function loadRemoteProspects(workspaceId: string): Promise<Supabase
   return request<SupabaseProspectRow[]>(`/rest/v1/prospects?${query.toString()}`);
 }
 
+export interface SupabaseProspectActivityRow {
+  id: string;
+  workspace_id: string;
+  prospect_id: string;
+  type: ProspectActivity['type'];
+  occurred_at: string;
+  created_at: string;
+  result: ProspectActivity['result'] | '';
+  note: string;
+  communication: {
+    channel?: ProspectActivity['channel'];
+    followUpAt?: string;
+    responsible?: string;
+  } | null;
+}
+
+export async function loadRemoteProspectActivities(
+  workspaceId: string,
+): Promise<SupabaseProspectActivityRow[]> {
+  const query = new URLSearchParams({
+    select: 'id,workspace_id,prospect_id,type,occurred_at,created_at,result,note,communication',
+    workspace_id: `eq.${workspaceId}`,
+    prospect_id: 'not.is.null',
+    order: 'occurred_at.asc',
+  });
+  return request<SupabaseProspectActivityRow[]>(`/rest/v1/activities?${query.toString()}`);
+}
+
+export function mapRemoteProspectActivity(row: SupabaseProspectActivityRow): ProspectActivity {
+  const channel = row.communication?.channel;
+  const result = row.result || undefined;
+  return {
+    id: row.id,
+    prospectId: row.prospect_id,
+    occurredAt: row.occurred_at,
+    createdAt: row.created_at,
+    type: row.type,
+    description: row.note || `${channel ? `${channel}: ` : ''}${result ?? 'Actividad registrada.'}`,
+    ...(result ? { result } : {}),
+    ...(channel ? { channel } : {}),
+    ...(row.note ? { note: row.note } : {}),
+    ...(row.communication?.followUpAt ? { followUpAt: row.communication.followUpAt } : {}),
+    ...(row.communication?.responsible ? { author: row.communication.responsible } : {}),
+  };
+}
+
+export type RemoteProspectProfileResult =
+  | { ok: true; version: number; idempotent: boolean }
+  | { ok: false; reason: 'conflict'; message: string; version?: number };
+
+export async function updateRemoteProspectProfile(input: {
+  workspaceId: string;
+  prospect: Prospect;
+  idempotencyKey: string;
+}): Promise<RemoteProspectProfileResult> {
+  const { workspaceId, prospect, idempotencyKey } = input;
+  const result = await request<{ code?: string; version?: number; idempotent?: boolean }>(
+    '/rest/v1/rpc/update_prospect_profile',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_workspace_id: workspaceId,
+        p_prospect_id: prospect.id,
+        p_expected_version: prospect.version ?? 1,
+        p_payload: {
+          name: prospect.name,
+          company: prospect.company,
+          phone: prospect.phone,
+          email: prospect.email,
+          instagram: prospect.instagram ?? '',
+          source: prospect.source,
+          potentialService: prospect.potentialService,
+          notes: prospect.notes,
+          priority: prospect.priority,
+          priorityReason: prospect.priorityReason,
+          responsible: prospect.responsible,
+          preferredChannel: prospect.preferredChannel,
+        },
+        p_idempotency_key: idempotencyKey,
+        p_request_id: crypto.randomUUID(),
+      }),
+    },
+  );
+  if (result.code === 'CONFLICT')
+    return {
+      ok: false,
+      reason: 'conflict',
+      version: result.version,
+      message: 'El prospecto cambió en otro lugar. Recargá antes de volver a guardar.',
+    };
+  if (result.code !== 'OK' || !Number.isInteger(result.version))
+    throw new SupabaseRepositoryError('server', 'Supabase no confirmó los datos del prospecto.');
+  return { ok: true, version: result.version as number, idempotent: Boolean(result.idempotent) };
+}
+
 export async function createRemoteProspect(workspaceId: string, prospect: Prospect): Promise<void> {
   await request('/rest/v1/rpc/create_prospect', {
     method: 'POST',
@@ -156,6 +348,7 @@ export async function createRemoteProspect(workspaceId: string, prospect: Prospe
         company: prospect.company,
         phone: prospect.phone,
         email: prospect.email,
+        instagram: prospect.instagram,
         source: prospect.source,
         potentialService: prospect.potentialService,
         notes: prospect.notes,
@@ -189,6 +382,7 @@ export async function importRemoteProspects(
           company: prospect.company,
           phone: prospect.phone,
           email: prospect.email,
+          instagram: prospect.instagram,
           source: prospect.source,
           potentialService: prospect.potentialService,
           notes: prospect.notes,

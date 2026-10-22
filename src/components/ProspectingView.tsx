@@ -32,13 +32,12 @@ import {
 import { isoToLocalDateTime } from '../utils/prospectFollowUp';
 import {
   filterProspects,
+  createProspectInstagramUrl,
   createProspectWhatsAppUrl,
   prospectPriorityLabels,
   prospectChannelLabels,
   prospectContactResultLabels,
   prospectStatusLabels,
-  getProspectActionValidationError,
-  registerProspectAction,
   sortProspectsForContact,
   transitionProspect,
   type ProspectFilters,
@@ -55,8 +54,12 @@ import { isAuthConfigured } from '../utils/authService';
 import { getActiveWorkspaceId, isWorkspaceUuid } from '../utils/workspaceStorage';
 import {
   createRemoteProspect,
+  convertRemoteProspectToOpportunity,
   importRemoteProspects,
+  updateRemoteProspectProfile,
+  loadRemoteProspectActivities,
   loadRemoteProspects,
+  mapRemoteProspectActivity,
   SupabaseRepositoryError,
   type SupabaseProspectRow,
 } from '../utils/supabaseRepository';
@@ -68,6 +71,7 @@ const channels: { value: ProspectChannel; label: string }[] = [
   { value: 'phone', label: 'Llamada' },
   { value: 'whatsapp', label: 'WhatsApp' },
   { value: 'email', label: 'Email' },
+  { value: 'instagram', label: 'Instagram' },
 ];
 const activityTypeLabels = {
   statusChanged: 'Cambio de estado',
@@ -78,13 +82,17 @@ const activityTypeLabels = {
 } as const;
 type DueGroup = 'overdue' | 'today' | 'upcoming';
 
-function mapRemoteProspect(row: SupabaseProspectRow): Prospect {
+function mapRemoteProspect(
+  row: SupabaseProspectRow,
+  activities: Prospect['activities'] = [],
+): Prospect {
   return {
     id: row.id,
     name: row.name,
     company: row.company,
     phone: row.phone,
     email: row.email,
+    instagram: row.instagram ?? '',
     source: row.source,
     potentialService: row.potential_service,
     notes: row.notes,
@@ -95,7 +103,7 @@ function mapRemoteProspect(row: SupabaseProspectRow): Prospect {
     nextActionAt: row.next_action_at ?? '',
     responsible: row.responsible,
     preferredChannel: row.preferred_channel ?? '',
-    activities: [],
+    activities,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     version: row.version,
@@ -112,6 +120,9 @@ function prospectToInboxItem(prospect: Prospect): FollowUpInboxItem {
     clientName: prospect.name,
     clientCompany: prospect.company,
     opportunityName: prospect.potentialService || undefined,
+    phone: isProspectContactAvailable(prospect, 'phone') ? prospect.phone : undefined,
+    email: isProspectContactAvailable(prospect, 'email') ? prospect.email : undefined,
+    instagram: isProspectContactAvailable(prospect, 'instagram') ? prospect.instagram : undefined,
     responsible: prospect.responsible || 'Sin asignar',
     contactRestricted: false,
     channel: prospect.preferredChannel === 'phone' ? 'call' : prospect.preferredChannel || 'other',
@@ -126,6 +137,8 @@ interface Props {
   onFiltersChange: (filters: ProspectFilters) => void;
   onOpenOpportunity: (id: string) => void;
   onOpenResult: (item: FollowUpInboxItem) => void;
+  openProspectId?: string | null;
+  onOpenProspectHandled?: () => void;
   onProspectsChanged?: (prospects: Prospect[]) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }
@@ -135,6 +148,8 @@ export function ProspectingView({
   onFiltersChange,
   onOpenOpportunity,
   onOpenResult,
+  openProspectId,
+  onOpenProspectHandled,
   onProspectsChanged,
   onDirtyChange,
 }: Props) {
@@ -169,12 +184,10 @@ export function ProspectingView({
   );
   const [feedback, setFeedback] = useState('');
   const [toast, setToast] = useState('');
-  const [actionProspect, setActionProspect] = useState<Prospect | null>(null);
-  const [actionInitialResult] = useState<ProspectContactResult>('contacted');
   const [conversionTarget, setConversionTarget] = useState<Prospect | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const importSubmissionRef = useRef(false);
-  const selected = prospects.find((item) => item.id === selectedId);
+  const selected = prospects.find((item) => item.id === (selectedId ?? openProspectId));
   const visible = useMemo(() => filterProspects(prospects, filters), [prospects, filters]);
   const csvPreview = useMemo(() => analyzeProspectCsv(csv, prospects), [csv, prospects]);
   const rows = csvPreview.rows;
@@ -190,14 +203,41 @@ export function ProspectingView({
   useEffect(() => {
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
     if (!isAuthConfigured() || !isWorkspaceUuid(workspaceId)) return;
-    loadRemoteProspects(workspaceId)
-      .then((rows) => {
-        const next = rows.map(mapRemoteProspect);
+    Promise.all([loadRemoteProspects(workspaceId), loadRemoteProspectActivities(workspaceId)])
+      .then(([rows, activityRows]) => {
+        const activitiesByProspect = new Map<string, Prospect['activities']>();
+        activityRows.forEach((activity) => {
+          const activities = activitiesByProspect.get(activity.prospect_id) ?? [];
+          activities.push(mapRemoteProspectActivity(activity));
+          activitiesByProspect.set(activity.prospect_id, activities);
+        });
+        const localProspects = loadProspects().items;
+        const next = rows.map((row) => {
+          const remote = mapRemoteProspect(row, activitiesByProspect.get(row.id) ?? []);
+          const local = localProspects.find((prospect) => prospect.id === remote.id);
+          if (local?.status === 'converted' && remote.status !== 'converted') {
+            return {
+              ...remote,
+              status: 'converted' as const,
+              nextAction: '',
+              nextActionAt: '',
+              conversion: local.conversion,
+              activities: local.activities,
+            };
+          }
+          return remote;
+        });
+        next.forEach((prospect) => saveProspectWithResult(prospect));
         setProspects(next);
         onProspectsChanged?.(next);
       })
       .catch(() => setFeedback('No se pudieron cargar los prospectos del espacio activo.'));
   }, [workspaceContext.session?.activeWorkspaceId, onProspectsChanged]);
+  useEffect(() => {
+    const handleProspectsUpdated = () => refresh();
+    window.addEventListener('ingenya:prospects-updated', handleProspectsUpdated);
+    return () => window.removeEventListener('ingenya:prospects-updated', handleProspectsUpdated);
+  });
   function updateFilters(next: ProspectFilters) {
     setFilters(next);
     onFiltersChange(next);
@@ -207,7 +247,35 @@ export function ProspectingView({
     setProspects(next);
     onProspectsChanged?.(next);
   }
-  function save(next: Prospect, openDetail = true): boolean {
+  async function save(next: Prospect, openDetail = true): Promise<boolean> {
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (isAuthConfigured() && !isWorkspaceUuid(workspaceId)) {
+      setFeedback(
+        'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
+      );
+      return false;
+    }
+    if (isAuthConfigured() && workspaceId) {
+      try {
+        const remote = await updateRemoteProspectProfile({
+          workspaceId,
+          prospect: next,
+          idempotencyKey: `update-prospect:${next.id}:${next.version ?? 1}:${next.updatedAt}`,
+        });
+        if (!remote.ok) {
+          setFeedback(remote.message);
+          return false;
+        }
+        next = { ...next, version: remote.version };
+      } catch (error) {
+        setFeedback(
+          error instanceof Error
+            ? `No se pudo guardar en Supabase: ${error.message}`
+            : 'No se pudo guardar en Supabase. Los cambios siguen abiertos para reintentar.',
+        );
+        return false;
+      }
+    }
     const result = saveProspectWithResult(next);
     if (!result.ok) {
       setFeedback(
@@ -217,7 +285,11 @@ export function ProspectingView({
     }
     refresh();
     if (openDetail) setSelectedId(next.id);
-    setFeedback('Prospecto guardado localmente.');
+    setFeedback(
+      isAuthConfigured()
+        ? 'Prospecto actualizado en el espacio activo.'
+        : 'Prospecto guardado localmente.',
+    );
     return true;
   }
   async function saveNew(next: Prospect): Promise<boolean> {
@@ -367,7 +439,7 @@ export function ProspectingView({
       setPreparedImport(null);
       if (isAuthConfigured() && workspaceId) {
         const remoteRows = await loadRemoteProspects(workspaceId);
-        const next = remoteRows.map(mapRemoteProspect);
+        const next = remoteRows.map((row) => mapRemoteProspect(row));
         setProspects(next);
         onProspectsChanged?.(next);
       } else refresh();
@@ -495,7 +567,10 @@ export function ProspectingView({
         <ProspectDetail
           prospect={selected}
           initialContactChannel={initialContactChannel}
-          onBack={() => setSelectedId(null)}
+          onBack={() => {
+            setSelectedId(null);
+            onOpenProspectHandled?.();
+          }}
           onSave={save}
           onReload={refresh}
           feedback={feedback}
@@ -865,7 +940,7 @@ export function ProspectingView({
                 onOpen={() => setSelectedId(prospect.id)}
                 onCopy={copyContact}
                 onToast={setToast}
-                onRegister={() => setActionProspect(prospect)}
+                onRegister={() => onOpenResult(prospectToInboxItem(prospect))}
               />
             ))}
           </div>
@@ -876,18 +951,6 @@ export function ProspectingView({
           </div>
         )}
       </section>
-      {actionProspect && (
-        <ProspectActionModal
-          prospect={actionProspect}
-          onClose={() => setActionProspect(null)}
-          initialResult={actionInitialResult}
-          onSave={(input) => {
-            if (!save(registerProspectAction(actionProspect, input), false)) return;
-            setActionProspect(null);
-            setToast('Acción registrada.');
-          }}
-        />
-      )}
       {conversionTarget && (
         <ProspectConversionModal
           prospect={conversionTarget}
@@ -917,6 +980,7 @@ function ProspectRow({
   onRegister: () => void;
 }) {
   const whatsappUrl = createProspectWhatsAppUrl(prospect.phone);
+  const instagramUrl = createProspectInstagramUrl(prospect.instagram);
   const initials = prospect.name
     .split(/\s+/)
     .filter(Boolean)
@@ -1000,6 +1064,26 @@ function ProspectRow({
         ) : (
           <button className="button button-primary prospect-whatsapp" type="button" disabled>
             <span aria-hidden="true">◔</span> WhatsApp
+          </button>
+        )}
+        {instagramUrl ? (
+          <a
+            className="button button-line"
+            href={instagramUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => onToast('Instagram abierto.')}
+          >
+            Abrir Instagram
+          </a>
+        ) : (
+          <button
+            className="button button-line"
+            type="button"
+            disabled
+            title="Falta un usuario o URL de Instagram"
+          >
+            Abrir Instagram
           </button>
         )}
         <button className="button button-line" type="button" onClick={onRegister}>
@@ -1275,160 +1359,6 @@ export function ProspectInboxDetail({
   );
 }
 
-function ProspectActionModal({
-  prospect,
-  initialResult,
-  onClose,
-  onSave,
-}: {
-  prospect: Prospect;
-  initialResult: ProspectContactResult;
-  onClose: () => void;
-  onSave: (input: {
-    result: ProspectContactResult;
-    channel: ProspectChannel;
-    note: string;
-    followUpAt?: string;
-  }) => void;
-}) {
-  const [result, setResult] = useState<ProspectContactResult>(initialResult);
-  const [channel, setChannel] = useState<ProspectChannel>('whatsapp');
-  const [note, setNote] = useState('');
-  const [followUpAt, setFollowUpAt] = useState(() =>
-    initialResult === 'reschedule' ? isoToLocalDateTime(prospect.nextActionAt) : '',
-  );
-  const [validationError, setValidationError] = useState('');
-  const modalRef = useRef<HTMLFormElement>(null);
-  const results: { value: ProspectContactResult; label: string }[] = [
-    { value: 'contacted', label: 'Contactado' },
-    { value: 'noResponse', label: 'No respondió' },
-    { value: 'reschedule', label: 'Reagendar' },
-    { value: 'discarded', label: 'Descartar' },
-  ];
-  useEffect(() => {
-    modalRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-      if (event.key !== 'Tab') return;
-      const controls = Array.from(
-        modalRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input, textarea',
-        ) ?? [],
-      );
-      const index = controls.indexOf(document.activeElement as HTMLElement);
-      const next = event.shiftKey
-        ? index <= 0
-          ? controls.length - 1
-          : index - 1
-        : index >= controls.length - 1
-          ? 0
-          : index + 1;
-      if (controls.length) {
-        event.preventDefault();
-        controls[next].focus();
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-  return (
-    <div
-      className="modal-backdrop"
-      onMouseDown={(event) => event.currentTarget === event.target && onClose()}
-    >
-      <form
-        ref={modalRef}
-        className="confirmation-modal prospect-action-modal commercial-form"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="prospect-action-title"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const input = { result, channel, note, ...(followUpAt ? { followUpAt } : {}) };
-          const error = getProspectActionValidationError(input);
-          if (error) return setValidationError(error);
-          onSave(input);
-        }}
-      >
-        <h2 id="prospect-action-title">Registrar acción</h2>
-        <p className="prospect-action-subtitle">
-          {prospect.name}
-          {prospect.company ? ` · ${prospect.company}` : ''}
-        </p>
-        <fieldset className="prospect-action-options">
-          <legend>Resultado</legend>
-          <div>
-            {results.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                className={`button button-line ${result === item.value ? 'saved-quote-filter-active' : ''}`}
-                aria-pressed={result === item.value}
-                onClick={() => {
-                  setResult(item.value);
-                  setValidationError('');
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset className="prospect-action-options">
-          <legend>Canal</legend>
-          <div>
-            {channels.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                className={`button button-line ${channel === item.value ? 'saved-quote-filter-active' : ''}`}
-                aria-pressed={channel === item.value}
-                onClick={() => setChannel(item.value)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        {result === 'reschedule' && (
-          <label className="field">
-            <span>Próximo contacto</span>
-            <input
-              type="datetime-local"
-              value={followUpAt}
-              onChange={(event) => {
-                setFollowUpAt(event.target.value);
-                setValidationError('');
-              }}
-            />
-          </label>
-        )}
-        {validationError && (
-          <p className="commercial-warning" role="alert">
-            {validationError}
-          </p>
-        )}
-        <label className="field">
-          <span>Nota opcional</span>
-          <textarea
-            value={note}
-            placeholder="Ej. pidió que lo contacte el jueves"
-            onChange={(event) => setNote(event.target.value)}
-          />
-        </label>
-        <div className="confirmation-actions">
-          <button className="button button-line" type="button" onClick={onClose}>
-            Cancelar
-          </button>
-          <button className="button button-primary" type="submit">
-            Guardar acción
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 function ProspectDetail({
   prospect,
   initialContactChannel,
@@ -1452,14 +1382,11 @@ function ProspectDetail({
   onDirtyChange?: (dirty: boolean) => void;
   onRegisterResult?: () => void;
 }) {
+  const workspaceContext = useWorkspace();
   const [draft, setDraft] = useState(prospect);
   const [isEditing, setIsEditing] = useState(isNew);
   const [scriptChannel, setScriptChannel] = useState<ProspectChannel>(initialContactChannel);
   const [script, setScript] = useState('');
-  const [result, setResult] = useState<ProspectContactResult | ''>('');
-  const [author, setAuthor] = useState('');
-  const [contactFeedback, setContactFeedback] = useState('');
-  const [detailFollowUpAt, setDetailFollowUpAt] = useState('');
   const [isConversionOpen, setIsConversionOpen] = useState(false);
   const [conversionFeedback, setConversionFeedback] = useState('');
   const [pendingConversion, setPendingConversion] = useState<Prospect | null>(null);
@@ -1475,9 +1402,30 @@ function ProspectDetail({
   function field<K extends keyof Prospect>(key: K, value: Prospect[K]) {
     setDraft((current) => ({ ...current, [key]: value, updatedAt: new Date().toISOString() }));
   }
-  function beginConversion(input: ProspectConversionInput) {
+  async function beginConversion(input: ProspectConversionInput) {
     try {
       const pending = createPendingProspectConversion(prospect, input);
+      const workspaceId = workspaceContext.session?.activeWorkspaceId;
+      if (isAuthConfigured()) {
+        if (!isWorkspaceUuid(workspaceId)) {
+          setConversionFeedback(
+            'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
+          );
+          return;
+        }
+        const remote = await convertRemoteProspectToOpportunity({
+          workspaceId,
+          prospectId: prospect.id,
+          expectedVersion: prospect.version ?? 1,
+          idempotencyKey: `convert-prospect:${prospect.id}:${prospect.version ?? 1}`,
+        });
+        if (!remote.ok) {
+          setConversionFeedback(remote.message);
+          return;
+        }
+        pending.version = remote.version;
+      }
+      setPendingConversion(pending);
       const pendingSave = saveProspectWithResult(pending);
       if (!pendingSave.ok) {
         setConversionFeedback(
@@ -1485,7 +1433,6 @@ function ProspectDetail({
         );
         return;
       }
-      setPendingConversion(pending);
       const result = resumeProspectConversion(pending);
       if (!result.ok) {
         setConversionFeedback(result.error);
@@ -1510,36 +1457,16 @@ function ProspectDetail({
     setPendingConversion(null);
     setConversionFeedback('Oportunidad creada. Revisá su contexto y próximo paso en Seguimiento.');
   }
-  async function recordResult(event: FormEvent) {
-    event.preventDefault();
-    if (!result) return setContactFeedback('Elegí el resultado del contacto.');
-    if (!isProspectContactAvailable(draft, scriptChannel))
-      return setContactFeedback(
-        scriptChannel === 'email'
-          ? 'Falta un email confirmado para este canal.'
-          : 'Falta un teléfono confirmado para este canal.',
-      );
-    const input = {
-      result,
-      channel: scriptChannel,
-      note: script,
-      author,
-      ...(detailFollowUpAt ? { followUpAt: detailFollowUpAt } : {}),
-    };
-    const validationError = getProspectActionValidationError(input);
-    if (validationError) return setContactFeedback(validationError);
-    if (!(await onSave(registerProspectAction(draft, input))))
-      return setContactFeedback('No se pudo guardar la acción. Intentá nuevamente.');
-    setResult('');
-    setScript('');
-    setDetailFollowUpAt('');
-    setContactFeedback('Contacto registrado en el historial.');
-  }
   async function saveDraft() {
+    const editableDraft = {
+      ...draft,
+      activities: prospect.activities,
+      ...(prospect.conversion ? { conversion: prospect.conversion } : {}),
+    };
     const next =
-      draft.status === prospect.status
-        ? draft
-        : transitionProspect({ ...draft, activities: prospect.activities }, draft.status);
+      editableDraft.status === prospect.status
+        ? editableDraft
+        : transitionProspect(editableDraft, editableDraft.status);
     if (await onSave(next)) setIsEditing(false);
   }
   function cancelEditing() {
@@ -1556,11 +1483,13 @@ function ProspectDetail({
     converted: 'Estado reservado para una conversión posterior.',
   };
   const channelUnavailable = !isProspectContactAvailable(draft, scriptChannel);
+  const instagramUrl = createProspectInstagramUrl(draft.instagram);
   const detailFields: readonly [keyof Prospect, string][] = [
     ['name', 'Nombre'],
     ['company', 'Empresa'],
     ['phone', 'Teléfono'],
     ['email', 'Email'],
+    ['instagram', 'Instagram'],
     ['source', 'Origen'],
     ['potentialService', 'Servicio potencial'],
     ['notes', 'Observaciones'],
@@ -1749,7 +1678,9 @@ function ProspectDetail({
               <p className="commercial-warning" role="alert">
                 {scriptChannel === 'email'
                   ? 'Falta un email confirmado para preparar este contacto.'
-                  : 'Falta un teléfono confirmado para preparar este contacto.'}
+                  : scriptChannel === 'instagram'
+                    ? 'Falta un usuario o URL de Instagram para preparar este contacto.'
+                    : 'Falta un teléfono confirmado para preparar este contacto.'}
               </p>
             )}
             <label className="field">
@@ -1761,48 +1692,24 @@ function ProspectDetail({
                 onChange={(e) => setScript(e.target.value)}
               />
             </label>
-            <form className="commercial-form" onSubmit={recordResult}>
-              <label className="field">
-                <span>Resultado</span>
-                <select
-                  value={result}
-                  onChange={(e) => setResult(e.target.value as ProspectContactResult | '')}
+            {scriptChannel === 'instagram' &&
+              (instagramUrl ? (
+                <a
+                  className="button button-line"
+                  href={instagramUrl}
+                  target="_blank"
+                  rel="noreferrer"
                 >
-                  <option value="">Seleccionar resultado</option>
-                  <optgroup label="En seguimiento">
-                    <option value="contacted">Contactado</option>
-                    <option value="noResponse">Sin respuesta</option>
-                    <option value="reschedule">Reagendar</option>
-                  </optgroup>
-                  <optgroup label="Resultado">
-                    <option value="discarded">No interesado</option>
-                  </optgroup>
-                </select>
-              </label>
-              {result === 'reschedule' && (
-                <label className="field">
-                  <span>Próximo contacto</span>
-                  <input
-                    type="datetime-local"
-                    value={detailFollowUpAt}
-                    onChange={(event) => setDetailFollowUpAt(event.target.value)}
-                    required
-                  />
-                </label>
-              )}
-              <label className="field">
-                <span>Autor</span>
-                <input value={author} onChange={(e) => setAuthor(e.target.value)} />
-              </label>
-              {contactFeedback && (
-                <p className="commercial-note" role="status">
-                  {contactFeedback}
-                </p>
-              )}
-              <button className="button button-primary" type="submit" disabled={channelUnavailable}>
-                Registrar contacto
-              </button>
-            </form>
+                  Abrir Instagram
+                </a>
+              ) : (
+                <button className="button button-line" type="button" disabled>
+                  Abrir Instagram
+                </button>
+              ))}
+            <p className="commercial-note">
+              Cuando termines el contacto, registrá el resultado desde el panel lateral.
+            </p>
           </section>
         )}
         <section className="quote-card prospect-timeline">
@@ -1846,13 +1753,15 @@ function ProspectConversionModal({
   onSave: (input: ProspectConversionInput) => void;
 }) {
   const [input, setInput] = useState<ProspectConversionInput>({
-    opportunityName: '',
+    opportunityName:
+      [prospect.company, prospect.potentialService].filter(Boolean).join(' · ') || prospect.name,
     serviceOfInterest: prospect.potentialService,
-    interestLevel: 'medium',
-    detectedNeed: '',
+    interestLevel:
+      prospect.priority === 'high' ? 'high' : prospect.priority === 'low' ? 'low' : 'medium',
+    detectedNeed: prospect.notes,
     estimatedValue: '',
-    nextStep: '',
-    nextStepAt: '',
+    nextStep: prospect.nextAction,
+    nextStepAt: isoToLocalDateTime(prospect.nextActionAt),
     nextStepChannel: (() => {
       const channel = [...prospect.activities]
         .reverse()
@@ -1871,11 +1780,14 @@ function ProspectConversionModal({
   const set = <K extends keyof ProspectConversionInput>(
     key: K,
     value: ProspectConversionInput[K],
-  ) => setInput((current) => ({ ...current, [key]: value }));
+  ) => {
+    setInput((current) => ({ ...current, [key]: value }));
+    setError('');
+  };
   return (
     <div className="modal-backdrop">
       <form
-        className="confirmation-modal commercial-form"
+        className="confirmation-modal prospect-conversion-modal commercial-form"
         role="dialog"
         aria-modal="true"
         aria-labelledby="conversion-title"
