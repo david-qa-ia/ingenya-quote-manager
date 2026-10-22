@@ -78,6 +78,7 @@ import {
   type RegisterResultSubmitResult,
 } from './components/RegisterResultDrawer';
 import { QuoteDetailView } from './components/QuoteDetailView';
+import { RegisterQuoteSendDrawer, type QuoteSendInput } from './components/RegisterQuoteSendDrawer';
 import {
   defaultProspectFilters,
   registerProspectAction,
@@ -104,6 +105,9 @@ import { workspaceStorageKey } from './utils/workspaceStorage';
 import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
 import { commitLocalFollowUpResult } from './utils/followUpResultTransaction';
+import { isAuthConfigured } from './utils/authService';
+import { registerRemoteQuoteSend, SupabaseRepositoryError } from './utils/supabaseRepository';
+import { commitLocalQuoteSend, hasQuoteSendRecovery } from './utils/quoteSendTransaction';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -162,6 +166,8 @@ function App() {
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
+  const [quoteSendTarget, setQuoteSendTarget] = useState<SavedQuote | null>(null);
+  const [quoteSendRecoveryRequired, setQuoteSendRecoveryRequired] = useState(false);
   const [prospectHasUnsavedChanges, setProspectHasUnsavedChanges] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -915,6 +921,124 @@ function App() {
     }
   }
 
+  async function handleQuoteSend(input: QuoteSendInput): Promise<{ ok: boolean; error?: string }> {
+    const quote = quoteSendTarget;
+    if (!quote) return { ok: false, error: 'No se encontró el presupuesto.' };
+    if (quoteSendRecoveryRequired || hasQuoteSendRecovery(quote.id))
+      return { ok: false, error: 'Este envío requiere recuperación. No repitas la confirmación.' };
+    const recipient =
+      input.channel === 'whatsapp'
+        ? loadClients().items.find((item) => item.id === quote.clientId)?.phone
+        : input.channel === 'email'
+          ? loadClients().items.find((item) => item.id === quote.clientId)?.email
+          : 'Registro comercial';
+    const normalizedPhone = recipient?.replace(/\D/g, '') ?? '';
+    const validEmail =
+      typeof recipient === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient);
+    if (input.channel === 'whatsapp' && !/^\d{7,15}$/.test(normalizedPhone))
+      return { ok: false, error: 'El contacto no tiene un teléfono válido para WhatsApp.' };
+    if (input.channel === 'email' && !validEmail)
+      return { ok: false, error: 'El contacto no tiene un email válido.' };
+    if (input.channel === 'other' && !input.note.trim())
+      return { ok: false, error: 'Indicá una nota para registrar otro canal.' };
+    const audit: Quote['commercialStatusAudit'] = {
+      changedAt: input.sentAt,
+      changedBy: input.responsible,
+      reason:
+        input.note ||
+        `Envío registrado por ${input.channel === 'whatsapp' ? 'WhatsApp' : input.channel === 'email' ? 'email' : input.channel === 'meeting' ? 'reunión' : 'otro canal'}.`,
+      ...(input.channel === 'whatsapp' || input.channel === 'email'
+        ? {
+            channel: input.channel,
+            recipient: input.channel === 'whatsapp' ? normalizedPhone : recipient!,
+          }
+        : {}),
+    };
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (isAuthConfigured() && workspaceId) {
+      try {
+        const remoteResult = await registerRemoteQuoteSend({
+          workspaceId,
+          quoteVersionId: quote.id,
+          expectedVersion: quote.version ?? 1,
+          channel: input.channel,
+          recipient:
+            input.channel === 'whatsapp'
+              ? normalizedPhone
+              : input.channel === 'email'
+                ? recipient!
+                : 'Registro comercial',
+          sentAt: input.sentAt,
+          note: audit.reason,
+          ...(input.nextStep !== 'none' && input.nextStepAt
+            ? {
+                nextAction: {
+                  type: input.nextStep,
+                  dueAt: input.nextStepAt,
+                  responsible: input.responsible,
+                },
+              }
+            : {}),
+          nextActionDecision: input.replaceExistingNextAction ? 'replace' : 'preserve',
+          idempotencyKey: `quote-send:${quote.id}`,
+        });
+        if (!remoteResult.ok) return { ok: false, error: remoteResult.message };
+      } catch (error) {
+        if (!(error instanceof SupabaseRepositoryError) || error.code !== 'network')
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : 'No se pudo confirmar el envío remoto.',
+          };
+      }
+    }
+    const saved = commitLocalQuoteSend({
+      quote,
+      audit,
+      ...(input.nextStep !== 'none' && input.nextStepAt
+        ? { nextStep: { type: input.nextStep, dueAt: input.nextStepAt } }
+        : {}),
+      replaceExistingNextAction: input.replaceExistingNextAction,
+    });
+    if (!saved.ok) {
+      if (saved.recoveryRequired) setQuoteSendRecoveryRequired(true);
+      return saved;
+    }
+    setCommercialStatus('sent');
+    setCommercialStatusAudit(audit);
+    setSentAudit(audit);
+    setSavedQuotes(loadSavedQuotes());
+    setOpportunities(loadOpportunities().items);
+    setQuoteSendTarget(null);
+    return { ok: true };
+  }
+
+  function handleQuoteChangeRequest(quote: SavedQuote, reason: string, responsible: string) {
+    const now = new Date().toISOString();
+    const next: SavedQuote = {
+      ...quote,
+      id: createQuoteId(),
+      commercialStatus: 'prepared',
+      commercialStatusAudit: {
+        changedAt: now,
+        changedBy: responsible,
+        reason: 'Nueva versión creada por pedido de cambio.',
+      },
+      sentAudit: undefined,
+      version: (quote.version ?? 1) + 1,
+      basedOnQuoteId: quote.id,
+      changeRequest: { requestedAt: now, requestedBy: responsible, reason },
+      savedAt: now,
+    };
+    if (!saveQuote(next)) return;
+    recordAutomaticActivity(
+      { kind: 'quote', quoteId: quote.id },
+      'commercialStatusChanged',
+      `Pedido de cambio registrado: ${reason}`,
+    );
+    setSavedQuotes(loadSavedQuotes());
+    setDetailQuoteId(next.id);
+  }
+
   function handleFinalizationRequest() {
     setSaveFeedback(null);
     setFinalizationFeedback(null);
@@ -1222,6 +1346,7 @@ function App() {
             setCurrentView('opportunityDetail');
           }}
           onOpenResult={setDrawerItem}
+          onProspectsChanged={setProspects}
           onDirtyChange={setProspectHasUnsavedChanges}
         />
         {resultDrawer}
@@ -1406,6 +1531,26 @@ function App() {
 
   if (currentView === 'quoteDetail') {
     const quote = savedQuotes.find((item) => item.id === detailQuoteId);
+    const versionIds = new Set<string>(quote ? [quote.id] : []);
+    let expandedVersions = true;
+    while (expandedVersions) {
+      expandedVersions = false;
+      for (const item of savedQuotes) {
+        if (
+          item.basedOnQuoteId &&
+          versionIds.has(item.basedOnQuoteId) &&
+          !versionIds.has(item.id)
+        ) {
+          versionIds.add(item.id);
+          expandedVersions = true;
+        }
+        if (item.id === quote?.id && item.basedOnQuoteId && !versionIds.has(item.basedOnQuoteId)) {
+          versionIds.add(item.basedOnQuoteId);
+          expandedVersions = true;
+        }
+      }
+    }
+    const quoteVersions = savedQuotes.filter((item) => versionIds.has(item.id));
     const opportunity = opportunities.find(
       (item) => item.id === quote?.opportunityId && item.clientId === quote?.clientId,
     );
@@ -1430,6 +1575,7 @@ function App() {
         {appHeader}
         <QuoteDetailView
           quote={quote}
+          versions={quoteVersions}
           opportunity={opportunity}
           client={loadClients().items.find((item) => item.id === quote.clientId)}
           onBack={() => {
@@ -1440,7 +1586,35 @@ function App() {
           }}
           onPdf={handleQuoteDetailPdfDownload}
           onStatus={(_quote, status, audit) => handleCommercialStatusChange(status, audit)}
+          onRegisterSend={setQuoteSendTarget}
+          onRequestChange={handleQuoteChangeRequest}
         />
+        {quoteSendTarget && (
+          <RegisterQuoteSendDrawer
+            quote={quoteSendTarget}
+            onClose={() => setQuoteSendTarget(null)}
+            onSubmit={handleQuoteSend}
+            existingNextAction={
+              opportunity?.nextAction?.status === 'pending' ? opportunity.nextAction : undefined
+            }
+            canSendWhatsApp={Boolean(
+              quoteSendTarget &&
+              /^\d{7,15}$/.test(
+                (
+                  loadClients().items.find((item) => item.id === quoteSendTarget.clientId)?.phone ??
+                  ''
+                ).replace(/\D/g, ''),
+              ),
+            )}
+            canSendEmail={Boolean(
+              quoteSendTarget &&
+              /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+                loadClients().items.find((item) => item.id === quoteSendTarget.clientId)?.email ??
+                  '',
+              ),
+            )}
+          />
+        )}
       </>
     );
   }

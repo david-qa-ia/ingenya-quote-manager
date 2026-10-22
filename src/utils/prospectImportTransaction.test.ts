@@ -71,7 +71,7 @@ describe('prospect import transaction', () => {
       '2026-10-20T10:00:00.000Z',
     );
     expect(savePreparedProspectImport(prepared)).toBe(true);
-    expect(savePreparedProspectImport(prepared)).toBe(false);
+    expect(savePreparedProspectImport(prepared)).toBe(true);
     expect(loadProspects().items).toHaveLength(2);
     expect(loadProspects().items.every((prospect) => !prospect.nextActionAt)).toBe(true);
   });
@@ -126,6 +126,22 @@ describe('prospect import transaction', () => {
     failWrites = false;
     expect(loadProspects().items).toEqual([]);
   });
+  it('persists valid rows and reports no hidden records from invalid or duplicate rows', () => {
+    const mixedRows = previewProspectCsv(
+      'name,company,phone,email,source,potentialService,notes\nAna,Sur,3415550101,ana@sur.com,Web,Pintura,\nInvalida,Norte,12,no,Web,Obra,\nAna,Sur,3415550101,ana@sur.com,Web,Pintura,',
+      [],
+    );
+    const prepared = prepareProspectImport(
+      mixedRows,
+      { schedule: false, channel: 'whatsapp', dueAt: '', responsible: '', note: '' },
+      'mixed-import',
+      '2026-10-20T10:00:00.000Z',
+    );
+    expect(mixedRows.filter((row) => !row.reason && !row.duplicate)).toHaveLength(1);
+    expect(savePreparedProspectImport(prepared)).toBe(true);
+    expect(loadProspects().items).toHaveLength(1);
+    expect(loadProspects().items[0].name).toBe('Ana');
+  });
   it('isolates a prepared import by active workspace', () => {
     const prepared = prepareProspectImport(
       rows,
@@ -137,6 +153,30 @@ describe('prospect import transaction', () => {
     expect(savePreparedProspectImport(prepared)).toBe(true);
     session.set('ingenya.activeWorkspace.v1', 'workspace-b');
     expect(loadProspects().items).toEqual([]);
+  });
+  it('keeps recovery with the workspace that started the import', () => {
+    const prepared = prepareProspectImport(
+      rows,
+      { schedule: false, channel: 'whatsapp', dueAt: '', responsible: '', note: '' },
+      'workspace-recovery',
+      '2026-10-20T10:00:00.000Z',
+    );
+    session.set('ingenya.activeWorkspace.v1', 'workspace-b');
+    expect(
+      saveProspectImportRecovery({
+        importKey: prepared.importKey,
+        workspaceId: 'workspace-a',
+        fileName: 'prospectos.csv',
+        csv: 'csv',
+        config: { schedule: false, channel: 'whatsapp', dueAt: '', responsible: '', note: '' },
+        prepared,
+        phase: 'remoteConfirmed',
+      }),
+    ).toBe(true);
+    expect(stored.get('workspace-a::ingenya.prospectImportRecovery.v1')).toContain(
+      'workspace-recovery',
+    );
+    expect(stored.get('workspace-b::ingenya.prospectImportRecovery.v1')).toBeUndefined();
   });
   it('derives each scheduled import once for the shared inboxes', () => {
     const prepared = prepareProspectImport(

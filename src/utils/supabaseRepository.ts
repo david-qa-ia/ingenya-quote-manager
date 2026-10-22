@@ -2,6 +2,77 @@ import type { Prospect } from '../types/prospect';
 import type { PreparedProspectImport } from './prospectImportTransaction';
 import { getSupabaseConfig, loadAuthSession } from './authService';
 
+export type RemoteQuoteSendResult =
+  | {
+      ok: true;
+      idempotent: boolean;
+      version: number;
+    }
+  | {
+      ok: false;
+      reason: 'conflict';
+      message: string;
+    };
+
+export async function registerRemoteQuoteSend(input: {
+  workspaceId: string;
+  quoteVersionId: string;
+  expectedVersion: number;
+  channel: string;
+  recipient: string;
+  sentAt: string;
+  note: string;
+  nextAction?: {
+    type: 'call' | 'whatsapp' | 'email' | 'meeting';
+    dueAt: string;
+    responsible: string;
+  };
+  nextActionDecision: 'preserve' | 'replace';
+  idempotencyKey: string;
+}): Promise<RemoteQuoteSendResult> {
+  const result = await request<{ code?: string; version?: number; idempotent?: boolean }>(
+    '/rest/v1/rpc/register_quote_send_with_next_action',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_workspace_id: input.workspaceId,
+        p_quote_version_id: input.quoteVersionId,
+        p_expected_version: input.expectedVersion,
+        p_channel: input.channel,
+        p_recipient: input.recipient,
+        p_sent_at: input.sentAt,
+        p_note: input.note,
+        p_next_action: input.nextAction
+          ? {
+              kind: 'followUp',
+              type: input.nextAction.type,
+              description: 'Dar seguimiento al presupuesto enviado',
+              dueAt: input.nextAction.dueAt,
+              responsible: input.nextAction.responsible,
+              priority: 'medium',
+            }
+          : null,
+        p_next_action_decision: input.nextActionDecision,
+        p_idempotency_key: input.idempotencyKey,
+        p_request_id: crypto.randomUUID(),
+      }),
+    },
+  );
+  if (result.code === 'CONFLICT')
+    return {
+      ok: false,
+      reason: 'conflict',
+      message: 'La versión cambió antes de registrar el envío.',
+    };
+  if (result.code !== 'OK')
+    throw new SupabaseRepositoryError('server', 'Supabase no confirmó el envío del presupuesto.');
+  return {
+    ok: true,
+    idempotent: Boolean(result.idempotent),
+    version: result.version ?? input.expectedVersion + 1,
+  };
+}
+
 export class SupabaseRepositoryError extends Error {
   readonly code: 'not-configured' | 'session-expired' | 'network' | 'conflict' | 'server';
 
@@ -21,7 +92,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   headers.set('apikey', config.anonKey);
   headers.set('Authorization', `Bearer ${session.accessToken}`);
   if (init?.body) headers.set('Content-Type', 'application/json');
-  const response = await fetch(`${config.url}${path}`, { ...init, headers });
+  let response: Response;
+  try {
+    response = await fetch(`${config.url}${path}`, { ...init, headers });
+  } catch (error) {
+    throw new SupabaseRepositoryError('network', 'No se pudo conectar con Supabase.', {
+      cause: error,
+    });
+  }
   if (response.status === 401)
     throw new SupabaseRepositoryError('session-expired', 'La sesión venció.');
   if (response.status === 409)

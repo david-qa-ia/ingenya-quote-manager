@@ -130,9 +130,20 @@ export interface ProspectActionInput {
   author?: string;
 }
 
+function normalizeFollowUpAt(
+  value: string,
+): { ok: true; value: string } | { ok: false; error: string } {
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(trimmed)) {
+    const date = new Date(trimmed);
+    if (Number.isFinite(date.getTime())) return { ok: true, value: date.toISOString() };
+  }
+  return localDateTimeToIso(trimmed);
+}
+
 export function getProspectActionValidationError(input: ProspectActionInput): string | null {
   if (input.result === 'reschedule' || input.followUpAt?.trim()) {
-    const result = localDateTimeToIso(input.followUpAt?.trim() ?? '');
+    const result = normalizeFollowUpAt(input.followUpAt?.trim() ?? '');
     if (!result.ok) return result.error;
   }
   return null;
@@ -150,7 +161,7 @@ export function registerProspectAction(prospect: Prospect, input: ProspectAction
         : 'contacted';
   let followUpAt = '';
   if (input.followUpAt?.trim()) {
-    const normalizedFollowUp = localDateTimeToIso(input.followUpAt?.trim() ?? '');
+    const normalizedFollowUp = normalizeFollowUpAt(input.followUpAt?.trim() ?? '');
     if (!normalizedFollowUp.ok) throw new Error(normalizedFollowUp.error);
     followUpAt = normalizedFollowUp.value;
   }

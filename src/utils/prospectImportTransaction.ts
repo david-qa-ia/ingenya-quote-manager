@@ -3,7 +3,7 @@ import { PROSPECTS_STORAGE_KEY, isProspect } from './prospectStorage';
 import type { FirstContactChannel, ProspectImportRow } from './prospectImport';
 import { hasUsableContact } from './prospectImport';
 import { readCollection } from './localCollectionStorage';
-import { workspaceStorageKey } from './workspaceStorage';
+import { workspaceStorageKey, workspaceStorageKeyFor } from './workspaceStorage';
 
 export const PROSPECT_IMPORT_RECOVERY_STORAGE_KEY = 'ingenya.prospectImportRecovery.v1';
 
@@ -21,6 +21,7 @@ export interface PreparedProspectImport {
 }
 export interface ProspectImportRecovery {
   importKey: string;
+  workspaceId?: string;
   fileName: string;
   csv: string;
   config: FirstContactImportConfig;
@@ -88,12 +89,23 @@ export function savePreparedProspectImport(prepared: PreparedProspectImport): bo
         typeof record === 'object' && record ? (record as { id?: string }).id : undefined,
       ),
     );
-    if (prepared.prospects.some((prospect) => ids.has(prospect.id))) return false;
-    localStorage.setItem(
-      workspaceStorageKey(PROSPECTS_STORAGE_KEY),
-      JSON.stringify([...records, ...prepared.prospects]),
+    const existingById = new Map(
+      records
+        .filter((record): record is Prospect => isProspect(record))
+        .map((record) => [record.id, record]),
     );
-    return true;
+    if (prepared.prospects.some((prospect) => ids.has(prospect.id))) {
+      return prepared.prospects.every(
+        (prospect) => JSON.stringify(existingById.get(prospect.id)) === JSON.stringify(prospect),
+      );
+    }
+    const key = workspaceStorageKey(PROSPECTS_STORAGE_KEY);
+    const next = [...records, ...prepared.prospects];
+    localStorage.setItem(key, JSON.stringify(next));
+    const confirmed = readCollection(PROSPECTS_STORAGE_KEY);
+    return prepared.prospects.every((prospect) =>
+      confirmed.some((record) => isProspect(record) && record.id === prospect.id),
+    );
   } catch {
     return false;
   }
@@ -102,7 +114,7 @@ export function savePreparedProspectImport(prepared: PreparedProspectImport): bo
 export function saveProspectImportRecovery(recovery: ProspectImportRecovery): boolean {
   try {
     localStorage.setItem(
-      workspaceStorageKey(PROSPECT_IMPORT_RECOVERY_STORAGE_KEY),
+      workspaceStorageKeyFor(PROSPECT_IMPORT_RECOVERY_STORAGE_KEY, recovery.workspaceId),
       JSON.stringify(recovery),
     );
     return true;

@@ -52,6 +52,7 @@ import {
   type ProspectConversionInput,
 } from '../utils/prospectConversion';
 import { isAuthConfigured } from '../utils/authService';
+import { getActiveWorkspaceId } from '../utils/workspaceStorage';
 import {
   createRemoteProspect,
   importRemoteProspects,
@@ -124,6 +125,7 @@ interface Props {
   onFiltersChange: (filters: ProspectFilters) => void;
   onOpenOpportunity: (id: string) => void;
   onOpenResult: (item: FollowUpInboxItem) => void;
+  onProspectsChanged?: (prospects: Prospect[]) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -132,6 +134,7 @@ export function ProspectingView({
   onFiltersChange,
   onOpenOpportunity,
   onOpenResult,
+  onProspectsChanged,
   onDirtyChange,
 }: Props) {
   const workspaceContext = useWorkspace();
@@ -187,15 +190,21 @@ export function ProspectingView({
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
     if (!isAuthConfigured() || !workspaceId) return;
     loadRemoteProspects(workspaceId)
-      .then((rows) => setProspects(rows.map(mapRemoteProspect)))
+      .then((rows) => {
+        const next = rows.map(mapRemoteProspect);
+        setProspects(next);
+        onProspectsChanged?.(next);
+      })
       .catch(() => setFeedback('No se pudieron cargar los prospectos del espacio activo.'));
-  }, [workspaceContext.session?.activeWorkspaceId]);
+  }, [workspaceContext.session?.activeWorkspaceId, onProspectsChanged]);
   function updateFilters(next: ProspectFilters) {
     setFilters(next);
     onFiltersChange(next);
   }
   function refresh() {
-    setProspects(loadProspects().items);
+    const next = loadProspects().items;
+    setProspects(next);
+    onProspectsChanged?.(next);
   }
   function save(next: Prospect, openDetail = true): boolean {
     const result = saveProspectWithResult(next);
@@ -283,8 +292,10 @@ export function ProspectingView({
     if (!config) return;
     importSubmissionRef.current = true;
     const prepared = preparedImport ?? prepareProspectImport(rows, config);
+    const importWorkspaceId = getActiveWorkspaceId() ?? workspaceContext.session?.activeWorkspaceId;
     const recovery: ProspectImportRecovery = {
       importKey: prepared.importKey,
+      workspaceId: importWorkspaceId ?? undefined,
       fileName: csvFileName,
       csv,
       config,
@@ -295,7 +306,7 @@ export function ProspectingView({
     saveProspectImportRecovery(recovery);
     setIsImporting(true);
     try {
-      const workspaceId = workspaceContext.session?.activeWorkspaceId;
+      const workspaceId = importWorkspaceId;
       let remoteConfirmed = importRecovery?.phase === 'remoteConfirmed';
       if (isAuthConfigured() && workspaceId && !remoteConfirmed) {
         await importRemoteProspects(workspaceId, prepared);
@@ -303,6 +314,14 @@ export function ProspectingView({
         const confirmedRecovery = { ...recovery, phase: 'remoteConfirmed' as const };
         setImportRecovery(confirmedRecovery);
         saveProspectImportRecovery(confirmedRecovery);
+      }
+      if (getActiveWorkspaceId() !== importWorkspaceId) {
+        setImportRecovery(recovery);
+        saveProspectImportRecovery(recovery);
+        setFeedback(
+          'El workspace cambió durante la importación. Volvé al workspace original para completar la recuperación sin duplicar datos.',
+        );
+        return;
       }
       if (!savePreparedProspectImport(prepared)) {
         if (remoteConfirmed) {
@@ -321,8 +340,9 @@ export function ProspectingView({
       setImportRecovery(null);
       setPreparedImport(null);
       refresh();
+      const omitted = rows.length - prepared.prospects.length;
       setFeedback(
-        `${prepared.prospects.length} prospecto(s) importado(s)${prepared.scheduledCount ? ` y ${prepared.scheduledCount} primer contacto(s) agendado(s)` : ''}.`,
+        `${prepared.prospects.length} prospecto(s) importado(s)${omitted ? `, ${omitted} omitido(s)` : ''}${prepared.scheduledCount ? ` y ${prepared.scheduledCount} primer contacto(s) agendado(s)` : ''}.`,
       );
       cancelImport();
     } catch (error) {
@@ -338,6 +358,10 @@ export function ProspectingView({
   }
   async function recoverImport() {
     if (!importRecovery || isImporting || importSubmissionRef.current) return;
+    if (importRecovery.workspaceId && getActiveWorkspaceId() !== importRecovery.workspaceId) {
+      setFeedback('Volvé al workspace donde inició la importación para recuperar este lote.');
+      return;
+    }
     importSubmissionRef.current = true;
     setCsv(importRecovery.csv);
     setCsvFileName(importRecovery.fileName);
