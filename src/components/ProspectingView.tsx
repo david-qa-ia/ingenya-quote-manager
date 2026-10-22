@@ -54,6 +54,7 @@ import { isAuthConfigured } from '../utils/authService';
 import { getActiveWorkspaceId, isWorkspaceUuid } from '../utils/workspaceStorage';
 import {
   createRemoteProspect,
+  convertRemoteProspectToOpportunity,
   importRemoteProspects,
   updateRemoteProspectProfile,
   loadRemoteProspectActivities,
@@ -1368,6 +1369,7 @@ function ProspectDetail({
   onDirtyChange?: (dirty: boolean) => void;
   onRegisterResult?: () => void;
 }) {
+  const workspaceContext = useWorkspace();
   const [draft, setDraft] = useState(prospect);
   const [isEditing, setIsEditing] = useState(isNew);
   const [scriptChannel, setScriptChannel] = useState<ProspectChannel>(initialContactChannel);
@@ -1387,9 +1389,30 @@ function ProspectDetail({
   function field<K extends keyof Prospect>(key: K, value: Prospect[K]) {
     setDraft((current) => ({ ...current, [key]: value, updatedAt: new Date().toISOString() }));
   }
-  function beginConversion(input: ProspectConversionInput) {
+  async function beginConversion(input: ProspectConversionInput) {
     try {
       const pending = createPendingProspectConversion(prospect, input);
+      const workspaceId = workspaceContext.session?.activeWorkspaceId;
+      if (isAuthConfigured()) {
+        if (!isWorkspaceUuid(workspaceId)) {
+          setConversionFeedback(
+            'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
+          );
+          return;
+        }
+        const remote = await convertRemoteProspectToOpportunity({
+          workspaceId,
+          prospectId: prospect.id,
+          expectedVersion: prospect.version ?? 1,
+          idempotencyKey: `convert-prospect:${prospect.id}:${prospect.version ?? 1}`,
+        });
+        if (!remote.ok) {
+          setConversionFeedback(remote.message);
+          return;
+        }
+        pending.version = remote.version;
+      }
+      setPendingConversion(pending);
       const pendingSave = saveProspectWithResult(pending);
       if (!pendingSave.ok) {
         setConversionFeedback(
@@ -1397,7 +1420,6 @@ function ProspectDetail({
         );
         return;
       }
-      setPendingConversion(pending);
       const result = resumeProspectConversion(pending);
       if (!result.ok) {
         setConversionFeedback(result.error);

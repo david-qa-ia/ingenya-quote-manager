@@ -121,6 +121,54 @@ export async function registerRemoteProspectResult(input: {
   return { ok: true, idempotent: Boolean(result.idempotent), version: result.version as number };
 }
 
+export type RemoteProspectConversionResult =
+  | { ok: true; idempotent: boolean; version: number; opportunityId: string }
+  | { ok: false; reason: 'conflict'; message: string; version?: number };
+
+export async function convertRemoteProspectToOpportunity(input: {
+  workspaceId: string;
+  prospectId: string;
+  expectedVersion: number;
+  idempotencyKey: string;
+}): Promise<RemoteProspectConversionResult> {
+  const result = await request<{
+    code?: string;
+    version?: number;
+    opportunityId?: string;
+    idempotent?: boolean;
+    currentVersion?: number;
+  }>('/rest/v1/rpc/convert_prospect_to_opportunity', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_workspace_id: input.workspaceId,
+      p_prospect_id: input.prospectId,
+      p_expected_version: input.expectedVersion,
+      p_idempotency_key: input.idempotencyKey,
+      p_request_id: crypto.randomUUID(),
+    }),
+  });
+  if (result.code === 'CONFLICT') {
+    return {
+      ok: false,
+      reason: 'conflict',
+      version: result.currentVersion,
+      message: 'El prospecto cambió antes de crear la oportunidad. Recargá y revisá los datos.',
+    };
+  }
+  if (result.code !== 'OK' || !Number.isInteger(result.version) || !result.opportunityId) {
+    throw new SupabaseRepositoryError(
+      'server',
+      'Supabase no confirmó la conversión del prospecto.',
+    );
+  }
+  return {
+    ok: true,
+    idempotent: Boolean(result.idempotent),
+    version: result.version as number,
+    opportunityId: result.opportunityId,
+  };
+}
+
 export class SupabaseRepositoryError extends Error {
   readonly code: 'not-configured' | 'session-expired' | 'network' | 'conflict' | 'server';
 

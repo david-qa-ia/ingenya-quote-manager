@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   importRemoteProspects,
+  convertRemoteProspectToOpportunity,
   registerRemoteProspectResult,
   registerRemoteQuoteSend,
 } from './supabaseRepository';
@@ -219,6 +220,59 @@ describe('remote prospect result', () => {
   it('does not turn a network failure into a local success', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     await expect(registerRemoteProspectResult(input)).rejects.toMatchObject({ code: 'network' });
+  });
+});
+
+describe('remote prospect conversion', () => {
+  const input = {
+    workspaceId: '5d6c1a4e-5f7a-4b94-b9f7-6c6b2c7a61c3',
+    prospectId: '9a4e167e-8f7b-4a6d-b87c-6a671d9b7612',
+    expectedVersion: 2,
+    idempotencyKey: 'convert-prospect:9a4e:2',
+  };
+
+  it('confirms the remote conversion before the local mirror is updated', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 'OK',
+          version: 3,
+          opportunityId: '9a4e167e-8f7b-4a6d-b87c-6a671d9b7613',
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(convertRemoteProspectToOpportunity(input)).resolves.toEqual({
+      ok: true,
+      idempotent: false,
+      version: 3,
+      opportunityId: '9a4e167e-8f7b-4a6d-b87c-6a671d9b7613',
+    });
+    const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/rest/v1/rpc/convert_prospect_to_opportunity');
+    expect(JSON.parse(request.body as string)).toMatchObject({
+      p_workspace_id: input.workspaceId,
+      p_prospect_id: input.prospectId,
+      p_expected_version: input.expectedVersion,
+      p_idempotency_key: input.idempotencyKey,
+    });
+  });
+
+  it('returns a typed conflict instead of creating another opportunity', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ code: 'CONFLICT', currentVersion: 4 }), { status: 200 }),
+        ),
+    );
+    await expect(convertRemoteProspectToOpportunity(input)).resolves.toMatchObject({
+      ok: false,
+      reason: 'conflict',
+      version: 4,
+    });
   });
 });
 
