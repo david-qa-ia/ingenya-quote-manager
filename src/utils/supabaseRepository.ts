@@ -104,6 +104,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new SupabaseRepositoryError('session-expired', 'La sesión venció.');
   if (response.status === 409)
     throw new SupabaseRepositoryError('conflict', 'Conflicto de actualización.');
+  if (response.status === 404)
+    throw new SupabaseRepositoryError(
+      'server',
+      'La función requerida no está disponible en Supabase.',
+    );
   if (!response.ok) throw new SupabaseRepositoryError('server', 'Supabase rechazó la operación.');
   return (await response.json()) as T;
 }
@@ -171,38 +176,52 @@ export async function createRemoteProspect(workspaceId: string, prospect: Prospe
 export async function importRemoteProspects(
   workspaceId: string,
   prepared: PreparedProspectImport,
-): Promise<void> {
-  await request('/rest/v1/rpc/import_prospects_with_first_contact', {
-    method: 'POST',
-    body: JSON.stringify({
-      p_workspace_id: workspaceId,
-      p_prospects: prepared.prospects.map((prospect) => ({
-        id: prospect.id,
-        name: prospect.name,
-        company: prospect.company,
-        phone: prospect.phone,
-        email: prospect.email,
-        source: prospect.source,
-        potentialService: prospect.potentialService,
-        notes: prospect.notes,
-        status: prospect.status,
-        priority: prospect.priority,
-        priorityReason: prospect.priorityReason,
-        nextAction: prospect.nextAction,
-        nextActionAt: prospect.nextActionAt,
-        responsible: prospect.responsible,
-        preferredChannel: prospect.preferredChannel,
-        activities: prospect.activities.map((activity) => ({
-          id: activity.id,
-          occurredAt: activity.occurredAt,
-          type: activity.type,
-          description: activity.description,
-          note: activity.note,
-          channel: activity.channel,
+): Promise<{ importedCount: number; idempotent: boolean }> {
+  const result = await request<{ code?: string; importedCount?: number; idempotent?: boolean }>(
+    '/rest/v1/rpc/import_prospects_with_first_contact',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_workspace_id: workspaceId,
+        p_prospects: prepared.prospects.map((prospect) => ({
+          id: prospect.id,
+          name: prospect.name,
+          company: prospect.company,
+          phone: prospect.phone,
+          email: prospect.email,
+          source: prospect.source,
+          potentialService: prospect.potentialService,
+          notes: prospect.notes,
+          status: prospect.status,
+          priority: prospect.priority,
+          priorityReason: prospect.priorityReason,
+          nextAction: prospect.nextAction,
+          nextActionAt: prospect.nextActionAt,
+          responsible: prospect.responsible,
+          preferredChannel: prospect.preferredChannel,
+          activities: prospect.activities.map((activity) => ({
+            id: activity.id,
+            occurredAt: activity.occurredAt,
+            type: activity.type,
+            description: activity.description,
+            note: activity.note,
+            channel: activity.channel,
+          })),
         })),
-      })),
-      p_idempotency_key: `import-prospects:${prepared.importKey}`,
-      p_request_id: crypto.randomUUID(),
-    }),
-  });
+        p_idempotency_key: `import-prospects:${prepared.importKey}`,
+        p_request_id: crypto.randomUUID(),
+      }),
+    },
+  );
+  if (result.code !== 'OK' || !Number.isInteger(result.importedCount))
+    throw new SupabaseRepositoryError(
+      'server',
+      'Supabase no confirmó el resultado de la importación.',
+    );
+  if (result.importedCount !== prepared.prospects.length)
+    throw new SupabaseRepositoryError(
+      'server',
+      'Supabase confirmó un conteo distinto al lote preparado. No se completó la importación.',
+    );
+  return { importedCount: result.importedCount, idempotent: Boolean(result.idempotent) };
 }

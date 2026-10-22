@@ -4813,11 +4813,59 @@ body,
   margin: 4px 0 0;
   color: var(--text-muted);
 }
+.direct-client-panel {
+  margin-bottom: 24px;
+}
+.direct-client-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.direct-client-option {
+  text-align: left;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.direct-client-option strong,
+.direct-client-option span {
+  display: block;
+}
+.direct-client-option span {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.direct-client-option-active {
+  border-color: var(--primary);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.direct-client-fields {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+.direct-client-matches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.direct-client-matches .is-selected {
+  border-color: var(--primary);
+  color: var(--primary);
+}
 @media (max-width: 700px) {
   .quote-version-row {
     grid-template-columns: 45px 1fr;
   }
   .quote-version-row small {
     grid-column: 2;
+  }
+  .direct-client-choice {
+    grid-template-columns: 1fr;
   }
 }

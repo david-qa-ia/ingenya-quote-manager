@@ -198,6 +198,25 @@ export function saveQuote(quote: Quote): boolean {
   }
 }
 
+/** Links an existing quote after an explicit conversion. It does not alter its versions or sends. */
+export function linkQuoteToOpportunity(quoteId: string, opportunityId: string): boolean {
+  try {
+    const savedQuotes = readCollection(SAVED_QUOTES_STORAGE_KEY);
+    const index = savedQuotes.findIndex((saved) => hasRecordId(saved, quoteId));
+    if (index < 0) return false;
+    const quote = recoverSavedQuote(savedQuotes[index]);
+    if (!quote || (quote.opportunityId && quote.opportunityId !== opportunityId)) return false;
+    savedQuotes[index] = { ...quote, opportunityId };
+    localStorage.setItem(
+      workspaceStorageKey(SAVED_QUOTES_STORAGE_KEY),
+      JSON.stringify(savedQuotes),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function saveFinalizedQuoteCommercialState(
   quoteId: string,
   commercialStatus: CommercialStatus,

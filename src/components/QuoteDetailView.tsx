@@ -26,6 +26,7 @@ interface Props {
   ): string | null;
   onRegisterSend(quote: SavedQuote): void;
   onRequestChange(quote: SavedQuote, reason: string, responsible: string): void;
+  onConvertDirect(quote: SavedQuote): string | null;
 }
 
 export function QuoteDetailView({
@@ -38,6 +39,7 @@ export function QuoteDetailView({
   onStatus,
   onRegisterSend,
   onRequestChange,
+  onConvertDirect,
 }: Props) {
   const [target, setTarget] = useState<CommercialStatus | null>(null);
   const [author, setAuthor] = useState('');
@@ -47,6 +49,7 @@ export function QuoteDetailView({
   const [changeReason, setChangeReason] = useState('');
   const [changeResponsible, setChangeResponsible] = useState('');
   const [loadingPdf, setLoadingPdf] = useState(false);
+  const [converting, setConverting] = useState(false);
   const total = calculateQuoteTotal(quote.lines);
   const targets = getCommercialTransitionTargets(quote.commercialStatus, quote.status);
   const displayName = opportunity?.name || quote.projectName || 'Presupuesto';
@@ -75,6 +78,13 @@ export function QuoteDetailView({
   function openExternal(url: string, message: string) {
     window.open(url, '_blank', 'noopener,noreferrer');
     setFeedback(message);
+  }
+  function convertDirect() {
+    if (converting) return;
+    setConverting(true);
+    const error = onConvertDirect(quote);
+    setFeedback(error ?? 'El presupuesto se vinculó a una oportunidad conservando su historial.');
+    setConverting(false);
   }
 
   return (
@@ -274,6 +284,23 @@ export function QuoteDetailView({
               )}
             </div>
           </section>
+          {!opportunity && quote.clientId && (
+            <section className="quote-detail-card" aria-label="Conversión comercial">
+              <h2>Cliente directo</h2>
+              <p className="commercial-note">
+                Este presupuesto no pertenece a una oportunidad. Podés convertirlo cuando el trabajo
+                requiera seguimiento comercial.
+              </p>
+              <button
+                className="button button-line"
+                type="button"
+                onClick={convertDirect}
+                disabled={converting}
+              >
+                {converting ? 'Convirtiendo…' : 'Convertir en oportunidad'}
+              </button>
+            </section>
+          )}
         </div>
         <aside className="quote-detail-side">
           <section className="quote-detail-card quote-contact-detail">
