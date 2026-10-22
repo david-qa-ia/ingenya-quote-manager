@@ -17,6 +17,7 @@ export interface FollowUpInboxItem {
   estimatedValue?: number;
   phone?: string;
   email?: string;
+  instagram?: string;
   contactRestricted: boolean;
   opportunityId?: string;
   opportunityName?: string;

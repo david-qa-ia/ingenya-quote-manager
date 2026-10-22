@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 import type { FollowUpResultSaveResult } from '../utils/followUpResultTransaction';
 
-export type ResultChannel = 'call' | 'whatsapp' | 'email' | 'meeting';
-export type ResultNextStep = 'none' | 'call' | 'sendQuote' | 'email' | 'whatsapp' | 'meeting';
+export type ResultChannel = 'call' | 'whatsapp' | 'email' | 'instagram' | 'meeting';
+export type ResultNextStep =
+  'none' | 'call' | 'sendQuote' | 'email' | 'whatsapp' | 'instagram' | 'meeting';
 
 export interface RegisterResultInput {
   actor: string;
@@ -24,6 +25,7 @@ interface Props {
     input: RegisterResultInput,
   ) => RegisterResultSubmitResult | Promise<RegisterResultSubmitResult>;
   onQuoteIntent?: (item: FollowUpInboxItem, mode: 'new' | 'existing') => void;
+  onRecover?: () => RegisterResultSubmitResult | Promise<RegisterResultSubmitResult>;
 }
 
 const resultOptions = [
@@ -115,11 +117,15 @@ function OptionCard({
   label,
   icon,
   onClick,
+  disabled = false,
+  unavailableReason,
 }: {
   selected: boolean;
   label: string;
   icon: string;
   onClick: () => void;
+  disabled?: boolean;
+  unavailableReason?: string;
 }) {
   return (
     <button
@@ -127,6 +133,8 @@ function OptionCard({
       type="button"
       aria-pressed={selected}
       onClick={onClick}
+      disabled={disabled}
+      title={unavailableReason}
     >
       <OptionIcon icon={icon} />
       <span>{label}</span>
@@ -139,10 +147,12 @@ function OptionCard({
   );
 }
 
-export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }: Props) {
+export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, onRecover }: Props) {
   const [result, setResult] = useState('');
   const [channel, setChannel] = useState<ResultChannel>(
-    item.channel === 'whatsapp' || item.channel === 'email' ? item.channel : 'call',
+    item.channel === 'whatsapp' || item.channel === 'email' || item.channel === 'instagram'
+      ? item.channel
+      : 'call',
   );
   const [nextStep, setNextStep] = useState<ResultNextStep>('none');
   const [dueAt, setDueAt] = useState('');
@@ -153,6 +163,13 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
   const [isSaving, setIsSaving] = useState(false);
   const [recoveryRequired, setRecoveryRequired] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const unavailableChannelReason = (value: ResultChannel | ResultNextStep) => {
+    if (value === 'whatsapp' && !item.phone) return 'Falta un teléfono válido para WhatsApp.';
+    if (value === 'email' && !item.email) return 'Falta un email válido para este canal.';
+    if (value === 'instagram' && !item.instagram)
+      return 'Falta un usuario o URL válido de Instagram.';
+    return undefined;
+  };
   const initials = item.clientName
     .split(/\s+/)
     .filter(Boolean)
@@ -170,6 +187,21 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
     document.addEventListener('keydown', preventEscape);
     return () => document.removeEventListener('keydown', preventEscape);
   }, [isSaving]);
+
+  async function recover() {
+    if (!onRecover || isSaving) return;
+    setIsSaving(true);
+    try {
+      const saved = await onRecover();
+      if (!saved.ok) {
+        setError(saved.message ?? 'No se pudo recuperar el espejo local.');
+        return;
+      }
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   async function submit() {
     if (isSaving || recoveryRequired) return;
@@ -274,6 +306,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
                   ['call', 'Llamada'],
                   ['whatsapp', 'WhatsApp'],
                   ['email', 'Email'],
+                  ['instagram', 'Instagram'],
                   ['meeting', 'Reunión'],
                 ] as const
               ).map(([value, label]) => (
@@ -282,6 +315,8 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
                   selected={channel === value}
                   label={label}
                   icon={value}
+                  disabled={Boolean(unavailableChannelReason(value))}
+                  unavailableReason={unavailableChannelReason(value)}
                   onClick={() => setChannel(value)}
                 />
               ))}
@@ -296,6 +331,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
                   ['sendQuote', 'Enviar presupuesto'],
                   ['email', 'Enviar email'],
                   ['whatsapp', 'Enviar WhatsApp'],
+                  ['instagram', 'Enviar Instagram'],
                   ['meeting', 'Reunión'],
                   ['none', 'Sin próximo paso'],
                 ] as const
@@ -305,6 +341,8 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
                   selected={nextStep === value}
                   label={label}
                   icon={value}
+                  disabled={Boolean(unavailableChannelReason(value))}
+                  unavailableReason={unavailableChannelReason(value)}
                   onClick={() => setNextStep(value)}
                 />
               ))}
@@ -353,6 +391,16 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent }:
             <p className="commercial-warning" role="alert">
               {error}
             </p>
+          )}
+          {recoveryRequired && onRecover && (
+            <button
+              className="button button-line"
+              type="button"
+              onClick={() => void recover()}
+              disabled={isSaving}
+            >
+              Recuperar guardado
+            </button>
           )}
         </div>
         <div className="result-drawer-actions">

@@ -47,8 +47,10 @@ function isConversion(value: unknown): value is ProspectConversion {
       'nextStepAt',
       'responsible',
     ].every((key) => text(draft[key]) && (draft[key] as string).trim().length > 0) &&
-    ['', 'phone', 'whatsapp', 'email'].includes(draft.clientPreferredChannel as string) &&
-    ['call', 'whatsapp', 'email', 'meeting', 'waitForResponse', 'other'].includes(
+    ['', 'phone', 'whatsapp', 'email', 'instagram'].includes(
+      draft.clientPreferredChannel as string,
+    ) &&
+    ['call', 'whatsapp', 'email', 'instagram', 'meeting', 'waitForResponse', 'other'].includes(
       draft.nextStepChannel as string,
     ) &&
     ['high', 'medium', 'low'].includes(draft.interestLevel as string) &&
@@ -68,6 +70,7 @@ export function createNewProspect(): Prospect {
     company: '',
     phone: '',
     email: '',
+    instagram: '',
     source: '',
     potentialService: '',
     notes: '',
@@ -100,7 +103,7 @@ export function getProspectValidationError(input: ProspectInput): string | null 
     return 'Ingresá un email válido o none si está pendiente.';
   if (!['high', 'medium', 'low'].includes(input.priority)) return 'Revisá la prioridad.';
   if (!statuses.includes(input.status)) return 'Revisá el estado.';
-  if (!['', 'phone', 'whatsapp', 'email'].includes(input.preferredChannel))
+  if (!['', 'phone', 'whatsapp', 'email', 'instagram'].includes(input.preferredChannel))
     return 'Revisá el canal.';
   if (input.nextActionAt && !getLocalDateKeyFromFollowUp(input.nextActionAt))
     return 'La próxima acción debe tener una fecha válida.';
@@ -114,6 +117,7 @@ export function normalizeProspectInput(input: ProspectInput): ProspectInput {
     company: input.company.trim(),
     phone: isPendingPhone(input.phone) ? '1111111111' : input.phone.trim(),
     email: isPendingEmail(input.email) ? 'none' : input.email.trim(),
+    instagram: input.instagram?.trim() ?? '',
     source: input.source.trim(),
     potentialService: input.potentialService.trim(),
     notes: input.notes.trim(),
@@ -163,7 +167,7 @@ export function isProspect(value: unknown): value is Prospect {
             record.result as string,
           )) &&
         (record.channel === undefined ||
-          ['phone', 'whatsapp', 'email'].includes(record.channel as string)) &&
+          ['phone', 'whatsapp', 'email', 'instagram'].includes(record.channel as string)) &&
         (record.note === undefined || text(record.note)) &&
         (record.followUpAt === undefined || text(record.followUpAt))
       );
@@ -240,8 +244,9 @@ export function saveProspect(prospect: Prospect): boolean {
 
 export function isProspectContactAvailable(
   prospect: Prospect,
-  channel: 'phone' | 'whatsapp' | 'email',
+  channel: 'phone' | 'whatsapp' | 'email' | 'instagram',
 ): boolean {
+  if (channel === 'instagram') return Boolean(prospect.instagram?.trim());
   return channel === 'email'
     ? Boolean(prospect.email) && !isPendingEmail(prospect.email)
     : Boolean(prospect.phone) && !isPendingPhone(prospect.phone);

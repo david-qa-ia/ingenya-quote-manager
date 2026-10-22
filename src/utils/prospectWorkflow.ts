@@ -37,6 +37,7 @@ export const prospectChannelLabels: Record<ProspectChannel, string> = {
   whatsapp: 'WhatsApp',
   email: 'Email',
   phone: 'Llamada',
+  instagram: 'Instagram',
 };
 
 export function getProspectStatusFromContactResult(result: string): ProspectStatus {
@@ -122,6 +123,15 @@ export function createProspectWhatsAppUrl(phone: string): string | null {
   return normalized && !isPendingPhone(normalized) ? `https://wa.me/${normalized}` : null;
 }
 
+export function createProspectInstagramUrl(value: string | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed) return null;
+  if (/^https:\/\/(www\.)?instagram\.com\/[A-Za-z0-9._-]+\/?(?:\?.*)?$/i.test(trimmed))
+    return trimmed;
+  const handle = trimmed.replace(/^@/, '');
+  return /^[A-Za-z0-9._-]+$/.test(handle) ? `https://www.instagram.com/${handle}/` : null;
+}
+
 export interface ProspectActionInput {
   result: ProspectContactResult;
   channel: ProspectChannel;
@@ -153,7 +163,7 @@ export function registerProspectAction(prospect: Prospect, input: ProspectAction
   const error = getProspectActionValidationError(input);
   if (error) throw new Error(error);
   const now = new Date().toISOString();
-  const status: ProspectStatus =
+  const contactStatus: ProspectStatus =
     input.result === 'noResponse'
       ? 'noResponse'
       : input.result === 'discarded'
@@ -165,6 +175,10 @@ export function registerProspectAction(prospect: Prospect, input: ProspectAction
     if (!normalizedFollowUp.ok) throw new Error(normalizedFollowUp.error);
     followUpAt = normalizedFollowUp.value;
   }
+  const status =
+    followUpAt && ['uncontacted', 'contactToday'].includes(prospect.status)
+      ? prospect.status
+      : contactStatus;
   return {
     ...prospect,
     status,

@@ -1,5 +1,5 @@
 export type NextActionType =
-  'call' | 'whatsapp' | 'email' | 'meeting' | 'waitForResponse' | 'other';
+  'call' | 'whatsapp' | 'email' | 'instagram' | 'meeting' | 'waitForResponse' | 'other';
 export type NextActionKind = 'followUp' | 'sendQuote' | 'other';
 export type OpportunityStatus = 'active' | 'cancelled' | 'converted' | 'closed';
 export type OpportunityCommercialState = 'open' | 'won' | 'lost';

@@ -1882,6 +1882,22 @@ td small {
   color: var(--text-heading);
   font-size: 1.4rem;
 }
+.prospect-conversion-modal {
+  display: flex;
+  max-height: calc(100dvh - 48px);
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.prospect-conversion-modal .confirmation-actions {
+  position: sticky;
+  bottom: -28px;
+  z-index: 1;
+  margin-top: 16px;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
 .contact-assistant {
   max-height: calc(100vh - 32px);
   overflow-y: auto;
@@ -2060,6 +2076,17 @@ td small {
 @media (max-width: 640px) {
   .modal-backdrop {
     padding: 12px;
+  }
+  .prospect-conversion-modal {
+    max-height: calc(100dvh - 24px);
+    padding: 20px;
+  }
+  .prospect-conversion-modal .confirmation-actions {
+    bottom: -20px;
+    flex-direction: column-reverse;
+  }
+  .prospect-conversion-modal .confirmation-actions .button {
+    width: 100%;
   }
   .contact-tabs .button,
   .contact-assistant .confirmation-actions .button {

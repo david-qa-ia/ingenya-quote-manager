@@ -42,7 +42,7 @@ export function getProspectConversionValidationError(
   }
   if (!input.nextStep.trim()) return 'Ingresá el próximo paso.';
   if (
-    !['call', 'whatsapp', 'email', 'meeting', 'waitForResponse', 'other'].includes(
+    !['call', 'whatsapp', 'email', 'instagram', 'meeting', 'waitForResponse', 'other'].includes(
       input.nextStepChannel,
     )
   )
@@ -93,7 +93,8 @@ function buildClient(draft: ProspectConversionDraft, now: string): Client {
     ...(draft.clientCompany ? { company: draft.clientCompany } : {}),
     phone: draft.clientPhone,
     email: draft.clientEmail,
-    preferredChannel: draft.clientPreferredChannel,
+    preferredChannel:
+      draft.clientPreferredChannel === 'instagram' ? '' : draft.clientPreferredChannel,
     contactConsent: false,
     createdAt: now,
     updatedAt: now,

@@ -43,6 +43,7 @@ const blankInput = (): ProspectInput => ({
   company: '',
   phone: '',
   email: '',
+  instagram: '',
   source: '',
   potentialService: '',
   notes: '',

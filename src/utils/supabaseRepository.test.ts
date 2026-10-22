@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { importRemoteProspects, registerRemoteQuoteSend } from './supabaseRepository';
+import {
+  importRemoteProspects,
+  registerRemoteProspectResult,
+  registerRemoteQuoteSend,
+} from './supabaseRepository';
 import { prepareProspectImport } from './prospectImportTransaction';
 
 const session = new Map<string, string>();
@@ -145,6 +149,103 @@ describe('remote prospect import', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 404 })));
     await expect(importRemoteProspects('workspace', prepared)).rejects.toMatchObject({
       code: 'server',
+    });
+  });
+});
+
+describe('remote prospect result', () => {
+  const input = {
+    workspaceId: '5d6c1a4e-5f7a-4b94-b9f7-6c6b2c7a61c3',
+    prospectId: '9a4e167e-8f7b-4a6d-b87c-6a671d9b7612',
+    expectedVersion: 2,
+    result: 'contacted',
+    channel: 'instagram' as const,
+    note: 'Reunión confirmada.',
+    followUpAt: '2026-10-22T22:30:00.000Z',
+    responsible: 'David',
+    idempotencyKey: 'prospect-result:9a4e:2',
+  };
+
+  it('persists result and future step in one RPC request', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ code: 'OK', version: 3 }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(registerRemoteProspectResult(input)).resolves.toEqual({
+      ok: true,
+      idempotent: false,
+      version: 3,
+    });
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(request.body as string)).toMatchObject({
+      p_workspace_id: input.workspaceId,
+      p_prospect_id: input.prospectId,
+      p_follow_up_at: input.followUpAt,
+      p_channel: 'instagram',
+      p_idempotency_key: input.idempotencyKey,
+    });
+  });
+
+  it('returns a typed version conflict and supports idempotent retry', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ code: 'CONFLICT', version: 4 }), { status: 200 }),
+        ),
+    );
+    await expect(registerRemoteProspectResult(input)).resolves.toMatchObject({
+      ok: false,
+      reason: 'conflict',
+      version: 4,
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ code: 'OK', version: 3, idempotent: true }), {
+          status: 200,
+        }),
+      ),
+    );
+    await expect(registerRemoteProspectResult(input)).resolves.toEqual({
+      ok: true,
+      idempotent: true,
+      version: 3,
+    });
+  });
+
+  it('does not turn a network failure into a local success', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    await expect(registerRemoteProspectResult(input)).rejects.toMatchObject({ code: 'network' });
+  });
+});
+
+describe('remote prospect history and profile', () => {
+  it('maps persisted prospect activities with their real channel and follow-up', async () => {
+    const { mapRemoteProspectActivity } = await import('./supabaseRepository');
+    expect(
+      mapRemoteProspectActivity({
+        id: 'activity-1',
+        workspace_id: 'workspace',
+        prospect_id: 'prospect-1',
+        type: 'contactResult',
+        occurred_at: '2026-10-22T22:30:00.000Z',
+        created_at: '2026-10-22T22:30:00.000Z',
+        result: 'contacted',
+        note: 'Reunión por Instagram.',
+        communication: {
+          channel: 'instagram',
+          followUpAt: '2026-10-23T22:30:00.000Z',
+          responsible: 'David',
+        },
+      }),
+    ).toMatchObject({
+      prospectId: 'prospect-1',
+      channel: 'instagram',
+      followUpAt: '2026-10-23T22:30:00.000Z',
+      author: 'David',
     });
   });
 });

@@ -76,6 +76,17 @@ describe('prospect conversion', () => {
       getProspectConversionValidationError({ ...input, estimatedValue: 'Infinity' }),
     ).toBeTruthy();
   });
+  it('accepts Instagram as the prospect channel and next commercial step', () => {
+    const pending = createPendingProspectConversion(
+      {
+        ...prospect,
+        instagram: '@ana.sur',
+        preferredChannel: 'instagram',
+      },
+      { ...input, nextStepChannel: 'instagram' },
+    );
+    expect(saveProspectWithResult(pending)).toMatchObject({ ok: true });
+  });
   it('converts with a persisted client, qualified opportunity, ISO next action and history', () => {
     const expectedDueAt = localDateTimeToIso(input.nextStepAt);
     if (!expectedDueAt.ok) throw new Error(expectedDueAt.error);

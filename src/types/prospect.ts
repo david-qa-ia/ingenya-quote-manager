@@ -8,7 +8,7 @@ export type ProspectStatus =
   | 'converted';
 
 export type ProspectPriority = 'high' | 'medium' | 'low';
-export type ProspectChannel = 'phone' | 'whatsapp' | 'email';
+export type ProspectChannel = 'phone' | 'whatsapp' | 'email' | 'instagram';
 export type ProspectContactResult = 'contacted' | 'noResponse' | 'reschedule' | 'discarded';
 
 export interface ProspectConversionDraft {
@@ -26,7 +26,8 @@ export interface ProspectConversionDraft {
   estimatedValue?: number;
   nextStep: string;
   nextStepAt: string;
-  nextStepChannel: 'call' | 'whatsapp' | 'email' | 'meeting' | 'waitForResponse' | 'other';
+  nextStepChannel:
+    'call' | 'whatsapp' | 'email' | 'instagram' | 'meeting' | 'waitForResponse' | 'other';
   responsible: string;
 }
 
@@ -57,6 +58,7 @@ export interface Prospect {
   company: string;
   phone: string;
   email: string;
+  instagram?: string;
   source: string;
   potentialService: string;
   notes: string;
