@@ -13,6 +13,7 @@ import { UiIcon, type UiIconName } from './UiIcon';
 interface Props {
   membership: WorkspaceMembership;
   onRetryConnection(): void;
+  onShowServices(): void;
 }
 
 interface CardProps {
@@ -36,7 +37,7 @@ function Card({ icon, label, title, detail, tone = 'neutral' }: CardProps) {
   );
 }
 
-export function SettingsView({ membership, onRetryConnection }: Props) {
+export function SettingsView({ membership, onRetryConnection, onShowServices }: Props) {
   const [recovery, setRecovery] = useState(loadProspectImportRecovery);
   const [feedback, setFeedback] = useState('');
   const backendConfigured = isAuthConfigured();
@@ -102,6 +103,18 @@ export function SettingsView({ membership, onRetryConnection }: Props) {
             </b>
           </div>
         ))}
+      </section>
+
+      <section className="settings-card system-health-services">
+        <div>
+          <h2>Servicios y precios</h2>
+          <p className="settings-muted">
+            Administrá los servicios reutilizables y sus precios sugeridos para este espacio.
+          </p>
+        </div>
+        <button className="button button-line" type="button" onClick={onShowServices}>
+          <UiIcon name="activity" /> Mis servicios y precios
+        </button>
       </section>
 
       <section className="settings-card system-health-attention">

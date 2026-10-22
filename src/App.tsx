@@ -69,7 +69,6 @@ import {
   OpportunityNextActionsInbox,
   type InboxActionInput,
 } from './components/OpportunityNextActionsInbox';
-import { CadenceView } from './components/CadenceView';
 import { MetricsDashboard } from './components/MetricsDashboard';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
@@ -263,6 +262,13 @@ function App() {
     setSearchQuery('');
     setOpportunities(loadOpportunities().items);
     setSavedQuotes(loadSavedQuotes());
+    const catalog = loadLaborCatalog();
+    setCatalogJobs(catalog.jobs);
+    setCatalogLoadIssue(catalog.issue);
+    setSelectedJobId(catalog.jobs.find((job) => job.isActive)?.id ?? '');
+    setCatalogSearch('');
+    setCatalogQuantity('1');
+    setCatalogUnitPrice(String(catalog.jobs.find((job) => job.isActive)?.defaultPrice ?? ''));
   }
   useEffect(() => {
     if (isFinalizationConfirmationOpen) {
@@ -1298,9 +1304,7 @@ function App() {
       activeSection={resolveActiveNavigationSection(currentView)}
       onNewQuote={handleNewQuote}
       onShowSavedQuotes={() => setCurrentView('savedQuotes')}
-      onShowCatalog={() => setCurrentView('catalog')}
       onShowNextActions={() => setCurrentView('dailyDashboard')}
-      onShowCadences={() => setCurrentView('cadences')}
       onShowMetrics={() => setCurrentView('metrics')}
       onShowProspects={() => setCurrentView('prospects')}
       onShowSettings={() => setCurrentView('settings')}
@@ -1355,6 +1359,7 @@ function App() {
         <SettingsView
           membership={workspaceContext.activeMembership}
           onRetryConnection={workspaceContext.retry}
+          onShowServices={() => setCurrentView('catalog')}
         />
       </>
     );
@@ -1443,7 +1448,7 @@ function App() {
         <LaborCatalogView
           jobs={catalogJobs}
           loadIssue={catalogLoadIssue}
-          onBack={() => setCurrentView(quoteStatus === 'draft' ? 'editor' : 'summary')}
+          onBack={() => setCurrentView('settings')}
           onCreate={handleCatalogCreate}
           onUpdate={handleCatalogUpdate}
           onSetActive={handleCatalogActivation}
@@ -1452,7 +1457,7 @@ function App() {
     );
   }
 
-  if (currentView === 'nextActions') {
+  if (currentView === 'nextActions' || currentView === 'cadences') {
     return (
       <>
         {appHeader}
@@ -1698,15 +1703,6 @@ function App() {
             )}
           />
         )}
-      </>
-    );
-  }
-
-  if (currentView === 'cadences') {
-    return (
-      <>
-        {appHeader}
-        <CadenceView onBack={() => setCurrentView('editor')} />
       </>
     );
   }

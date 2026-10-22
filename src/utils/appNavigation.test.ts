@@ -7,9 +7,10 @@ describe('resolveActiveNavigationSection', () => {
     expect(resolveActiveNavigationSection('summary')).toBe('newQuote');
   });
 
-  it('identifies saved quotes and catalog sections', () => {
+  it('redirects legacy catalog and cadence views to their consolidated sections', () => {
     expect(resolveActiveNavigationSection('savedQuotes')).toBe('savedQuotes');
-    expect(resolveActiveNavigationSection('catalog')).toBe('catalog');
+    expect(resolveActiveNavigationSection('catalog')).toBe('settings');
+    expect(resolveActiveNavigationSection('cadences')).toBe('nextActions');
     expect(resolveActiveNavigationSection('metrics')).toBe('metrics');
     expect(resolveActiveNavigationSection('quoteDetail')).toBe('nextActions');
   });

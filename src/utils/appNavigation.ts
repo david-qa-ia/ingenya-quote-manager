@@ -12,22 +12,15 @@ export type AppView =
   | 'quoteDetail'
   | 'settings';
 export type NavigationSection =
-  | 'newQuote'
-  | 'savedQuotes'
-  | 'catalog'
-  | 'nextActions'
-  | 'cadences'
-  | 'metrics'
-  | 'prospects'
-  | 'settings';
+  'newQuote' | 'savedQuotes' | 'nextActions' | 'metrics' | 'prospects' | 'settings';
 
 export function resolveActiveNavigationSection(view: AppView): NavigationSection {
   if (view === 'settings') return 'settings';
   if (view === 'dailyDashboard') return 'nextActions';
   if (view === 'savedQuotes') return 'savedQuotes';
-  if (view === 'catalog') return 'catalog';
+  if (view === 'catalog') return 'settings';
   if (view === 'nextActions') return 'nextActions';
-  if (view === 'cadences') return 'cadences';
+  if (view === 'cadences') return 'nextActions';
   if (view === 'metrics') return 'metrics';
   if (view === 'prospects') return 'prospects';
   if (view === 'opportunityDetail') return 'nextActions';
