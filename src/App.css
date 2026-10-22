@@ -5152,3 +5152,17 @@ body,
     min-height: 44px;
   }
 }
+
+/* Keep the workspace selector visually separate from the first navigation action. */
+@media (min-width: 801px) {
+  .app-sidebar-header .main-header-content {
+    gap: 0;
+  }
+  .app-sidebar-header .workspace-switcher {
+    align-self: start;
+    margin: 0 12px 32px;
+  }
+  .app-sidebar-header .primary-navigation {
+    margin-top: 0;
+  }
+}
