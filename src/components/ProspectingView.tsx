@@ -1423,10 +1423,15 @@ function ProspectDetail({
     setConversionFeedback('Oportunidad creada. Revisá su contexto y próximo paso en Seguimiento.');
   }
   async function saveDraft() {
+    const editableDraft = {
+      ...draft,
+      activities: prospect.activities,
+      ...(prospect.conversion ? { conversion: prospect.conversion } : {}),
+    };
     const next =
-      draft.status === prospect.status
-        ? draft
-        : transitionProspect({ ...draft, activities: prospect.activities }, draft.status);
+      editableDraft.status === prospect.status
+        ? editableDraft
+        : transitionProspect(editableDraft, editableDraft.status);
     if (await onSave(next)) setIsEditing(false);
   }
   function cancelEditing() {

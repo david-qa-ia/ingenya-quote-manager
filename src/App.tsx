@@ -329,7 +329,12 @@ function App() {
     loadRemoteProspects(workspaceId)
       .then((rows) => {
         if (cancelled) return;
-        const next = rows.map(mapRemoteProspectForInbox);
+        const localProspects = loadProspects().items;
+        const next = rows.map((row) => {
+          const remote = mapRemoteProspectForInbox(row);
+          const local = localProspects.find((prospect) => prospect.id === remote.id);
+          return { ...remote, activities: local?.activities ?? [] };
+        });
         next.forEach((prospect) => saveProspectWithResult(prospect));
         setProspects(next);
       })
