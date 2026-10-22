@@ -2438,8 +2438,9 @@ td small {
 }
 @media (min-width: 801px) {
   .app-sidebar-header .workspace-switcher {
+    box-sizing: border-box;
     width: auto;
-    margin: 0 12px 12px;
+    margin: 0 12px 24px;
   }
   .app-sidebar-header .workspace-switcher-trigger {
     padding: 8px 10px;
@@ -3120,8 +3121,10 @@ button.opportunity-nav-item:hover {
   }
   .app-sidebar-header .main-header-content {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto minmax(0, 1fr);
     height: 100%;
+    min-width: 0;
     padding: 0;
     width: 100%;
   }
@@ -3141,7 +3144,9 @@ button.opportunity-nav-item:hover {
   }
   .app-sidebar-header .workspace-switcher {
     grid-row: 2;
+    min-width: 0;
     margin-top: 0;
+    max-width: 100%;
     order: 2;
   }
   .app-sidebar-header .primary-navigation {
@@ -3152,11 +3157,16 @@ button.opportunity-nav-item:hover {
     flex: 1;
     flex-direction: column;
     gap: 6px;
+    box-sizing: border-box;
+    max-width: 100%;
     min-height: 0;
+    min-width: 0;
     padding: 0 12px;
-    width: auto;
+    width: 100%;
   }
   .app-sidebar-header .navigation-link {
+    box-sizing: border-box;
+    width: 100%;
     border-radius: 9px;
     color: #e7f3ee;
     display: flex;
@@ -3175,8 +3185,10 @@ button.opportunity-nav-item:hover {
     height: 22px;
   }
   .app-sidebar-header .header-new-quote {
-    margin: 22px 6px 0;
-    width: calc(100% - 12px);
+    box-sizing: border-box;
+    min-width: 0;
+    margin: 22px 0 0;
+    width: 100%;
   }
   .app-sidebar-header .sidebar-footer {
     border-top: 1px solid rgba(225, 243, 234, 0.22);
@@ -4607,7 +4619,9 @@ body,
 @media (min-width: 641px) and (max-width: 800px) {
   .app-sidebar-header .workspace-switcher {
     grid-row: 2;
+    min-width: 0;
     margin-top: 0;
+    max-width: 100%;
     order: 2;
   }
   .app-sidebar-header .primary-navigation {
@@ -5044,5 +5058,111 @@ body,
   }
   .direct-client-choice {
     grid-template-columns: 1fr;
+  }
+}
+
+.system-health-services {
+  padding: 0;
+  overflow: hidden;
+}
+.settings-service-access {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 24px;
+  align-items: center;
+  width: 100%;
+  gap: 16px;
+  padding: 22px 24px;
+  border: 0;
+  color: var(--text-heading);
+  background: var(--surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-service-access:hover {
+  background: var(--surface-subtle);
+}
+.settings-service-access:focus-visible {
+  outline: 3px solid var(--accent-ring);
+  outline-offset: -3px;
+}
+.settings-service-access-icon {
+  box-sizing: content-box;
+  width: 24px;
+  height: 24px;
+  padding: 10px;
+  border-radius: 50%;
+  color: #075c47;
+  background: #dff2e9;
+  stroke-width: 2.25;
+}
+.settings-service-access-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.settings-service-access-copy strong {
+  font-size: 1.05rem;
+}
+.settings-service-access-copy small {
+  color: var(--text-muted);
+}
+.settings-service-access-chevron {
+  width: 24px;
+  height: 24px;
+  color: var(--text-muted);
+  stroke-width: 2.25;
+}
+.follow-up-cadences-access {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.follow-up-cadences-access > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.follow-up-cadences-access span {
+  color: var(--text-muted);
+}
+@media (max-width: 640px) {
+  .settings-service-access {
+    grid-template-columns: 44px minmax(0, 1fr) 20px;
+    gap: 12px;
+    padding: 18px;
+  }
+  .settings-service-access-icon {
+    width: 20px;
+    height: 20px;
+    padding: 8px;
+  }
+  .follow-up-cadences-access {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .follow-up-cadences-access .button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+/* Keep the workspace selector visually separate from the first navigation action. */
+@media (min-width: 801px) {
+  .app-sidebar-header .main-header-content {
+    gap: 0;
+  }
+  .app-sidebar-header .workspace-switcher {
+    align-self: start;
+    margin: 0 12px 32px;
+  }
+  .app-sidebar-header .primary-navigation {
+    margin-top: 0;
   }
 }

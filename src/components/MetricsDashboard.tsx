@@ -40,7 +40,7 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
       <header className="saved-quotes-header">
         <div>
           <p className="eyebrow">Seguimiento comercial</p>
-          <h1>Métricas</h1>
+          <h1>Indicadores</h1>
           <p className="page-description">
             Vista de solo lectura calculada desde los registros disponibles.
           </p>

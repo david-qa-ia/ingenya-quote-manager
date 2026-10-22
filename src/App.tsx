@@ -69,8 +69,8 @@ import {
   OpportunityNextActionsInbox,
   type InboxActionInput,
 } from './components/OpportunityNextActionsInbox';
-import { CadenceView } from './components/CadenceView';
 import { MetricsDashboard } from './components/MetricsDashboard';
+import { CadenceView } from './components/CadenceView';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
 import { DailyWorkDashboard } from './components/DailyWorkDashboard';
@@ -263,6 +263,13 @@ function App() {
     setSearchQuery('');
     setOpportunities(loadOpportunities().items);
     setSavedQuotes(loadSavedQuotes());
+    const catalog = loadLaborCatalog();
+    setCatalogJobs(catalog.jobs);
+    setCatalogLoadIssue(catalog.issue);
+    setSelectedJobId(catalog.jobs.find((job) => job.isActive)?.id ?? '');
+    setCatalogSearch('');
+    setCatalogQuantity('1');
+    setCatalogUnitPrice(String(catalog.jobs.find((job) => job.isActive)?.defaultPrice ?? ''));
   }
   useEffect(() => {
     if (isFinalizationConfirmationOpen) {
@@ -1298,9 +1305,7 @@ function App() {
       activeSection={resolveActiveNavigationSection(currentView)}
       onNewQuote={handleNewQuote}
       onShowSavedQuotes={() => setCurrentView('savedQuotes')}
-      onShowCatalog={() => setCurrentView('catalog')}
       onShowNextActions={() => setCurrentView('dailyDashboard')}
-      onShowCadences={() => setCurrentView('cadences')}
       onShowMetrics={() => setCurrentView('metrics')}
       onShowProspects={() => setCurrentView('prospects')}
       onShowSettings={() => setCurrentView('settings')}
@@ -1355,6 +1360,7 @@ function App() {
         <SettingsView
           membership={workspaceContext.activeMembership}
           onRetryConnection={workspaceContext.retry}
+          onShowServices={() => setCurrentView('catalog')}
         />
       </>
     );
@@ -1443,11 +1449,20 @@ function App() {
         <LaborCatalogView
           jobs={catalogJobs}
           loadIssue={catalogLoadIssue}
-          onBack={() => setCurrentView(quoteStatus === 'draft' ? 'editor' : 'summary')}
+          onBack={() => setCurrentView('settings')}
           onCreate={handleCatalogCreate}
           onUpdate={handleCatalogUpdate}
           onSetActive={handleCatalogActivation}
         />
+      </>
+    );
+  }
+
+  if (currentView === 'cadences') {
+    return (
+      <>
+        {appHeader}
+        <CadenceView onBack={() => setCurrentView('nextActions')} />
       </>
     );
   }
@@ -1466,6 +1481,7 @@ function App() {
           onOpen={handleFollowUpOpen}
           onPrepareContact={setInboxContact}
           onRegisterResult={setDrawerItem}
+          onShowCadences={() => setCurrentView('cadences')}
         />
         {inboxContact && (
           <ContactAssistant
@@ -1698,15 +1714,6 @@ function App() {
             )}
           />
         )}
-      </>
-    );
-  }
-
-  if (currentView === 'cadences') {
-    return (
-      <>
-        {appHeader}
-        <CadenceView onBack={() => setCurrentView('editor')} />
       </>
     );
   }

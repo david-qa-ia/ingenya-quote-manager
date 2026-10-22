@@ -13,6 +13,7 @@ import { UiIcon, type UiIconName } from './UiIcon';
 interface Props {
   membership: WorkspaceMembership;
   onRetryConnection(): void;
+  onShowServices(): void;
 }
 
 interface CardProps {
@@ -36,7 +37,7 @@ function Card({ icon, label, title, detail, tone = 'neutral' }: CardProps) {
   );
 }
 
-export function SettingsView({ membership, onRetryConnection }: Props) {
+export function SettingsView({ membership, onRetryConnection, onShowServices }: Props) {
   const [recovery, setRecovery] = useState(loadProspectImportRecovery);
   const [feedback, setFeedback] = useState('');
   const backendConfigured = isAuthConfigured();
@@ -102,6 +103,22 @@ export function SettingsView({ membership, onRetryConnection }: Props) {
             </b>
           </div>
         ))}
+      </section>
+
+      <section className="settings-card system-health-services">
+        <button
+          className="settings-service-access"
+          type="button"
+          onClick={onShowServices}
+          aria-label="Abrir Mis servicios y precios"
+        >
+          <UiIcon name="activity" className="settings-service-access-icon" />
+          <span className="settings-service-access-copy">
+            <strong>Mis servicios y precios</strong>
+            <small>Administrá los servicios y valores que usás al crear presupuestos</small>
+          </span>
+          <UiIcon name="chevron-right" className="settings-service-access-chevron" />
+        </button>
       </section>
 
       <section className="settings-card system-health-attention">

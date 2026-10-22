@@ -119,14 +119,14 @@ export function LaborCatalogView({
     <main className="app-shell catalog-shell">
       <header className="saved-quotes-header">
         <div>
-          <p className="eyebrow">Ingenya · Catálogo</p>
-          <h1>Mano de obra</h1>
+          <p className="eyebrow">Configuración</p>
+          <h1>Mis servicios y precios</h1>
           <p className="page-description">
             Administrá los servicios reutilizables para tus presupuestos.
           </p>
         </div>
         <button className="button button-line" type="button" onClick={onBack}>
-          Volver al presupuesto
+          Volver a Configuración
         </button>
       </header>
 

@@ -11,9 +11,7 @@ interface AppHeaderProps {
   activeSection: NavigationSection;
   onNewQuote: () => void;
   onShowSavedQuotes: () => void;
-  onShowCatalog: () => void;
   onShowNextActions: () => void;
-  onShowCadences: () => void;
   onShowMetrics: () => void;
   onShowProspects: () => void;
   onShowSettings: () => void;
@@ -35,9 +33,7 @@ export function AppHeader({
   activeSection,
   onNewQuote,
   onShowSavedQuotes,
-  onShowCatalog,
   onShowNextActions,
-  onShowCadences,
   onShowMetrics,
   onShowProspects,
   onShowSettings,
@@ -201,26 +197,10 @@ export function AppHeader({
             <button
               className="navigation-link"
               type="button"
-              aria-current={activeSection === 'metrics' ? 'page' : undefined}
-              onClick={() => navigate(onShowMetrics)}
-            >
-              <UiIcon name="bar-chart" /> Métricas
-            </button>
-            <button
-              className="navigation-link"
-              type="button"
               aria-current={activeSection === 'nextActions' ? 'page' : undefined}
               onClick={() => navigate(onShowNextActions)}
             >
               <UiIcon name="calendar-check" /> Seguimiento
-            </button>
-            <button
-              className="navigation-link"
-              type="button"
-              aria-current={activeSection === 'cadences' ? 'page' : undefined}
-              onClick={() => navigate(onShowCadences)}
-            >
-              <UiIcon name="send" /> Cadencias
             </button>
             <button
               className="navigation-link"
@@ -233,10 +213,10 @@ export function AppHeader({
             <button
               className="navigation-link"
               type="button"
-              aria-current={activeSection === 'catalog' ? 'page' : undefined}
-              onClick={() => navigate(onShowCatalog)}
+              aria-current={activeSection === 'metrics' ? 'page' : undefined}
+              onClick={() => navigate(onShowMetrics)}
             >
-              <UiIcon name="activity" /> Mano de obra
+              <UiIcon name="bar-chart" /> Indicadores
             </button>
             <button
               className="button button-primary header-new-quote"
