@@ -1,18 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DeploymentBrandConfig } from '../types/branding';
-import {
-  getCircularFocusIndex,
-  getVisibleContactItems,
-  resolveActiveNavigationSection,
-} from './appNavigation';
-
-const brand: DeploymentBrandConfig = {
-  companyName: 'Empresa configurable',
-  experienceMessage: ' Experiencia comprobada ',
-  email: ' contacto@example.com ',
-  whatsapp: { display: ' 341 555-0101 ', value: '+54 9 341 555-0101' },
-  footerBusinessText: 'Empresa configurable - Servicios',
-};
+import { getCircularFocusIndex, resolveActiveNavigationSection } from './appNavigation';
 
 describe('resolveActiveNavigationSection', () => {
   it('keeps the editor and summary inside the new quote section', () => {
@@ -38,26 +25,5 @@ describe('getCircularFocusIndex', () => {
     expect(getCircularFocusIndex(-1, 1, 3)).toBe(0);
     expect(getCircularFocusIndex(-1, -1, 3)).toBe(2);
     expect(getCircularFocusIndex(-1, 1, 0)).toBe(-1);
-  });
-});
-
-describe('getVisibleContactItems', () => {
-  it('normalizes configured text and creates functional contact links', () => {
-    expect(getVisibleContactItems(brand)).toEqual([
-      { label: 'Experiencia comprobada' },
-      { label: 'contacto@example.com', href: 'mailto:contacto@example.com' },
-      { label: '341 555-0101', href: 'https://wa.me/5493415550101' },
-    ]);
-  });
-
-  it('omits empty optional data without leaving placeholder items', () => {
-    expect(
-      getVisibleContactItems({
-        ...brand,
-        experienceMessage: ' ',
-        email: ' ',
-        whatsapp: { display: ' ', value: ' ' },
-      }),
-    ).toEqual([]);
   });
 });

@@ -1352,7 +1352,10 @@ function App() {
     return (
       <>
         {appHeader}
-        <SettingsView membership={workspaceContext.activeMembership} />
+        <SettingsView
+          membership={workspaceContext.activeMembership}
+          onRetryConnection={workspaceContext.retry}
+        />
       </>
     );
   }

@@ -1,110 +1,134 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { WorkspaceMembership } from '../types/workspace';
-import { UiIcon } from './UiIcon';
+import { isAuthConfigured, loadAuthSession } from '../utils/authService';
+import {
+  clearProspectImportRecovery,
+  loadProspectImportRecovery,
+  savePreparedProspectImport,
+} from '../utils/prospectImportTransaction';
+import { isWorkspaceUuid } from '../utils/workspaceStorage';
+import { getSystemHealthCards, getSystemHealthOperations } from '../utils/systemHealth';
+import { UiIcon, type UiIconName } from './UiIcon';
 
 interface Props {
   membership: WorkspaceMembership;
+  onRetryConnection(): void;
 }
 
-export function SettingsView({ membership }: Props) {
-  const [snapshotReady, setSnapshotReady] = useState(false);
-  const [dryRunReady, setDryRunReady] = useState(false);
+interface CardProps {
+  icon: UiIconName;
+  label: string;
+  title: string;
+  detail: string;
+  tone?: 'good' | 'attention' | 'neutral';
+}
+
+function Card({ icon, label, title, detail, tone = 'neutral' }: CardProps) {
+  return (
+    <article className={`system-health-card system-health-${tone}`}>
+      <UiIcon name={icon} />
+      <div>
+        <span>{label}</span>
+        <strong>{title}</strong>
+        <small>{detail}</small>
+      </div>
+    </article>
+  );
+}
+
+export function SettingsView({ membership, onRetryConnection }: Props) {
+  const [recovery, setRecovery] = useState(loadProspectImportRecovery);
   const [feedback, setFeedback] = useState('');
-  const canMigrate = membership.role === 'owner';
-  const workspacePrefix = useMemo(() => `workspace-${membership.workspace.id}::`, [membership]);
+  const backendConfigured = isAuthConfigured();
+  const session = loadAuthSession();
+  const validWorkspace = isWorkspaceUuid(membership.workspace.id);
+  const cards = getSystemHealthCards({
+    workspaceName: membership.workspace.name,
+    validWorkspace,
+    backendConfigured,
+    hasSession: Boolean(session),
+    recovery,
+  });
+  const operations = getSystemHealthOperations(validWorkspace);
 
-  function exportSnapshot() {
-    const data: Record<string, string> = {};
-    for (let index = 0; index < localStorage.length; index += 1) {
-      const key = localStorage.key(index);
-      if (key?.startsWith(workspacePrefix)) data[key] = localStorage.getItem(key) ?? '';
-    }
-    const payload = JSON.stringify(
-      { workspaceId: membership.workspace.id, createdAt: new Date().toISOString(), data },
-      null,
-      2,
-    );
-    const blob = new Blob([payload], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${membership.workspace.slug}-snapshot.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    setSnapshotReady(true);
-    setFeedback('Respaldo local exportado. La copia local se mantiene intacta.');
-  }
+  function recover() {
+    if (!recovery) return;
 
-  function runDryRun() {
-    if (!snapshotReady) {
-      setFeedback('Primero exportá el respaldo local.');
+    if (!savePreparedProspectImport(recovery.prepared)) {
+      setFeedback(
+        'No se pudo completar la recuperación. El lote sigue disponible para reintentar.',
+      );
       return;
     }
-    setDryRunReady(true);
-    setFeedback('Validación en seco completa. No se modificaron datos del destino.');
+
+    clearProspectImportRecovery();
+    setRecovery(null);
+    setFeedback('La importación se recuperó correctamente.');
   }
 
   return (
-    <main className="settings-view">
-      <div className="settings-heading">
+    <main className="settings-view system-health-view">
+      <header className="settings-heading">
         <div>
           <p className="eyebrow">Configuración</p>
-          <h1>Conexión y migración</h1>
+          <h1>Salud del sistema</h1>
+          <p>Comprobá que tu espacio de trabajo pueda guardar y recuperar información comercial.</p>
         </div>
-        <span className="settings-role">
-          {membership.role === 'owner' ? 'Solo propietario' : 'Administrador'}
-        </span>
-      </div>
-      <section className="settings-card">
-        <div className="settings-card-heading">
-          <UiIcon name="building" />
-          <div>
-            <h2>Espacio activo</h2>
-            <p>{membership.workspace.name}</p>
-          </div>
-        </div>
-        <div className="settings-status settings-status-success">
-          <UiIcon name="check" />
-          <span>Sesión conectada</span>
-        </div>
+      </header>
+
+      <section className="system-health-grid" aria-label="Estado del sistema">
+        <Card icon="building" {...cards[0]} />
+        <Card icon="activity" {...cards[1]} />
+        <Card icon="clock" {...cards[2]} />
+        <Card icon="document" {...cards[3]} />
       </section>
-      <section className="settings-card migration-card">
-        <div className="settings-card-heading">
-          <UiIcon name="document" />
-          <div>
-            <h2>Migración de datos</h2>
-            <p>Exportá y validá los datos de este espacio antes de conectarlos al backend.</p>
-          </div>
-        </div>
-        {!canMigrate ? (
-          <p className="settings-muted">Solo el propietario puede preparar una migración.</p>
-        ) : (
-          <>
-            <div className="migration-steps">
-              <div className={snapshotReady ? 'migration-step is-complete' : 'migration-step'}>
-                <strong>1. Respaldo local</strong>
-                <span>{snapshotReady ? 'Completado' : 'Pendiente'}</span>
-                <button className="button button-secondary" type="button" onClick={exportSnapshot}>
-                  Exportar respaldo
-                </button>
-              </div>
-              <div className={dryRunReady ? 'migration-step is-complete' : 'migration-step'}>
-                <strong>2. Validación en seco</strong>
-                <span>{dryRunReady ? 'Sin errores críticos' : 'Esperando respaldo'}</span>
-                <button className="button button-secondary" type="button" onClick={runDryRun}>
-                  Validar sin escribir
-                </button>
-              </div>
-              <div className="migration-step">
-                <strong>3. Migración real</strong>
-                <span>Requiere aprobación explícita</span>
-                <p className="settings-muted">
-                  La migración real queda bloqueada hasta recibir “migración real aprobada”.
-                </p>
-              </div>
+
+      <section className="settings-card system-health-operations">
+        <h2>Operaciones comerciales</h2>
+        {operations.map((operation) => (
+          <div className="system-health-operation" key={operation.title}>
+            <UiIcon
+              name={
+                operation.title === 'Prospectos e importación CSV'
+                  ? 'users'
+                  : operation.title === 'Presupuestos y envíos'
+                    ? 'document'
+                    : 'activity'
+              }
+            />
+            <div>
+              <strong>{operation.title}</strong>
+              <span>{operation.detail}</span>
             </div>
-            {feedback ? <p className="settings-feedback">{feedback}</p> : null}
-          </>
+            <b className={operation.available ? 'system-health-badge good' : 'system-health-badge'}>
+              {operation.available ? 'Disponible' : 'Próximamente'}
+            </b>
+          </div>
+        ))}
+      </section>
+
+      <section className="settings-card system-health-attention">
+        <h2>Si algo necesita atención</h2>
+        {recovery?.phase === 'remoteConfirmed' ? (
+          <div className="system-health-recovery">
+            <div>
+              <strong>Una importación necesita recuperación</strong>
+              <span>El backend confirmó el lote, pero falta actualizar la vista local.</span>
+            </div>
+            <button className="button button-primary" type="button" onClick={recover}>
+              Recuperar importación
+            </button>
+          </div>
+        ) : (
+          <p className="settings-muted">No hay recuperaciones pendientes.</p>
+        )}
+        <button className="button button-line" type="button" onClick={onRetryConnection}>
+          <UiIcon name="activity" /> Volver a intentar conexión
+        </button>
+        {feedback && (
+          <p className="settings-feedback" role="status">
+            {feedback}
+          </p>
         )}
       </section>
     </main>
