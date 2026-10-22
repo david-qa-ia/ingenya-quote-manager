@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Prospect } from '../types/prospect';
 import { loadClients } from './clientStorage';
+import { loadActivities } from './activityStorage';
 import { loadOpportunities, OPPORTUNITIES_STORAGE_KEY } from './opportunityStorage';
 import {
   canQualifyProspect,
@@ -110,6 +111,13 @@ describe('prospect conversion', () => {
       nextAction: '',
     });
     expect(loadProspects().items[0].activities.at(-1)?.type).toBe('conversionCompleted');
+    expect(loadActivities().items).toContainEqual(
+      expect.objectContaining({
+        id: `prospect-history:${pending.conversion!.draft.opportunityId}:result`,
+        subject: { kind: 'opportunity', opportunityId: pending.conversion!.draft.opportunityId },
+        occurredAt: prospect.activities[0].occurredAt,
+      }),
+    );
   });
   it('requires explicit retry after reload and reuses target ids without duplicates', () => {
     const pending = createPendingProspectConversion(prospect, input);

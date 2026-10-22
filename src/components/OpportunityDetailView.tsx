@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityTimeline } from './ActivityTimeline';
 import { UiIcon } from './UiIcon';
 import type { Client } from '../types/client';
@@ -6,6 +6,9 @@ import type { Opportunity } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
 import type { Activity } from '../types/activity';
 import { businessTimeZone } from '../utils/opportunityNextAction';
+import { loadActivities } from '../utils/activityStorage';
+import { mirrorProspectActivitiesToOpportunity } from '../utils/prospectConversion';
+import { loadProspects } from '../utils/prospectStorage';
 
 type DetailTab = 'summary' | 'activity' | 'quotes' | 'notes' | 'files';
 type OpportunityDataDraft = {
@@ -68,6 +71,7 @@ export function OpportunityDetailView({
 }: Props) {
   const [tab, setTab] = useState<DetailTab>('summary');
   const [copied, setCopied] = useState('');
+  const [activityRevision, setActivityRevision] = useState(0);
   const [editingOpportunityData, setEditingOpportunityData] = useState(false);
   const [dataDraft, setDataDraft] = useState<OpportunityDataDraft>(() => ({
     serviceOfInterest: opportunity.qualification?.serviceOfInterest ?? '',
@@ -97,7 +101,25 @@ export function OpportunityDetailView({
     ['won', 'Ganada'],
   ] as const;
   const currentStage = opportunity.pipelineStage ?? (currentQuote ? 'proposal' : 'opportunity');
-  const recentActivities = activities
+  useEffect(() => {
+    const refreshActivities = () => setActivityRevision((current) => current + 1);
+    window.addEventListener('activitiesupdated', refreshActivities);
+    const prospect = loadProspects().items.find(
+      (item) =>
+        item.conversion?.state === 'completed' &&
+        item.conversion.draft.opportunityId === opportunity.id,
+    );
+    if (prospect) mirrorProspectActivitiesToOpportunity(prospect, prospect.conversion!.draft);
+    return () => window.removeEventListener('activitiesupdated', refreshActivities);
+  }, [opportunity.id]);
+
+  const storedActivities = useMemo(() => loadActivities().items, [activityRevision]);
+  const opportunityActivities = useMemo(() => {
+    const byId = new Map<string, Activity>();
+    [...activities, ...storedActivities].forEach((activity) => byId.set(activity.id, activity));
+    return [...byId.values()];
+  }, [activities, storedActivities]);
+  const recentActivities = opportunityActivities
     .filter(
       (item) =>
         item.subject.kind === 'opportunity' && item.subject.opportunityId === opportunity.id,
