@@ -2438,8 +2438,9 @@ td small {
 }
 @media (min-width: 801px) {
   .app-sidebar-header .workspace-switcher {
+    box-sizing: border-box;
     width: auto;
-    margin: 0 12px 12px;
+    margin: 0 12px 24px;
   }
   .app-sidebar-header .workspace-switcher-trigger {
     padding: 8px 10px;
@@ -3120,8 +3121,10 @@ button.opportunity-nav-item:hover {
   }
   .app-sidebar-header .main-header-content {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto minmax(0, 1fr);
     height: 100%;
+    min-width: 0;
     padding: 0;
     width: 100%;
   }
@@ -3141,7 +3144,9 @@ button.opportunity-nav-item:hover {
   }
   .app-sidebar-header .workspace-switcher {
     grid-row: 2;
+    min-width: 0;
     margin-top: 0;
+    max-width: 100%;
     order: 2;
   }
   .app-sidebar-header .primary-navigation {
@@ -3152,11 +3157,16 @@ button.opportunity-nav-item:hover {
     flex: 1;
     flex-direction: column;
     gap: 6px;
+    box-sizing: border-box;
+    max-width: 100%;
     min-height: 0;
+    min-width: 0;
     padding: 0 12px;
-    width: auto;
+    width: 100%;
   }
   .app-sidebar-header .navigation-link {
+    box-sizing: border-box;
+    width: 100%;
     border-radius: 9px;
     color: #e7f3ee;
     display: flex;
@@ -3175,8 +3185,10 @@ button.opportunity-nav-item:hover {
     height: 22px;
   }
   .app-sidebar-header .header-new-quote {
-    margin: 22px 6px 0;
-    width: calc(100% - 12px);
+    box-sizing: border-box;
+    min-width: 0;
+    margin: 22px 0 0;
+    width: 100%;
   }
   .app-sidebar-header .sidebar-footer {
     border-top: 1px solid rgba(225, 243, 234, 0.22);
@@ -4607,7 +4619,9 @@ body,
 @media (min-width: 641px) and (max-width: 800px) {
   .app-sidebar-header .workspace-switcher {
     grid-row: 2;
+    min-width: 0;
     margin-top: 0;
+    max-width: 100%;
     order: 2;
   }
   .app-sidebar-header .primary-navigation {
