@@ -1,5 +1,3 @@
-import type { DeploymentBrandConfig } from '../types/branding';
-
 export type AppView =
   | 'dailyDashboard'
   | 'editor'
@@ -22,11 +20,6 @@ export type NavigationSection =
   | 'metrics'
   | 'prospects'
   | 'settings';
-
-export interface ContactItem {
-  readonly label: string;
-  readonly href?: string;
-}
 
 export function resolveActiveNavigationSection(view: AppView): NavigationSection {
   if (view === 'settings') return 'settings';
@@ -53,19 +46,4 @@ export function getCircularFocusIndex(
   }
 
   return (currentIndex + direction + itemCount) % itemCount;
-}
-
-export function getVisibleContactItems(brand: DeploymentBrandConfig): ContactItem[] {
-  const experienceMessage = brand.experienceMessage?.trim();
-  const email = brand.email.trim();
-  const whatsappDisplay = brand.whatsapp.display.trim();
-  const whatsappValue = brand.whatsapp.value.replace(/\D/g, '');
-
-  return [
-    experienceMessage ? { label: experienceMessage } : null,
-    email ? { label: email, href: `mailto:${email}` } : null,
-    whatsappDisplay && whatsappValue
-      ? { label: whatsappDisplay, href: `https://wa.me/${whatsappValue}` }
-      : null,
-  ].filter((item): item is ContactItem => item !== null);
 }

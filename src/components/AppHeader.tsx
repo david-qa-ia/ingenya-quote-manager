@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { deploymentBrand } from '../config/deploymentBrand';
 import { UiIcon } from './UiIcon';
 import type { NavigationSection } from '../utils/appNavigation';
-import { getCircularFocusIndex, getVisibleContactItems } from '../utils/appNavigation';
+import { getCircularFocusIndex } from '../utils/appNavigation';
 import { GlobalSearchPanel } from './GlobalSearchPanel';
 import type { GlobalSearchResult } from '../types/globalSearch';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
@@ -57,7 +57,6 @@ export function AppHeader({
   const navigationRef = useRef<HTMLElement>(null);
   const wasMenuOpenRef = useRef(false);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
-  const contactItems = getVisibleContactItems(deploymentBrand);
 
   useEffect(() => {
     if (isMenuOpen) {
@@ -248,6 +247,22 @@ export function AppHeader({
               <UiIcon name="plus" />
               Nuevo presupuesto
             </button>
+            <div className="sidebar-footer">
+              <button
+                className="sidebar-footer-action"
+                type="button"
+                onClick={() => navigate(onShowSettings)}
+              >
+                <UiIcon name="settings" /> Configuración
+              </button>
+              <button
+                className="sidebar-footer-action sidebar-footer-logout"
+                type="button"
+                onClick={() => navigate(onLogout)}
+              >
+                <UiIcon name="arrow-left" /> Cerrar sesión
+              </button>
+            </div>
           </nav>
           {isSearchOpen && (
             <div id="global-search-panel">
@@ -261,34 +276,6 @@ export function AppHeader({
               />
             </div>
           )}
-          <div className="sidebar-footer">
-            {contactItems.map((item) =>
-              item.href ? (
-                <a key={item.href} href={item.href}>
-                  {item.label}
-                </a>
-              ) : (
-                <span key={item.label}>{item.label}</span>
-              ),
-            )}
-            <button
-              className="sidebar-footer-action"
-              type="button"
-              onClick={() => navigate(onShowSettings)}
-            >
-              <UiIcon name="settings" /> Configuración
-            </button>
-            <button
-              className="sidebar-footer-action"
-              type="button"
-              onClick={() => navigate(onLogout)}
-            >
-              <UiIcon name="arrow-left" /> Cerrar sesión
-            </button>
-            <span>
-              <UiIcon name="help" /> Ayuda
-            </span>
-          </div>
         </div>
       </div>
     </header>

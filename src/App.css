@@ -3110,11 +3110,17 @@ button.opportunity-nav-item:hover {
     z-index: 30;
   }
   .app-sidebar-header .main-header,
-  .app-sidebar-header .header-container,
-  .app-sidebar-header .main-header-content {
+  .app-sidebar-header .header-container {
     background: transparent;
     display: flex;
     flex-direction: column;
+    height: 100%;
+    padding: 0;
+    width: 100%;
+  }
+  .app-sidebar-header .main-header-content {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
     height: 100%;
     padding: 0;
     width: 100%;
@@ -3124,6 +3130,7 @@ button.opportunity-nav-item:hover {
     font-size: 2rem;
     letter-spacing: -0.06em;
     margin: 28px 28px 8px;
+    order: 1;
   }
   .app-sidebar-header .brand-name::after {
     content: 'CONSTRUYE RELACIONES';
@@ -3132,11 +3139,20 @@ button.opportunity-nav-item:hover {
     letter-spacing: 0.18em;
     margin: 7px 0 36px 2px;
   }
+  .app-sidebar-header .workspace-switcher {
+    grid-row: 2;
+    margin-top: 0;
+    order: 2;
+  }
   .app-sidebar-header .primary-navigation {
     align-items: stretch;
+    grid-row: 3;
+    order: 3;
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: 6px;
+    min-height: 0;
     padding: 0 12px;
     width: auto;
   }
@@ -3166,18 +3182,20 @@ button.opportunity-nav-item:hover {
     border-top: 1px solid rgba(225, 243, 234, 0.22);
     display: flex;
     flex-direction: column;
-    font-size: 0.78rem;
-    gap: 12px;
-    margin: auto 24px 25px;
-    padding-top: 20px;
+    font-size: 0.9rem;
+    gap: 4px;
+    margin: auto 12px 20px;
+    padding-top: 14px;
   }
-  .app-sidebar-header .sidebar-footer a,
-  .app-sidebar-header .sidebar-footer span {
-    align-items: center;
+  .app-sidebar-header .sidebar-footer-action {
     color: #e7f3ee;
-    display: inline-flex;
-    gap: 9px;
-    text-decoration: none;
+    padding: 10px 14px;
+  }
+  .app-sidebar-header .sidebar-footer-action:hover,
+  .app-sidebar-header .sidebar-footer-action:focus-visible {
+    background: #246b59;
+    border-radius: 9px;
+    color: #fff;
   }
   .app-sidebar-header .sidebar-footer .ui-icon {
     width: 19px;
@@ -3198,9 +3216,6 @@ button.opportunity-nav-item:hover {
   .app-sidebar-header {
     position: static;
     width: auto;
-  }
-  .app-sidebar-header .sidebar-footer {
-    display: none;
   }
 }
 .confirmation-modal p {
@@ -4563,13 +4578,42 @@ body,
     min-width: 0;
     overflow-wrap: anywhere;
   }
+
+  #primary-navigation .sidebar-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  #primary-navigation .sidebar-footer-action {
+    min-height: 48px;
+    padding: 0 14px;
+    color: var(--text);
+    font: inherit;
+  }
+
+  #primary-navigation .sidebar-footer-logout {
+    margin-top: 4px;
+    padding-top: 0;
+    border-top: 1px solid var(--border);
+  }
 }
 
 /* Between phone and desktop widths the full navigation remains visible, but
    each item occupies the available column instead of forcing a wide row. */
 @media (min-width: 641px) and (max-width: 800px) {
+  .app-sidebar-header .workspace-switcher {
+    grid-row: 2;
+    margin-top: 0;
+    order: 2;
+  }
   .app-sidebar-header .primary-navigation {
     align-items: stretch;
+    grid-row: 3;
+    order: 3;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -4812,6 +4856,139 @@ body,
 .quote-version-row small {
   margin: 4px 0 0;
   color: var(--text-muted);
+}
+.system-health-view {
+  max-width: 1320px;
+}
+.system-health-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 26px 0;
+}
+.system-health-card {
+  align-items: flex-start;
+  display: flex;
+  min-height: 124px;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.system-health-card > .ui-icon {
+  box-sizing: content-box;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 10px;
+  border-radius: 50%;
+  color: #52616e;
+  background: #eef1f4;
+  stroke-width: 2.25;
+}
+.system-health-card.system-health-good > .ui-icon {
+  color: #075c47;
+  background: #dff2e9;
+}
+.system-health-card.system-health-attention > .ui-icon {
+  color: #9a5b00;
+  background: #fff1d8;
+}
+.system-health-card div,
+.system-health-operation > div,
+.system-health-recovery div {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.system-health-card span,
+.system-health-card small,
+.system-health-operation span,
+.system-health-recovery span {
+  color: var(--text-muted);
+}
+.system-health-card strong {
+  font-size: 1.08rem;
+}
+.system-health-operations,
+.system-health-attention {
+  margin-top: 22px;
+}
+.system-health-operation {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.system-health-operation:first-of-type {
+  border-top: 0;
+}
+.system-health-operation > .ui-icon {
+  box-sizing: content-box;
+  width: 20px;
+  height: 20px;
+  padding: 8px;
+  border-radius: 50%;
+  stroke-width: 2.25;
+}
+.system-health-operation > .system-health-icon-good {
+  color: #075c47;
+  background: #dff2e9;
+}
+.system-health-operation > .system-health-icon-muted {
+  color: #52616e;
+  background: #eef1f4;
+}
+.system-health-badge {
+  padding: 7px 12px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: #eef1f4;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.system-health-badge.good {
+  color: var(--primary);
+  background: var(--accent-soft);
+}
+.system-health-recovery {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid #f0ca7d;
+  border-radius: 8px;
+  background: #fff8e9;
+}
+.sidebar-footer-action {
+  min-height: 44px;
+  text-align: left;
+}
+.sidebar-footer-logout {
+  margin-top: 4px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(225, 243, 234, 0.22);
+}
+@media (max-width: 700px) {
+  .system-health-grid {
+    grid-template-columns: 1fr;
+  }
+  .system-health-operation {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+  .system-health-operation .system-health-badge {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .system-health-recovery {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 .direct-client-panel {
   margin-bottom: 24px;
