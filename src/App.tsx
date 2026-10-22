@@ -333,6 +333,16 @@ function App() {
         const next = rows.map((row) => {
           const remote = mapRemoteProspectForInbox(row);
           const local = localProspects.find((prospect) => prospect.id === remote.id);
+          if (local?.status === 'converted' && remote.status !== 'converted') {
+            return {
+              ...remote,
+              status: 'converted' as const,
+              nextAction: '',
+              nextActionAt: '',
+              conversion: local.conversion,
+              activities: local.activities,
+            };
+          }
           return { ...remote, activities: local?.activities ?? [] };
         });
         next.forEach((prospect) => saveProspectWithResult(prospect));

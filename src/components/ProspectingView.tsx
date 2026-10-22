@@ -211,9 +211,22 @@ export function ProspectingView({
           activities.push(mapRemoteProspectActivity(activity));
           activitiesByProspect.set(activity.prospect_id, activities);
         });
-        const next = rows.map((row) =>
-          mapRemoteProspect(row, activitiesByProspect.get(row.id) ?? []),
-        );
+        const localProspects = loadProspects().items;
+        const next = rows.map((row) => {
+          const remote = mapRemoteProspect(row, activitiesByProspect.get(row.id) ?? []);
+          const local = localProspects.find((prospect) => prospect.id === remote.id);
+          if (local?.status === 'converted' && remote.status !== 'converted') {
+            return {
+              ...remote,
+              status: 'converted' as const,
+              nextAction: '',
+              nextActionAt: '',
+              conversion: local.conversion,
+              activities: local.activities,
+            };
+          }
+          return remote;
+        });
         next.forEach((prospect) => saveProspectWithResult(prospect));
         setProspects(next);
         onProspectsChanged?.(next);
