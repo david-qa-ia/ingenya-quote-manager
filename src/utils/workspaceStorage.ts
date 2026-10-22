@@ -1,5 +1,12 @@
 export const ACTIVE_WORKSPACE_STORAGE_KEY = 'ingenya.activeWorkspace.v1';
 
+export function isWorkspaceUuid(value: string | null | undefined): value is string {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  );
+}
+
 export function getActiveWorkspaceId(): string | null {
   try {
     return sessionStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY);

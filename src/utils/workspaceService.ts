@@ -92,7 +92,7 @@ interface SupabaseMembershipRow {
   workspace_id: string;
   role: WorkspaceMembership['role'];
   status: WorkspaceMembership['status'];
-  workspace: WorkspaceMembership['workspace'];
+  workspace: WorkspaceMembership['workspace'] | WorkspaceMembership['workspace'][] | null;
 }
 
 export async function loadWorkspaceSession(): Promise<WorkspaceSession> {
@@ -100,12 +100,22 @@ export async function loadWorkspaceSession(): Promise<WorkspaceSession> {
   if (isAuthConfigured()) {
     const authSession = loadAuthSession();
     const rows = await supabaseRequest<SupabaseMembershipRow[]>(
-      `/workspace_memberships?select=workspace_id,role,status,workspace:workspaces(id,name,slug,status)&user_id=eq.${encodeURIComponent(authSession?.userId ?? '')}&status=eq.active`,
+      `/workspace_memberships?select=workspace_id,role,status,workspace:workspaces!workspace_memberships_workspace_id_fkey(id,name,slug,status)&user_id=eq.${encodeURIComponent(authSession?.userId ?? '')}&status=eq.active`,
     );
     const memberships = rows
-      .filter((row) => row.workspace?.status === 'active')
+      .map((row) => ({
+        ...row,
+        workspace: Array.isArray(row.workspace) ? row.workspace[0] : row.workspace,
+      }))
+      .filter(
+        (row): row is SupabaseMembershipRow & { workspace: WorkspaceMembership['workspace'] } =>
+          row.workspace?.status === 'active',
+      )
       .map((row) => ({ workspace: row.workspace, role: row.role, status: row.status }));
-    const activeWorkspaceId = getActiveWorkspaceId() ?? memberships[0]?.workspace.id ?? null;
+    const storedWorkspaceId = getActiveWorkspaceId();
+    const activeWorkspaceId = memberships.some((item) => item.workspace.id === storedWorkspaceId)
+      ? storedWorkspaceId
+      : (memberships[0]?.workspace.id ?? null);
     if (activeWorkspaceId) validateMembership(memberships, activeWorkspaceId);
     if (activeWorkspaceId) setActiveWorkspaceId(activeWorkspaceId);
     return { userId: authSession?.userId ?? '', memberships, activeWorkspaceId };

@@ -12,7 +12,8 @@ export function isPendingEmail(email: string): boolean {
 }
 
 export function getClientValidationError(input: ClientInput): string | null {
-  if (!input.name.trim()) return 'Ingresá el nombre del cliente.';
+  if (!input.name.trim() && !input.company?.trim())
+    return 'Ingresá el nombre o la empresa del cliente.';
   if (
     !/^\+?[\d\s().-]+$/.test(input.phone.trim()) ||
     !/^\d{7,15}$/.test(input.phone.replace(/\D/g, ''))

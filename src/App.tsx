@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './App.css';
 import { QuoteCommercialContext } from './components/QuoteCommercialContext';
+import { DirectClientQuotePanel } from './components/DirectClientQuotePanel';
 import { QuoteCommercialStatus } from './components/QuoteCommercialStatus';
 import { QuoteActivityPanel } from './components/QuoteActivityPanel';
 import { ContactAssistant } from './components/ContactAssistant';
@@ -101,13 +102,19 @@ import type { GlobalSearchResult } from './types/globalSearch';
 import { useWorkspace } from './context/useWorkspace';
 import { WorkspaceAccessState } from './components/WorkspaceAccessState';
 import { UiIcon } from './components/UiIcon';
-import { workspaceStorageKey } from './utils/workspaceStorage';
+import { isWorkspaceUuid, workspaceStorageKey } from './utils/workspaceStorage';
 import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
 import { commitLocalFollowUpResult } from './utils/followUpResultTransaction';
 import { isAuthConfigured } from './utils/authService';
 import { registerRemoteQuoteSend, SupabaseRepositoryError } from './utils/supabaseRepository';
 import { commitLocalQuoteSend, hasQuoteSendRecovery } from './utils/quoteSendTransaction';
+import {
+  saveDirectClientQuote,
+  type DirectClientInput,
+  type DirectQuoteFollowUpInput,
+} from './utils/directClientQuote';
+import { convertDirectQuoteToOpportunity } from './utils/directQuoteConversion';
 
 const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -163,6 +170,8 @@ function App() {
   const [inboxContact, setInboxContact] = useState<FollowUpInboxItem | null>(null);
   const [drawerItem, setDrawerItem] = useState<FollowUpInboxItem | null>(null);
   const [clientId, setClientId] = useState<string | undefined>();
+  const [directClientInput, setDirectClientInput] = useState<DirectClientInput | null>(null);
+  const [directFollowUp, setDirectFollowUp] = useState<DirectQuoteFollowUpInput | undefined>();
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
@@ -335,6 +344,8 @@ function App() {
     setClientName(next.clientName);
     setProjectName(next.projectName);
     setSaveFeedback(null);
+    if (client) setDirectClientInput(null);
+    if (client) setDirectFollowUp(undefined);
   }
 
   function handleCatalogJobChange(jobId: string) {
@@ -551,6 +562,8 @@ function App() {
     setQuoteChangeRequest(undefined);
     setClientId(undefined);
     setOpportunityId(undefined);
+    setDirectClientInput(null);
+    setDirectFollowUp(undefined);
     resetTransientState();
     setCurrentView('editor');
   }
@@ -569,6 +582,8 @@ function App() {
     setQuoteVersion(savedQuote.version ?? 1);
     setQuoteBasedOnId(savedQuote.basedOnQuoteId);
     setQuoteChangeRequest(savedQuote.changeRequest);
+    setDirectClientInput(null);
+    setDirectFollowUp(undefined);
     resetTransientState();
     setCurrentView(savedQuote.status === 'draft' ? 'editor' : 'summary');
   }
@@ -587,6 +602,8 @@ function App() {
     setQuoteVersion(savedQuote.version ?? 1);
     setQuoteBasedOnId(savedQuote.basedOnQuoteId);
     setQuoteChangeRequest(savedQuote.changeRequest);
+    setDirectClientInput(null);
+    setDirectFollowUp(undefined);
     setDetailQuoteId(savedQuote.id);
     setCurrentView('quoteDetail');
   }
@@ -831,6 +848,22 @@ function App() {
     if (draft.status !== 'draft') return;
 
     const isNewQuote = !savedQuotes.some((savedQuote) => savedQuote.id === draft.id);
+    if (directClientInput && !draft.clientId) {
+      const result = saveDirectClientQuote(draft, directClientInput, directFollowUp);
+      if (!result.ok) {
+        setSaveFeedback({ type: 'error', message: result.message });
+        return;
+      }
+      setClientId(result.client.id);
+      setClientName(result.client.name);
+      setDirectClientInput(null);
+      setSavedQuotes(loadSavedQuotes());
+      setSaveFeedback({
+        type: 'success',
+        message: 'Cliente directo y borrador guardados correctamente.',
+      });
+      return;
+    }
     if (saveQuote(draft)) {
       const activitySaved =
         !isNewQuote ||
@@ -955,6 +988,12 @@ function App() {
         : {}),
     };
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (isAuthConfigured() && !isWorkspaceUuid(workspaceId))
+      return {
+        ok: false,
+        error:
+          'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
+      };
     if (isAuthConfigured() && workspaceId) {
       try {
         const remoteResult = await registerRemoteQuoteSend({
@@ -1039,6 +1078,14 @@ function App() {
     setDetailQuoteId(next.id);
   }
 
+  function handleDirectQuoteConversion(quote: SavedQuote): string | null {
+    const result = convertDirectQuoteToOpportunity(quote);
+    if (!result.ok) return result.message;
+    setOpportunities(loadOpportunities().items);
+    setSavedQuotes(loadSavedQuotes());
+    return null;
+  }
+
   function handleFinalizationRequest() {
     setSaveFeedback(null);
     setFinalizationFeedback(null);
@@ -1067,6 +1114,38 @@ function App() {
     try {
       const finalizedQuote = finalizeQuote(getCurrentQuote());
       const isNewQuote = !savedQuotes.some((savedQuote) => savedQuote.id === finalizedQuote.id);
+
+      if (directClientInput && !finalizedQuote.clientId) {
+        const result = saveDirectClientQuote(finalizedQuote, directClientInput, directFollowUp);
+        if (!result.ok) {
+          setIsFinalizationConfirmationOpen(false);
+          setFinalizationFeedback({ type: 'error', message: result.message });
+          return;
+        }
+        const persistedQuote = {
+          ...finalizedQuote,
+          clientId: result.client.id,
+          clientName: result.client.name,
+        };
+        setClientId(result.client.id);
+        setClientName(result.client.name);
+        setDirectClientInput(null);
+        setQuoteStatus('finalized');
+        setSavedQuotes(loadSavedQuotes());
+        const activitySaved = recordAutomaticActivity(
+          { kind: 'quote', quoteId: persistedQuote.id },
+          'finalized',
+          'Presupuesto finalizado.',
+        );
+        setIsFinalizationConfirmationOpen(false);
+        setFinalizationFeedback({
+          type: activitySaved ? 'success' : 'error',
+          message: activitySaved
+            ? 'Cliente directo y presupuesto finalizado correctamente.'
+            : 'El presupuesto se finalizó, pero no se pudo registrar la actividad.',
+        });
+        return;
+      }
 
       if (!saveQuote(finalizedQuote)) {
         setIsFinalizationConfirmationOpen(false);
@@ -1588,6 +1667,7 @@ function App() {
           onStatus={(_quote, status, audit) => handleCommercialStatusChange(status, audit)}
           onRegisterSend={setQuoteSendTarget}
           onRequestChange={handleQuoteChangeRequest}
+          onConvertDirect={handleDirectQuoteConversion}
         />
         {quoteSendTarget && (
           <RegisterQuoteSendDrawer
@@ -2169,8 +2249,8 @@ function App() {
       <main className="app-shell">
         <header className="page-header">
           <div>
-            <p className="eyebrow">Ingenya · Presupuestos</p>
-            <h1>Mano de obra</h1>
+            <p className="eyebrow">INGENYA · PRESUPUESTOS</p>
+            <h1>Crear presupuesto</h1>
             <p className="page-description">
               Agregá los servicios, ajustá cantidades y precios, y revisá el total antes de
               continuar.
@@ -2186,6 +2266,22 @@ function App() {
             </div>
           </div>
         </header>
+
+        <DirectClientQuotePanel
+          clients={loadClients().items}
+          selectedClientId={clientId}
+          onSelectExisting={(client) => handleAssociation(client, undefined)}
+          onDirectChange={(input, followUp) => {
+            setDirectClientInput(input);
+            setDirectFollowUp(followUp);
+            if (!input) return;
+            setClientId(undefined);
+            setOpportunityId(undefined);
+            setClientName(input.name.trim() || input.company.trim());
+            setProjectName(input.projectName.trim());
+            setSaveFeedback(null);
+          }}
+        />
 
         <section className="entry-grid" aria-label="Agregar mano de obra">
           <form className="entry-card" onSubmit={handleCatalogSubmit}>

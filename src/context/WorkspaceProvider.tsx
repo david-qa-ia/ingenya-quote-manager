@@ -7,18 +7,20 @@ import {
   toWorkspaceAccessError,
 } from '../utils/workspaceService';
 import { WorkspaceContext } from './WorkspaceContext';
-import { signOut } from '../utils/authService';
+import { isAuthConfigured, signOut } from '../utils/authService';
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<WorkspaceSession | null>(() => {
-    if (import.meta.env.VITE_WORKSPACE_API_URL) return null;
+    if (import.meta.env.VITE_WORKSPACE_API_URL || isAuthConfigured()) return null;
     try {
       return getDemoSession();
     } catch {
       return null;
     }
   });
-  const [isLoading, setIsLoading] = useState(Boolean(import.meta.env.VITE_WORKSPACE_API_URL));
+  const [isLoading, setIsLoading] = useState(
+    Boolean(import.meta.env.VITE_WORKSPACE_API_URL) || isAuthConfigured(),
+  );
   const [isSwitching, setIsSwitching] = useState(false);
   const [accessError, setAccessError] = useState<WorkspaceAccessError | null>(null);
   const [reloadToken, setReloadToken] = useState(0);

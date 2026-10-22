@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { registerRemoteQuoteSend } from './supabaseRepository';
+import { importRemoteProspects, registerRemoteQuoteSend } from './supabaseRepository';
+import { prepareProspectImport } from './prospectImportTransaction';
 
 const session = new Map<string, string>();
 beforeEach(() => {
@@ -82,5 +83,68 @@ describe('remote quote send', () => {
   it('reports a typed network failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     await expect(registerRemoteQuoteSend(input)).rejects.toMatchObject({ code: 'network' });
+  });
+});
+
+describe('remote prospect import', () => {
+  const prepared = prepareProspectImport(
+    [
+      {
+        line: 2,
+        input: {
+          name: 'Ana',
+          company: '',
+          phone: '3415550101',
+          email: '',
+          source: '',
+          potentialService: '',
+          notes: '',
+          status: 'uncontacted',
+          priority: 'medium',
+          priorityReason: '',
+          nextAction: '',
+          nextActionAt: '',
+          responsible: '',
+          preferredChannel: '',
+        },
+        duplicate: false,
+      },
+    ],
+    { schedule: false, channel: 'whatsapp', dueAt: '', responsible: '', note: '' },
+    'remote-import',
+    '2026-10-22T12:00:00.000Z',
+  );
+  it('returns the typed count and idempotency result', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ code: 'OK', importedCount: 1, idempotent: true }), {
+          status: 200,
+        }),
+      ),
+    );
+    await expect(importRemoteProspects('workspace', prepared)).resolves.toEqual({
+      importedCount: 1,
+      idempotent: true,
+    });
+  });
+  it('rejects a 2xx response whose count does not match the prepared batch', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ code: 'OK', importedCount: 0 }), { status: 200 }),
+        ),
+    );
+    await expect(importRemoteProspects('workspace', prepared)).rejects.toMatchObject({
+      code: 'server',
+    });
+  });
+  it('reports an unavailable RPC as a server error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 404 })));
+    await expect(importRemoteProspects('workspace', prepared)).rejects.toMatchObject({
+      code: 'server',
+    });
   });
 });

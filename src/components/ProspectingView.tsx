@@ -52,11 +52,12 @@ import {
   type ProspectConversionInput,
 } from '../utils/prospectConversion';
 import { isAuthConfigured } from '../utils/authService';
-import { getActiveWorkspaceId } from '../utils/workspaceStorage';
+import { getActiveWorkspaceId, isWorkspaceUuid } from '../utils/workspaceStorage';
 import {
   createRemoteProspect,
   importRemoteProspects,
   loadRemoteProspects,
+  SupabaseRepositoryError,
   type SupabaseProspectRow,
 } from '../utils/supabaseRepository';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
@@ -188,7 +189,7 @@ export function ProspectingView({
   }, [toast]);
   useEffect(() => {
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
-    if (!isAuthConfigured() || !workspaceId) return;
+    if (!isAuthConfigured() || !isWorkspaceUuid(workspaceId)) return;
     loadRemoteProspects(workspaceId)
       .then((rows) => {
         const next = rows.map(mapRemoteProspect);
@@ -228,6 +229,12 @@ export function ProspectingView({
       return false;
     }
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (isAuthConfigured() && !isWorkspaceUuid(workspaceId)) {
+      setFeedback(
+        'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
+      );
+      return false;
+    }
     if (isAuthConfigured() && workspaceId) {
       try {
         await createRemoteProspect(workspaceId, next);
@@ -292,7 +299,16 @@ export function ProspectingView({
     if (!config) return;
     importSubmissionRef.current = true;
     const prepared = preparedImport ?? prepareProspectImport(rows, config);
-    const importWorkspaceId = getActiveWorkspaceId() ?? workspaceContext.session?.activeWorkspaceId;
+    const activeWorkspaceId = workspaceContext.session?.activeWorkspaceId;
+    const importWorkspaceId = isAuthConfigured()
+      ? activeWorkspaceId
+      : (getActiveWorkspaceId() ?? activeWorkspaceId);
+    if (isAuthConfigured() && !isWorkspaceUuid(importWorkspaceId)) {
+      setFeedback(
+        'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
+      );
+      return;
+    }
     const recovery: ProspectImportRecovery = {
       importKey: prepared.importKey,
       workspaceId: importWorkspaceId ?? undefined,
@@ -314,8 +330,18 @@ export function ProspectingView({
         const confirmedRecovery = { ...recovery, phase: 'remoteConfirmed' as const };
         setImportRecovery(confirmedRecovery);
         saveProspectImportRecovery(confirmedRecovery);
+        const remoteRows = await loadRemoteProspects(workspaceId);
+        const remoteIds = new Set(remoteRows.map((row) => row.id));
+        if (!prepared.prospects.every((prospect) => remoteIds.has(prospect.id)))
+          throw new SupabaseRepositoryError(
+            'server',
+            'Supabase no devolvió todos los prospectos confirmados. La importación quedó pendiente de recuperación.',
+          );
       }
-      if (getActiveWorkspaceId() !== importWorkspaceId) {
+      const currentWorkspaceId = isAuthConfigured()
+        ? workspaceContext.session?.activeWorkspaceId
+        : getActiveWorkspaceId();
+      if (currentWorkspaceId !== importWorkspaceId) {
         setImportRecovery(recovery);
         saveProspectImportRecovery(recovery);
         setFeedback(
@@ -339,18 +365,25 @@ export function ProspectingView({
       clearProspectImportRecovery();
       setImportRecovery(null);
       setPreparedImport(null);
-      refresh();
+      if (isAuthConfigured() && workspaceId) {
+        const remoteRows = await loadRemoteProspects(workspaceId);
+        const next = remoteRows.map(mapRemoteProspect);
+        setProspects(next);
+        onProspectsChanged?.(next);
+      } else refresh();
       const omitted = rows.length - prepared.prospects.length;
       setFeedback(
         `${prepared.prospects.length} prospecto(s) importado(s)${omitted ? `, ${omitted} omitido(s)` : ''}${prepared.scheduledCount ? ` y ${prepared.scheduledCount} primer contacto(s) agendado(s)` : ''}.`,
       );
       cancelImport();
     } catch (error) {
-      setFeedback(
-        error instanceof Error
-          ? `No se pudo confirmar la importación: ${error.message}`
-          : 'No se pudo confirmar la importación. Reintentá con el mismo archivo.',
-      );
+      const message =
+        error instanceof SupabaseRepositoryError && error.code === 'server'
+          ? 'La importación no está disponible en este entorno. Falta aplicar la migración de SCRUM-82 en Supabase.'
+          : error instanceof Error
+            ? `No se pudo confirmar la importación: ${error.message}`
+            : 'No se pudo confirmar la importación. Reintentá con el mismo archivo.';
+      setFeedback(message);
     } finally {
       importSubmissionRef.current = false;
       setIsImporting(false);
@@ -358,7 +391,10 @@ export function ProspectingView({
   }
   async function recoverImport() {
     if (!importRecovery || isImporting || importSubmissionRef.current) return;
-    if (importRecovery.workspaceId && getActiveWorkspaceId() !== importRecovery.workspaceId) {
+    const currentWorkspaceId = isAuthConfigured()
+      ? workspaceContext.session?.activeWorkspaceId
+      : getActiveWorkspaceId();
+    if (importRecovery.workspaceId && currentWorkspaceId !== importRecovery.workspaceId) {
       setFeedback('Volvé al workspace donde inició la importación para recuperar este lote.');
       return;
     }
@@ -506,6 +542,11 @@ export function ProspectingView({
         <section className="quote-card prospect-import">
           <h2>Importar prospectos</h2>
           <p>Revisá los datos antes de confirmar.</p>
+          {feedback && (
+            <p className="commercial-warning" role="alert">
+              {feedback}
+            </p>
+          )}
           {!csvFileName ? (
             <label className="field" htmlFor="prospect-csv-file">
               <span>Archivo CSV</span>
@@ -728,9 +769,11 @@ export function ProspectingView({
                   >
                     {isImporting
                       ? 'Importando…'
-                      : scheduleFirstContact
-                        ? `Importar ${validRows.length} prospectos y agendar ${compatibleRows.length}`
-                        : `Importar ${validRows.length} prospectos`}
+                      : feedback
+                        ? 'Reintentar importación'
+                        : scheduleFirstContact
+                          ? `Importar ${validRows.length} prospectos y agendar ${compatibleRows.length}`
+                          : `Importar ${validRows.length} prospectos`}
                   </button>
                 )}
               </div>
