@@ -71,7 +71,7 @@ export function OpportunityDetailView({
 }: Props) {
   const [tab, setTab] = useState<DetailTab>('summary');
   const [copied, setCopied] = useState('');
-  const [activityRevision, setActivityRevision] = useState(0);
+  const [, setActivityRevision] = useState(0);
   const [editingOpportunityData, setEditingOpportunityData] = useState(false);
   const [dataDraft, setDataDraft] = useState<OpportunityDataDraft>(() => ({
     serviceOfInterest: opportunity.qualification?.serviceOfInterest ?? '',
@@ -113,7 +113,7 @@ export function OpportunityDetailView({
     return () => window.removeEventListener('activitiesupdated', refreshActivities);
   }, [opportunity.id]);
 
-  const storedActivities = useMemo(() => loadActivities().items, [activityRevision]);
+  const storedActivities = loadActivities().items;
   const opportunityActivities = useMemo(() => {
     const byId = new Map<string, Activity>();
     [...activities, ...storedActivities].forEach((activity) => byId.set(activity.id, activity));
