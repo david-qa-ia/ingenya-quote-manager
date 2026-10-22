@@ -88,13 +88,10 @@ export function SettingsView({ membership, onRetryConnection }: Props) {
         {operations.map((operation) => (
           <div className="system-health-operation" key={operation.title}>
             <UiIcon
-              name={
-                operation.title === 'Prospectos e importación CSV'
-                  ? 'users'
-                  : operation.title === 'Presupuestos y envíos'
-                    ? 'document'
-                    : 'activity'
-              }
+              name={operation.icon}
+              className={`system-health-operation-icon ${
+                operation.available ? 'system-health-icon-good' : 'system-health-icon-muted'
+              }`}
             />
             <div>
               <strong>{operation.title}</strong>

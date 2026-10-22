@@ -3124,6 +3124,7 @@ button.opportunity-nav-item:hover {
     font-size: 2rem;
     letter-spacing: -0.06em;
     margin: 28px 28px 8px;
+    order: 1;
   }
   .app-sidebar-header .brand-name::after {
     content: 'CONSTRUYE RELACIONES';
@@ -3132,8 +3133,12 @@ button.opportunity-nav-item:hover {
     letter-spacing: 0.18em;
     margin: 7px 0 36px 2px;
   }
+  .app-sidebar-header .workspace-switcher {
+    order: 2;
+  }
   .app-sidebar-header .primary-navigation {
     align-items: stretch;
+    order: 3;
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -4591,8 +4596,12 @@ body,
 /* Between phone and desktop widths the full navigation remains visible, but
    each item occupies the available column instead of forcing a wide row. */
 @media (min-width: 641px) and (max-width: 800px) {
+  .app-sidebar-header .workspace-switcher {
+    order: 2;
+  }
   .app-sidebar-header .primary-navigation {
     align-items: stretch;
+    order: 3;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -4856,20 +4865,22 @@ body,
   background: var(--surface);
 }
 .system-health-card > .ui-icon {
+  box-sizing: content-box;
   flex: 0 0 auto;
-  width: 25px;
-  height: 25px;
-  padding: 12px;
+  width: 24px;
+  height: 24px;
+  padding: 10px;
   border-radius: 50%;
-  color: var(--text);
+  color: #52616e;
   background: #eef1f4;
+  stroke-width: 2.25;
 }
 .system-health-card.system-health-good > .ui-icon {
-  color: var(--primary);
-  background: var(--accent-soft);
+  color: #075c47;
+  background: #dff2e9;
 }
 .system-health-card.system-health-attention > .ui-icon {
-  color: #9b6500;
+  color: #9a5b00;
   background: #fff1d8;
 }
 .system-health-card div,
@@ -4904,12 +4915,20 @@ body,
   border-top: 0;
 }
 .system-health-operation > .ui-icon {
-  width: 22px;
-  height: 22px;
-  padding: 9px;
+  box-sizing: content-box;
+  width: 20px;
+  height: 20px;
+  padding: 8px;
   border-radius: 50%;
-  color: var(--primary);
-  background: var(--accent-soft);
+  stroke-width: 2.25;
+}
+.system-health-operation > .system-health-icon-good {
+  color: #075c47;
+  background: #dff2e9;
+}
+.system-health-operation > .system-health-icon-muted {
+  color: #52616e;
+  background: #eef1f4;
 }
 .system-health-badge {
   padding: 7px 12px;

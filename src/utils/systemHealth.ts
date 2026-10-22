@@ -7,7 +7,10 @@ export interface SystemHealthCardState {
   tone: 'good' | 'attention' | 'neutral';
 }
 
+export type SystemHealthOperationIcon = 'users' | 'document' | 'activity';
+
 export interface SystemHealthOperation {
+  icon: SystemHealthOperationIcon;
   title: string;
   detail: string;
   available: boolean;
@@ -64,16 +67,19 @@ export function getSystemHealthOperations(validWorkspace: boolean): SystemHealth
   const unavailableDetail = 'El espacio necesita atención.';
   return [
     {
+      icon: 'users',
       title: 'Prospectos e importación CSV',
       detail: validWorkspace ? 'Podés importar y agendar primeros contactos.' : unavailableDetail,
       available: validWorkspace,
     },
     {
+      icon: 'document',
       title: 'Presupuestos y envíos',
       detail: validWorkspace ? 'Podés registrar envíos y próximos pasos.' : unavailableDetail,
       available: validWorkspace,
     },
     {
+      icon: 'activity',
       title: 'Archivos adjuntos',
       detail: 'La carga de archivos estará disponible próximamente.',
       available: false,
