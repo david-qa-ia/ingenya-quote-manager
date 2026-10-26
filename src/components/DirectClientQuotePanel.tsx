@@ -19,6 +19,8 @@ export function DirectClientQuotePanel({
   const [mode, setMode] = useState<'opportunity' | 'direct'>('opportunity');
   const [opportunityQuery, setOpportunityQuery] = useState('');
   const [clientQuery, setClientQuery] = useState('');
+  const [isOpportunityMenuOpen, setIsOpportunityMenuOpen] = useState(false);
+  const [isClientMenuOpen, setIsClientMenuOpen] = useState(false);
   const [input, setInput] = useState<DirectClientInput>({
     name: '',
     company: '',
@@ -90,6 +92,8 @@ export function DirectClientQuotePanel({
       duplicateReason: undefined,
     };
     updateInput(next);
+    setClientQuery([client.name, client.company].filter(Boolean).join(' · '));
+    setIsClientMenuOpen(false);
   }
   function updateNewClientField(field: keyof DirectClientInput, value: string) {
     updateInput({
@@ -136,72 +140,99 @@ export function DirectClientQuotePanel({
         <div className="direct-client-fields">
           <label className="field">
             <span>Buscar oportunidad</span>
-            <input
-              value={opportunityQuery}
-              onChange={(event) => setOpportunityQuery(event.target.value)}
-              placeholder="Cliente, empresa u obra"
-            />
-          </label>
-          {opportunityMatches.length > 0 ? (
-            <label className="field">
-              <span>Oportunidades disponibles</span>
-              <select
-                value=""
+            <div className="search-select">
+              <input
+                type="search"
+                value={opportunityQuery}
+                onFocus={() => setIsOpportunityMenuOpen(true)}
                 onChange={(event) => {
-                  const opportunity = opportunities.find((item) => item.id === event.target.value);
-                  if (opportunity) onSelectOpportunity(opportunity);
+                  setOpportunityQuery(event.target.value);
+                  setIsOpportunityMenuOpen(true);
                 }}
-              >
-                <option value="">Elegí una oportunidad</option>
-                {opportunityMatches.map((opportunity) => {
-                const client = clients.find((item) => item.id === opportunity.clientId);
-                return (
-                  <option key={opportunity.id} value={opportunity.id}>
-                    {opportunity.name} · {client?.name ?? 'Contacto no disponible'}
-                  </option>
-                );
-                })}
-              </select>
-            </label>
-          ) : (
-            <p className="commercial-note">No encontramos una oportunidad con esos datos.</p>
-          )}
+                placeholder="Cliente, empresa u obra"
+                aria-expanded={isOpportunityMenuOpen}
+                aria-controls="opportunity-search-results"
+              />
+              {isOpportunityMenuOpen && (
+                <div id="opportunity-search-results" className="search-select-menu" role="listbox">
+                  {opportunityMatches.length > 0 ? (
+                    opportunityMatches.map((opportunity) => {
+                      const client = clients.find((item) => item.id === opportunity.clientId);
+                      return (
+                        <button
+                          type="button"
+                          key={opportunity.id}
+                          className="search-select-option"
+                          role="option"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setOpportunityQuery(
+                              `${opportunity.name} · ${client?.name ?? 'Contacto no disponible'}`,
+                            );
+                            setIsOpportunityMenuOpen(false);
+                            onSelectOpportunity(opportunity);
+                          }}
+                        >
+                          <strong>{opportunity.name}</strong>
+                          <span>{client?.name ?? 'Contacto no disponible'}</span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <p className="search-select-empty">No encontramos una oportunidad con esos datos.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </label>
+          <p className="commercial-note">Escribí para filtrar y elegí una opción de la lista.</p>
         </div>
       )}
       {mode === 'direct' && (
         <div className="direct-client-fields">
           <label className="field">
             <span>Buscar cliente existente</span>
-            <input
-              value={clientQuery}
-              onChange={(event) => setClientQuery(event.target.value)}
-              placeholder="Nombre, empresa, teléfono o email"
-            />
-          </label>
-          {matches.length > 0 ? (
-            <label className="field">
-              <span>Clientes disponibles</span>
-              <select
-                value={input.existingClientId ?? ''}
+            <div className="search-select">
+              <input
+                type="search"
+                value={clientQuery}
+                onFocus={() => setIsClientMenuOpen(true)}
                 onChange={(event) => {
-                  const client = clients.find((item) => item.id === event.target.value);
-                  if (client) selectExistingClient(client);
-                  else updateInput({ ...input, existingClientId: undefined });
+                  setClientQuery(event.target.value);
+                  setIsClientMenuOpen(true);
+                  if (input.existingClientId) updateInput({ ...input, existingClientId: undefined });
                 }}
-              >
-                <option value="">Elegí un cliente para reutilizar</option>
-                {matches.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}{client.company ? ` · ${client.company}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <p className="commercial-note">No encontramos un cliente con esos datos.</p>
-          )}
+                placeholder="Nombre, empresa, teléfono o email"
+                aria-expanded={isClientMenuOpen}
+                aria-controls="client-search-results"
+              />
+              {isClientMenuOpen && (
+                <div id="client-search-results" className="search-select-menu" role="listbox">
+                  {matches.length > 0 ? (
+                    matches.map((client) => (
+                      <button
+                        type="button"
+                        key={client.id}
+                        className="search-select-option"
+                        role="option"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => selectExistingClient(client)}
+                      >
+                        <strong>{client.name}</strong>
+                        <span>{client.company || client.email}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="search-select-empty">No encontramos un cliente con esos datos.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </label>
           {input.existingClientId && (
-            <p className="commercial-note">Vas a crear una oportunidad para este cliente, sin duplicarlo.</p>
+            <p className="commercial-note">
+              Cliente seleccionado. Podés escribir otra búsqueda para cambiarlo; no se duplicará.
+            </p>
           )}
           <p className="commercial-note">O creá un contacto nuevo:</p>
           <h3 className="direct-client-subheading">Datos del contacto</h3>

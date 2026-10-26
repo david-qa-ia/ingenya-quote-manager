@@ -2541,6 +2541,17 @@ function App() {
               Ya está vinculado a este cliente y oportunidad. No tenés que seleccionar nada más; la
               vinculación se guardará al guardar el borrador o finalizar el presupuesto.
             </p>
+            <button
+              type="button"
+              className="button button-line"
+              onClick={() => {
+                setClientId(undefined);
+                setOpportunityId(undefined);
+                setIsLinkingOpen(true);
+              }}
+            >
+              Cambiar oportunidad
+            </button>
           </section>
         ) : (
           <section className="quote-card optional-linking-card" aria-label="Vinculación opcional">
