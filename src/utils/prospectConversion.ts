@@ -213,7 +213,7 @@ export function mirrorProspectActivitiesToOpportunity(
 }
 
 export type ProspectConversionResult =
-  { ok: true; prospect: Prospect } | { ok: false; error: string };
+  { ok: true; prospect: Prospect; warning?: string } | { ok: false; error: string };
 
 export function startProspectConversion(
   prospect: Prospect,
@@ -253,12 +253,6 @@ export function resumeProspectConversion(
       ok: false,
       error: 'No se pudo guardar la oportunidad. La conversión quedó pendiente para reintentar.',
     };
-  if (!mirrorProspectActivitiesToOpportunity(prospect, draft))
-    return {
-      ok: false,
-      error:
-        'La oportunidad fue guardada, pero no se pudo trasladar el historial. Reintentá la conversión.',
-    };
   const completed: Prospect = {
     ...prospect,
     status: 'converted',
@@ -279,11 +273,18 @@ export function resumeProspectConversion(
     ],
   };
   const saved = saveProspectWithResult(completed);
-  return saved.ok
+  if (!saved.ok)
+    return {
+      ok: false,
+      error:
+        'Cliente y oportunidad guardados; falta confirmar la conversión del prospecto. Reintentá la conversión.',
+    };
+  return mirrorProspectActivitiesToOpportunity(prospect, draft)
     ? { ok: true, prospect: completed }
     : {
-        ok: false,
-        error:
-          'Cliente y oportunidad guardados; falta confirmar la conversión del prospecto. Reintentá la conversión.',
+        ok: true,
+        prospect: completed,
+        warning:
+          'La oportunidad fue creada, pero no se pudo copiar todo el historial del prospecto.',
       };
 }
