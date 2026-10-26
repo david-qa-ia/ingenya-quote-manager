@@ -1074,6 +1074,7 @@ function App() {
       }
       setClientId(result.client.id);
       setClientName(result.client.name);
+      setOpportunityId(result.opportunity?.id);
       setDirectClientInput(null);
       setSavedQuotes(loadSavedQuotes());
       setSaveFeedback({
@@ -1408,6 +1409,7 @@ function App() {
         };
         setClientId(result.client.id);
         setClientName(result.client.name);
+        setOpportunityId(result.opportunity?.id);
         setDirectClientInput(null);
         setQuoteStatus('finalized');
         setSavedQuotes(loadSavedQuotes());
@@ -2564,14 +2566,12 @@ function App() {
               <DirectClientQuotePanel
                 clients={loadClients().items}
                 opportunities={opportunities}
-                selectedClientId={clientId}
                 onSelectOpportunity={(opportunity) => {
                   const client = loadClients().items.find(
                     (item) => item.id === opportunity.clientId,
                   );
                   if (client) handleAssociation(client, opportunity);
                 }}
-                onSelectExisting={(client) => handleAssociation(client, undefined)}
                 onDirectChange={(input, followUp) => {
                   setDirectClientInput(input);
                   setDirectFollowUp(followUp);

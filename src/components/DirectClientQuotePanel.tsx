@@ -6,28 +6,28 @@ import type { DirectClientInput, DirectQuoteFollowUpInput } from '../utils/direc
 interface Props {
   clients: readonly Client[];
   opportunities: readonly Opportunity[];
-  selectedClientId?: string;
   onSelectOpportunity(opportunity: Opportunity): void;
-  onSelectExisting(client: Client): void;
   onDirectChange(input: DirectClientInput | null, followUp?: DirectQuoteFollowUpInput): void;
 }
 
 export function DirectClientQuotePanel({
   clients,
   opportunities,
-  selectedClientId,
   onSelectOpportunity,
-  onSelectExisting,
   onDirectChange,
 }: Props) {
   const [mode, setMode] = useState<'opportunity' | 'direct'>('opportunity');
-  const [query, setQuery] = useState('');
+  const [opportunityQuery, setOpportunityQuery] = useState('');
+  const [clientQuery, setClientQuery] = useState('');
   const [input, setInput] = useState<DirectClientInput>({
     name: '',
     company: '',
     phone: '',
     email: '',
     projectName: '',
+    origin: '',
+    serviceOfInterest: '',
+    observations: '',
   });
   const [schedule, setSchedule] = useState(true);
   const [followUp, setFollowUp] = useState<DirectQuoteFollowUpInput>({
@@ -40,7 +40,7 @@ export function DirectClientQuotePanel({
     onDirectChange(next, schedule ? followUp : undefined);
   }
   const matches = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = clientQuery.trim().toLowerCase();
     if (!normalized) return clients.slice(0, 6);
     return clients
       .filter((client) =>
@@ -49,9 +49,9 @@ export function DirectClientQuotePanel({
         ),
       )
       .slice(0, 6);
-  }, [clients, query]);
+  }, [clients, clientQuery]);
   const opportunityMatches = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = opportunityQuery.trim().toLowerCase();
     return opportunities
       .filter((opportunity) => {
         const client = clients.find((item) => item.id === opportunity.clientId);
@@ -60,7 +60,7 @@ export function DirectClientQuotePanel({
           .some((value) => value!.toLowerCase().includes(normalized));
       })
       .slice(0, 6);
-  }, [clients, opportunities, query]);
+  }, [clients, opportunities, opportunityQuery]);
   const duplicates = useMemo(() => {
     const phone = input.phone.replace(/\D/g, '');
     const email = input.email.trim().toLowerCase();
@@ -78,6 +78,26 @@ export function DirectClientQuotePanel({
         ),
     );
   }, [clients, input]);
+  function selectExistingClient(client: Client) {
+    const next: DirectClientInput = {
+      ...input,
+      existingClientId: client.id,
+      name: client.name,
+      company: client.company ?? '',
+      phone: client.phone,
+      email: client.email,
+      duplicateConfirmed: undefined,
+      duplicateReason: undefined,
+    };
+    updateInput(next);
+  }
+  function updateNewClientField(field: keyof DirectClientInput, value: string) {
+    updateInput({
+      ...input,
+      existingClientId: undefined,
+      [field]: value,
+    });
+  }
   return (
     <section className="quote-card direct-client-panel" aria-labelledby="quote-origin-title">
       <div className="quote-heading">
@@ -117,27 +137,32 @@ export function DirectClientQuotePanel({
           <label className="field">
             <span>Buscar oportunidad</span>
             <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              value={opportunityQuery}
+              onChange={(event) => setOpportunityQuery(event.target.value)}
               placeholder="Cliente, empresa u obra"
             />
           </label>
           {opportunityMatches.length > 0 ? (
-            <div className="direct-client-matches">
-              {opportunityMatches.map((opportunity) => {
+            <label className="field">
+              <span>Oportunidades disponibles</span>
+              <select
+                value=""
+                onChange={(event) => {
+                  const opportunity = opportunities.find((item) => item.id === event.target.value);
+                  if (opportunity) onSelectOpportunity(opportunity);
+                }}
+              >
+                <option value="">Elegí una oportunidad</option>
+                {opportunityMatches.map((opportunity) => {
                 const client = clients.find((item) => item.id === opportunity.clientId);
                 return (
-                  <button
-                    type="button"
-                    key={opportunity.id}
-                    className="button button-line"
-                    onClick={() => onSelectOpportunity(opportunity)}
-                  >
+                  <option key={opportunity.id} value={opportunity.id}>
                     {opportunity.name} · {client?.name ?? 'Contacto no disponible'}
-                  </button>
+                  </option>
                 );
-              })}
-            </div>
+                })}
+              </select>
+            </label>
           ) : (
             <p className="commercial-note">No encontramos una oportunidad con esos datos.</p>
           )}
@@ -148,33 +173,44 @@ export function DirectClientQuotePanel({
           <label className="field">
             <span>Buscar cliente existente</span>
             <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              value={clientQuery}
+              onChange={(event) => setClientQuery(event.target.value)}
               placeholder="Nombre, empresa, teléfono o email"
             />
           </label>
-          {matches.length > 0 && (
-            <div className="direct-client-matches">
-              {matches.map((client) => (
-                <button
-                  type="button"
-                  key={client.id}
-                  className={`button button-line ${selectedClientId === client.id ? 'is-selected' : ''}`}
-                  onClick={() => onSelectExisting(client)}
-                >
-                  {client.name}
-                  {client.company ? ` · ${client.company}` : ''}
-                </button>
-              ))}
-            </div>
+          {matches.length > 0 ? (
+            <label className="field">
+              <span>Clientes disponibles</span>
+              <select
+                value={input.existingClientId ?? ''}
+                onChange={(event) => {
+                  const client = clients.find((item) => item.id === event.target.value);
+                  if (client) selectExistingClient(client);
+                  else updateInput({ ...input, existingClientId: undefined });
+                }}
+              >
+                <option value="">Elegí un cliente para reutilizar</option>
+                {matches.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}{client.company ? ` · ${client.company}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p className="commercial-note">No encontramos un cliente con esos datos.</p>
           )}
-          <p className="commercial-note">o completá los datos de un cliente nuevo</p>
+          {input.existingClientId && (
+            <p className="commercial-note">Vas a crear una oportunidad para este cliente, sin duplicarlo.</p>
+          )}
+          <p className="commercial-note">O creá un contacto nuevo:</p>
+          <h3 className="direct-client-subheading">Datos del contacto</h3>
           <div className="form-grid">
             <label className="field">
               <span>Nombre</span>
               <input
                 value={input.name}
-                onChange={(event) => updateInput({ ...input, name: event.target.value })}
+                onChange={(event) => updateNewClientField('name', event.target.value)}
                 required
               />
             </label>
@@ -182,7 +218,7 @@ export function DirectClientQuotePanel({
               <span>Empresa</span>
               <input
                 value={input.company}
-                onChange={(event) => updateInput({ ...input, company: event.target.value })}
+                onChange={(event) => updateNewClientField('company', event.target.value)}
               />
             </label>
             <label className="field">
@@ -190,7 +226,7 @@ export function DirectClientQuotePanel({
               <input
                 type="tel"
                 value={input.phone}
-                onChange={(event) => updateInput({ ...input, phone: event.target.value })}
+                onChange={(event) => updateNewClientField('phone', event.target.value)}
               />
             </label>
             <label className="field">
@@ -198,7 +234,7 @@ export function DirectClientQuotePanel({
               <input
                 type="email"
                 value={input.email}
-                onChange={(event) => updateInput({ ...input, email: event.target.value })}
+                onChange={(event) => updateNewClientField('email', event.target.value)}
               />
             </label>
           </div>
@@ -211,7 +247,7 @@ export function DirectClientQuotePanel({
                     type="button"
                     key={client.id}
                     className="button button-line"
-                    onClick={() => onSelectExisting(client)}
+                    onClick={() => selectExistingClient(client)}
                   >
                     Usar {client.name}
                   </button>
@@ -241,13 +277,37 @@ export function DirectClientQuotePanel({
               )}
             </aside>
           )}
-          <label className="field">
-            <span>Proyecto o descripción (opcional)</span>
-            <input
-              value={input.projectName}
-              onChange={(event) => updateInput({ ...input, projectName: event.target.value })}
-            />
-          </label>
+          <h3 className="direct-client-subheading">Datos de la oportunidad</h3>
+          <div className="form-grid">
+            <label className="field">
+              <span>Obra o trabajo</span>
+              <input
+                value={input.projectName}
+                onChange={(event) => updateInput({ ...input, projectName: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>Servicio potencial</span>
+              <input
+                value={input.serviceOfInterest ?? ''}
+                onChange={(event) => updateInput({ ...input, serviceOfInterest: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>Origen</span>
+              <input
+                value={input.origin ?? ''}
+                onChange={(event) => updateInput({ ...input, origin: event.target.value })}
+              />
+            </label>
+            <label className="field field-wide">
+              <span>Observaciones</span>
+              <textarea
+                value={input.observations ?? ''}
+                onChange={(event) => updateInput({ ...input, observations: event.target.value })}
+              />
+            </label>
+          </div>
           <p className="commercial-note">
             El cliente se guardará junto con el presupuesto. No se creará nada hasta guardar el
             borrador o continuar.

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Quote } from '../types/quote';
-import { loadClients } from './clientStorage';
+import { loadClients, saveClient } from './clientStorage';
 import { convertDirectQuoteToOpportunity } from './directQuoteConversion';
 import { saveDirectClientQuote } from './directClientQuote';
 import { loadOpportunities } from './opportunityStorage';
@@ -80,6 +80,48 @@ describe('direct client quote transaction', () => {
       'Dar seguimiento al presupuesto',
     );
     expect(loadSavedQuotes()[0].opportunityId).toBe(loadOpportunities().items[0].id);
+  });
+  it('reuses the selected client and preserves opportunity traceability', () => {
+    const now = '2026-10-24T12:00:00.000Z';
+    const client = {
+      id: 'client-existing',
+      name: 'Nestor',
+      company: 'Chocolates Agostino',
+      phone: '3417777777',
+      email: 'nestor@example.com',
+      preferredChannel: '',
+      contactConsent: false,
+      createdAt: now,
+      updatedAt: now,
+    } as const;
+    expect(saveClient(client)).toBe(true);
+
+    const result = saveDirectClientQuote(
+      quote(),
+      {
+        existingClientId: client.id,
+        name: client.name,
+        company: client.company,
+        phone: client.phone,
+        email: client.email,
+        projectName: 'Local centro',
+        origin: 'Instagram',
+        serviceOfInterest: 'Automatización',
+        observations: 'Pidió cotización esta semana.',
+      },
+      { dueAt: '2026-10-25T12:00', channel: 'whatsapp', responsible: 'David' },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(loadClients().items).toHaveLength(1);
+    expect(loadOpportunities().items[0]).toMatchObject({
+      clientId: client.id,
+      origin: 'Instagram',
+      qualification: {
+        serviceOfInterest: 'Automatización',
+        detectedNeed: 'Pidió cotización esta semana.',
+      },
+    });
   });
   it('converts a saved direct quote only once and preserves the quote', () => {
     const created = saveDirectClientQuote(quote(), {

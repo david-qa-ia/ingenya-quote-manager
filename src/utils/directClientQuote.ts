@@ -1,4 +1,5 @@
 import type { Client } from '../types/client';
+import type { Opportunity } from '../types/opportunity';
 import type { Quote } from '../types/quote';
 import { recordAutomaticActivity, ACTIVITIES_STORAGE_KEY } from './activityStorage';
 import { CLIENTS_STORAGE_KEY, loadClients, saveClient } from './clientStorage';
@@ -8,11 +9,16 @@ import { saveQuote, SAVED_QUOTES_STORAGE_KEY } from './quoteDraftStorage';
 import { workspaceStorageKey } from './workspaceStorage';
 
 export interface DirectClientInput {
+  /** Reuses this contact instead of creating a duplicate when supplied. */
+  existingClientId?: string;
   name: string;
   company: string;
   phone: string;
   email: string;
   projectName: string;
+  origin?: string;
+  serviceOfInterest?: string;
+  observations?: string;
   duplicateConfirmed?: boolean;
   duplicateReason?: string;
 }
@@ -24,7 +30,7 @@ export interface DirectQuoteFollowUpInput {
 }
 
 export type DirectClientQuoteResult =
-  { ok: true; client: Client } | { ok: false; message: string; recoveryRequired?: boolean };
+  { ok: true; client: Client; opportunity?: Opportunity } | { ok: false; message: string; recoveryRequired?: boolean };
 
 /** Creates the contact and its first quote as one local operation. */
 export function saveDirectClientQuote(
@@ -34,7 +40,12 @@ export function saveDirectClientQuote(
 ): DirectClientQuoteResult {
   const name = input.name.trim();
   const company = input.company.trim();
-  if (!name && !company)
+  const existingClient = input.existingClientId
+    ? loadClients().items.find((item) => item.id === input.existingClientId)
+    : undefined;
+  if (input.existingClientId && !existingClient)
+    return { ok: false, message: 'El cliente seleccionado ya no está disponible. Elegilo nuevamente.' };
+  if (!existingClient && !name && !company)
     return { ok: false, message: 'Ingresá el nombre o la empresa del cliente.' };
   if (followUp && (!followUp.dueAt || !followUp.responsible.trim()))
     return {
@@ -43,7 +54,7 @@ export function saveDirectClientQuote(
     };
   const normalizedPhone = input.phone.replace(/\D/g, '');
   const normalizedEmail = input.email.trim().toLowerCase();
-  const hasDuplicate = loadClients().items.some((item) => {
+  const hasDuplicate = !existingClient && loadClients().items.some((item) => {
     const samePhone =
       normalizedPhone.length >= 7 && item.phone.replace(/\D/g, '') === normalizedPhone;
     const sameEmail =
@@ -64,7 +75,7 @@ export function saveDirectClientQuote(
     };
 
   const now = new Date().toISOString();
-  const client: Client = {
+  const client: Client = existingClient ?? {
     id: crypto.randomUUID(),
     name: name || company,
     ...(company ? { company } : {}),
@@ -96,7 +107,7 @@ export function saveDirectClientQuote(
     }
   };
   try {
-    if (!saveClient(client)) throw new Error('client');
+    if (!existingClient && !saveClient(client)) throw new Error('client');
     const opportunity = followUp
       ? {
           id: crypto.randomUUID(),
@@ -105,10 +116,16 @@ export function saveDirectClientQuote(
           address: '',
           estimatedStartDate: '',
           responsibleSeller: followUp.responsible.trim(),
-          origin: 'Presupuesto directo',
+          origin: input.origin?.trim() || 'Presupuesto directo',
           status: 'active' as const,
           commercialState: 'open' as const,
           pipelineStage: 'opportunity' as const,
+          qualification: {
+            serviceOfInterest: input.serviceOfInterest?.trim() || 'Sin especificar',
+            interestLevel: 'medium' as const,
+            detectedNeed:
+              input.observations?.trim() || 'Presupuesto creado desde el flujo comercial.',
+          },
           nextAction: {
             id: crypto.randomUUID(),
             kind: 'followUp' as const,
@@ -144,7 +161,7 @@ export function saveDirectClientQuote(
       )
     )
       throw new Error('activity');
-    return { ok: true, client };
+    return { ok: true, client, opportunity };
   } catch {
     const restored = restore();
     return restored

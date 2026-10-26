@@ -203,6 +203,7 @@ export function recoverOpportunity(value: unknown): Opportunity | null {
     ...(isNonEmpty(record.currentCommercialOutcomeId)
       ? { currentCommercialOutcomeId: record.currentCommercialOutcomeId }
       : {}),
+    ...(isNonEmpty(record.origin) ? { origin: record.origin } : {}),
     ...(isQualification(record.qualification) ? { qualification: record.qualification } : {}),
     ...(nextAction ? { nextAction } : {}),
     ...(noNextActionException ? { noNextActionException } : {}),
@@ -236,6 +237,7 @@ export function normalizeOpportunityInput(input: OpportunityInput): OpportunityI
     responsibleSeller: input.responsibleSeller.trim(),
     commercialState: input.commercialState ?? 'open',
     pipelineStage: input.pipelineStage ?? 'opportunity',
+    ...(input.origin?.trim() ? { origin: input.origin.trim() } : {}),
     ...(input.qualification
       ? {
           qualification: {
