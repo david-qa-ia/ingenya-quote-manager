@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './App.css';
-import { QuoteCommercialContext } from './components/QuoteCommercialContext';
 import { DirectClientQuotePanel } from './components/DirectClientQuotePanel';
-import { QuoteCommercialStatus } from './components/QuoteCommercialStatus';
-import { QuoteActivityPanel } from './components/QuoteActivityPanel';
 import { ContactAssistant } from './components/ContactAssistant';
 import type { Client, ClientInput } from './types/client';
 import type { FollowUpInboxItem } from './types/followUpInbox';
@@ -93,6 +90,8 @@ import {
   saveCadenceExecution,
 } from './utils/cadenceStorage';
 import { transitionNextAction } from './utils/opportunityNextAction';
+import { closeOpportunityForAcceptedQuote } from './utils/opportunityQuoteSettlement';
+import { canCreateQuoteVersion } from './utils/quoteVersioning';
 import { completeCadenceAction } from './utils/cadenceTransitions';
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
 import { deriveFollowUpInbox } from './utils/followUpInbox';
@@ -179,6 +178,36 @@ function loadProspectFilters(): ProspectFilters {
   }
 }
 
+function loadOpportunitiesWithAcceptedQuoteRepair(): Opportunity[] {
+  const acceptedQuotes = loadSavedQuotes().filter(
+    (quote) => quote.commercialStatus === 'accepted' && quote.opportunityId,
+  );
+  loadOpportunities().items.forEach((opportunity) => {
+    const acceptedQuote = acceptedQuotes.find((quote) => quote.opportunityId === opportunity.id);
+    if (!acceptedQuote) return;
+    const needsRepair =
+      opportunity.pipelineStage !== 'won' ||
+      opportunity.commercialState !== 'won' ||
+      opportunity.status !== 'closed' ||
+      opportunity.nextAction?.status === 'pending';
+    if (!needsRepair) return;
+    const next = closeOpportunityForAcceptedQuote(
+      opportunity,
+      acceptedQuote.commercialStatusAudit.changedBy,
+      acceptedQuote.commercialStatusAudit.changedAt,
+    );
+    if (!saveOpportunity(next)) return;
+    if (opportunity.nextAction?.status === 'pending' && next.nextAction)
+      recordNextActionActivity(
+        next.id,
+        next.nextAction.id,
+        'cancelled',
+        'Próximo paso cancelado porque el presupuesto fue aceptado.',
+      );
+  });
+  return loadOpportunities().items;
+}
+
 function App() {
   const workspaceContext = useWorkspace();
   const [initialCatalogLoad] = useState(loadLaborCatalog);
@@ -219,7 +248,7 @@ function App() {
   const [prospectHasUnsavedChanges, setProspectHasUnsavedChanges] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [opportunities, setOpportunities] = useState(() => loadOpportunities().items);
+  const [opportunities, setOpportunities] = useState(loadOpportunitiesWithAcceptedQuoteRepair);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [quoteVersion, setQuoteVersion] = useState(1);
@@ -260,6 +289,7 @@ function App() {
   const [manualUnitPrice, setManualUnitPrice] = useState('');
   const [saveManualToCatalog, setSaveManualToCatalog] = useState(false);
   const [isOptionalDataOpen, setIsOptionalDataOpen] = useState(false);
+  const [isLinkingOpen, setIsLinkingOpen] = useState(false);
   const [catalogError, setCatalogError] = useState('');
   const [manualError, setManualError] = useState('');
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
@@ -435,6 +465,7 @@ function App() {
     setSaveFeedback(null);
     if (client) setDirectClientInput(null);
     if (client) setDirectFollowUp(undefined);
+    if (opportunity) setIsLinkingOpen(false);
   }
 
   function handleCatalogJobChange(jobId: string) {
@@ -653,6 +684,7 @@ function App() {
     setOpportunityId(undefined);
     setDirectClientInput(null);
     setDirectFollowUp(undefined);
+    setIsLinkingOpen(false);
     resetTransientState();
     setCurrentView('editor');
   }
@@ -682,6 +714,7 @@ function App() {
     setQuoteChangeRequest(savedQuote.changeRequest);
     setDirectClientInput(null);
     setDirectFollowUp(undefined);
+    setIsLinkingOpen(false);
     resetTransientState();
     setCurrentView(savedQuote.status === 'draft' ? 'editor' : 'summary');
   }
@@ -707,6 +740,10 @@ function App() {
   }
 
   function handleCreateQuoteVersion(source: SavedQuote, reason: string) {
+    const opportunity = source.opportunityId
+      ? loadOpportunities().items.find((item) => item.id === source.opportunityId)
+      : undefined;
+    if (!canCreateQuoteVersion(source, opportunity)) return;
     setQuoteId(createQuoteId());
     setQuoteStatus('draft');
     setCommercialStatus('prepared');
@@ -1111,6 +1148,39 @@ function App() {
           setOpportunities(loadOpportunities().items);
         }
       }
+      if (quote.opportunityId && nextStatus === 'accepted') {
+        const opportunity = loadOpportunities().items.find(
+          (item) => item.id === quote.opportunityId,
+        );
+        if (opportunity) {
+          const closedOpportunity = closeOpportunityForAcceptedQuote(
+            opportunity,
+            audit.changedBy,
+            audit.changedAt,
+          );
+          if (
+            !saveOpportunity({
+              ...closedOpportunity,
+              pipelineStage: 'won',
+              commercialState: 'won',
+              status: 'closed',
+              updatedAt: audit.changedAt,
+            })
+          )
+            return 'El presupuesto fue aceptado, pero no se pudo cerrar la oportunidad.';
+          if (
+            closedOpportunity.nextAction?.status === 'cancelled' &&
+            !recordNextActionActivity(
+              closedOpportunity.id,
+              closedOpportunity.nextAction.id,
+              'cancelled',
+              'Próximo paso cancelado porque el presupuesto fue aceptado.',
+            )
+          )
+            return 'El presupuesto fue aceptado, pero no se pudo registrar la cancelación del próximo paso.';
+          setOpportunities(loadOpportunities().items);
+        }
+      }
       if (['accepted', 'rejected', 'expired'].includes(nextStatus)) {
         const cadenceCancelled = cancelCadencesForCommercialClose(
           quote.id,
@@ -1257,6 +1327,10 @@ function App() {
   }
 
   function handleQuoteChangeRequest(quote: SavedQuote, reason: string, responsible: string) {
+    const opportunity = quote.opportunityId
+      ? loadOpportunities().items.find((item) => item.id === quote.opportunityId)
+      : undefined;
+    if (!canCreateQuoteVersion(quote, opportunity)) return;
     const now = new Date().toISOString();
     const next: SavedQuote = {
       ...quote,
@@ -2377,35 +2451,6 @@ function App() {
                 </footer>
               </section>
             </div>
-
-            <section className="quote-commercial-sections" aria-label="Seguimiento comercial">
-              <QuoteCommercialContext
-                key={quoteId}
-                quote={getCurrentQuote()}
-                savedQuotes={savedQuotes}
-                onAssociate={handleAssociation}
-                onEntitiesChange={() => setOpportunities(loadOpportunities().items)}
-                onQuoteResult={handleCommercialStatusChange}
-              />
-              <section
-                className="summary-panel commercial-follow-up"
-                aria-labelledby="commercial-follow-up-title"
-              >
-                <div className="summary-panel-heading">
-                  <p className="eyebrow">Seguimiento comercial</p>
-                  <h2 id="commercial-follow-up-title">Seguimiento comercial</h2>
-                </div>
-                <QuoteCommercialStatus
-                  documentStatus={quoteStatus}
-                  commercialStatus={commercialStatus}
-                  commercialStatusAudit={commercialStatusAudit}
-                  sentAudit={sentAudit}
-                  hasOpportunity={Boolean(opportunityId)}
-                  onChange={handleCommercialStatusChange}
-                />
-                <QuoteActivityPanel quote={getCurrentQuote()} />
-              </section>
-            </section>
           </div>
           {isFinalizationConfirmationOpen && (
             <div className="modal-backdrop">
@@ -2496,21 +2541,50 @@ function App() {
             </p>
           </section>
         ) : (
-          <DirectClientQuotePanel
-            clients={loadClients().items}
-            selectedClientId={clientId}
-            onSelectExisting={(client) => handleAssociation(client, undefined)}
-            onDirectChange={(input, followUp) => {
-              setDirectClientInput(input);
-              setDirectFollowUp(followUp);
-              if (!input) return;
-              setClientId(undefined);
-              setOpportunityId(undefined);
-              setClientName(input.name.trim() || input.company.trim());
-              setProjectName(input.projectName.trim());
-              setSaveFeedback(null);
-            }}
-          />
+          <section className="quote-card optional-linking-card" aria-label="Vinculación opcional">
+            <div className="quote-heading">
+              <div>
+                <p className="eyebrow">SEGUIMIENTO OPCIONAL</p>
+                <h2>¿Querés vincular este presupuesto a seguimiento?</h2>
+                <p className="commercial-note">
+                  Podés continuar sin vincularlo. La vinculación no modifica los servicios, el total
+                  ni los datos del documento.
+                </p>
+              </div>
+              <button
+                className="button button-line"
+                type="button"
+                aria-expanded={isLinkingOpen}
+                onClick={() => setIsLinkingOpen((isOpen) => !isOpen)}
+              >
+                {isLinkingOpen ? 'Cerrar vinculación' : 'Vincular a seguimiento'}
+              </button>
+            </div>
+            {isLinkingOpen && (
+              <DirectClientQuotePanel
+                clients={loadClients().items}
+                opportunities={opportunities}
+                selectedClientId={clientId}
+                onSelectOpportunity={(opportunity) => {
+                  const client = loadClients().items.find(
+                    (item) => item.id === opportunity.clientId,
+                  );
+                  if (client) handleAssociation(client, opportunity);
+                }}
+                onSelectExisting={(client) => handleAssociation(client, undefined)}
+                onDirectChange={(input, followUp) => {
+                  setDirectClientInput(input);
+                  setDirectFollowUp(followUp);
+                  if (!input) return;
+                  setClientId(undefined);
+                  setOpportunityId(undefined);
+                  setClientName(input.name.trim() || input.company.trim());
+                  setProjectName(input.projectName.trim());
+                  setSaveFeedback(null);
+                }}
+              />
+            )}
+          </section>
         )}
 
         <section className="entry-grid" aria-label="Agregar mano de obra">

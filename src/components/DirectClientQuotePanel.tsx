@@ -1,17 +1,22 @@
 import { useMemo, useState } from 'react';
 import type { Client } from '../types/client';
+import type { Opportunity } from '../types/opportunity';
 import type { DirectClientInput, DirectQuoteFollowUpInput } from '../utils/directClientQuote';
 
 interface Props {
   clients: readonly Client[];
+  opportunities: readonly Opportunity[];
   selectedClientId?: string;
+  onSelectOpportunity(opportunity: Opportunity): void;
   onSelectExisting(client: Client): void;
   onDirectChange(input: DirectClientInput | null, followUp?: DirectQuoteFollowUpInput): void;
 }
 
 export function DirectClientQuotePanel({
   clients,
+  opportunities,
   selectedClientId,
+  onSelectOpportunity,
   onSelectExisting,
   onDirectChange,
 }: Props) {
@@ -24,7 +29,7 @@ export function DirectClientQuotePanel({
     email: '',
     projectName: '',
   });
-  const [schedule, setSchedule] = useState(false);
+  const [schedule, setSchedule] = useState(true);
   const [followUp, setFollowUp] = useState<DirectQuoteFollowUpInput>({
     dueAt: '',
     channel: 'call',
@@ -45,6 +50,17 @@ export function DirectClientQuotePanel({
       )
       .slice(0, 6);
   }, [clients, query]);
+  const opportunityMatches = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return opportunities
+      .filter((opportunity) => {
+        const client = clients.find((item) => item.id === opportunity.clientId);
+        return [opportunity.name, client?.name, client?.company]
+          .filter(Boolean)
+          .some((value) => value!.toLowerCase().includes(normalized));
+      })
+      .slice(0, 6);
+  }, [clients, opportunities, query]);
   const duplicates = useMemo(() => {
     const phone = input.phone.replace(/\D/g, '');
     const email = input.email.trim().toLowerCase();
@@ -67,7 +83,7 @@ export function DirectClientQuotePanel({
       <div className="quote-heading">
         <div>
           <p className="eyebrow">Cliente</p>
-          <h2 id="quote-origin-title">¿Cómo querés vincular este presupuesto?</h2>
+          <h2 id="quote-origin-title">Vincular a seguimiento</h2>
         </div>
       </div>
       <div className="direct-client-choice" role="radiogroup" aria-label="Origen del presupuesto">
@@ -80,8 +96,8 @@ export function DirectClientQuotePanel({
           }}
           aria-pressed={mode === 'opportunity'}
         >
-          <strong>Vincular a oportunidad existente</strong>
-          <span>Elegí una obra o trabajo desde el contexto comercial.</span>
+          <strong>Oportunidad existente</strong>
+          <span>Elegí una obra o trabajo ya creado.</span>
         </button>
         <button
           type="button"
@@ -92,10 +108,41 @@ export function DirectClientQuotePanel({
           }}
           aria-pressed={mode === 'direct'}
         >
-          <strong>Cliente directo</strong>
-          <span>Creá un presupuesto sin inventar una oportunidad.</span>
+          <strong>Crear contacto y oportunidad</strong>
+          <span>Creá el contacto, la obra o trabajo y su próximo paso.</span>
         </button>
       </div>
+      {mode === 'opportunity' && (
+        <div className="direct-client-fields">
+          <label className="field">
+            <span>Buscar oportunidad</span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Cliente, empresa u obra"
+            />
+          </label>
+          {opportunityMatches.length > 0 ? (
+            <div className="direct-client-matches">
+              {opportunityMatches.map((opportunity) => {
+                const client = clients.find((item) => item.id === opportunity.clientId);
+                return (
+                  <button
+                    type="button"
+                    key={opportunity.id}
+                    className="button button-line"
+                    onClick={() => onSelectOpportunity(opportunity)}
+                  >
+                    {opportunity.name} · {client?.name ?? 'Contacto no disponible'}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="commercial-note">No encontramos una oportunidad con esos datos.</p>
+          )}
+        </div>
+      )}
       {mode === 'direct' && (
         <div className="direct-client-fields">
           <label className="field">
@@ -216,7 +263,7 @@ export function DirectClientQuotePanel({
                   onDirectChange(input, next ? followUp : undefined);
                 }}
               />
-              <span>Agendar seguimiento</span>
+              <span>Crear oportunidad y agendar próximo paso</span>
             </label>
             {schedule && (
               <div className="form-grid">

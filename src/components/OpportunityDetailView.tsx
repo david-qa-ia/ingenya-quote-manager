@@ -11,6 +11,7 @@ import { loadActivities } from '../utils/activityStorage';
 import { mirrorProspectActivitiesToOpportunity } from '../utils/prospectConversion';
 import { loadProspects } from '../utils/prospectStorage';
 import { getOpportunityQuoteAction } from '../utils/opportunityQuoteAction';
+import { canCreateQuoteVersion } from '../utils/quoteVersioning';
 
 type DetailTab = 'summary' | 'activity' | 'quotes' | 'notes' | 'files';
 type OpportunityDataDraft = {
@@ -100,6 +101,9 @@ export function OpportunityDetailView({
   const qualification = opportunity.qualification;
   const isMissingClient = !client;
   const currentQuote = relatedQuotes[0];
+  const canCreateVersion = Boolean(
+    currentQuote && canCreateQuoteVersion(currentQuote, opportunity),
+  );
   const quoteAction = getOpportunityQuoteAction(relatedQuotes);
   const isSendQuoteAction =
     action?.kind === 'sendQuote' ||
@@ -417,15 +421,21 @@ export function OpportunityDetailView({
                     <p className="eyebrow">Propuesta</p>
                     <h2>Versiones del presupuesto</h2>
                   </div>
-                  <button
-                    className="button button-line"
-                    type="button"
-                    onClick={() =>
-                      onCreateQuoteVersion(currentQuote, 'El cliente solicitó cambios.')
-                    }
-                  >
-                    Crear V{(currentQuote.version ?? 1) + 1} desde V{currentQuote.version ?? 1}
-                  </button>
+                  {canCreateVersion ? (
+                    <button
+                      className="button button-line"
+                      type="button"
+                      onClick={() =>
+                        onCreateQuoteVersion(currentQuote, 'El cliente solicitó cambios.')
+                      }
+                    >
+                      Crear V{(currentQuote.version ?? 1) + 1} desde V{currentQuote.version ?? 1}
+                    </button>
+                  ) : (
+                    <p className="commercial-note">
+                      Presupuesto aceptado: la oportunidad está cerrada.
+                    </p>
+                  )}
                 </div>
                 <ul className="opportunity-quote-list">
                   {relatedQuotes.map((quote) => (
