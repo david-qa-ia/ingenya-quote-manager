@@ -231,46 +231,58 @@ export function DirectClientQuotePanel({
             </div>
           </label>
           {input.existingClientId && (
-            <p className="commercial-note">
-              Cliente seleccionado. Podés escribir otra búsqueda para cambiarlo; no se duplicará.
-            </p>
+            <section className="selected-contact-summary" aria-label="Cliente seleccionado">
+              <div>
+                <span>Cliente seleccionado</span>
+                <strong>{input.name}</strong>
+                {input.company && <small>{input.company}</small>}
+              </div>
+              <div className="selected-contact-details">
+                <span>{input.phone}</span>
+                <span>{input.email}</span>
+              </div>
+              <p>Para cambiarlo, buscá y elegí otro contacto arriba.</p>
+            </section>
           )}
-          <p className="commercial-note">O creá un contacto nuevo:</p>
-          <h3 className="direct-client-subheading">Datos del contacto</h3>
-          <div className="form-grid">
-            <label className="field">
-              <span>Nombre</span>
-              <input
-                value={input.name}
-                onChange={(event) => updateNewClientField('name', event.target.value)}
-                required
-              />
-            </label>
-            <label className="field">
-              <span>Empresa</span>
-              <input
-                value={input.company}
-                onChange={(event) => updateNewClientField('company', event.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>Teléfono (opcional)</span>
-              <input
-                type="tel"
-                value={input.phone}
-                onChange={(event) => updateNewClientField('phone', event.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>Email (opcional)</span>
-              <input
-                type="email"
-                value={input.email}
-                onChange={(event) => updateNewClientField('email', event.target.value)}
-              />
-            </label>
-          </div>
-          {duplicates.length > 0 && (
+          {!input.existingClientId && (
+            <>
+              <p className="commercial-note">O creá un contacto nuevo:</p>
+              <div className="direct-contact-fields">
+                <label className="field">
+                  <span>Nombre</span>
+                  <input
+                    value={input.name}
+                    onChange={(event) => updateNewClientField('name', event.target.value)}
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Empresa</span>
+                  <input
+                    value={input.company}
+                    onChange={(event) => updateNewClientField('company', event.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Teléfono</span>
+                  <input
+                    type="tel"
+                    value={input.phone}
+                    onChange={(event) => updateNewClientField('phone', event.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={input.email}
+                    onChange={(event) => updateNewClientField('email', event.target.value)}
+                  />
+                </label>
+              </div>
+            </>
+          )}
+          {!input.existingClientId && duplicates.length > 0 && (
             <aside className="commercial-warning" aria-live="polite">
               <strong>Encontramos posibles clientes duplicados.</strong>
               <div className="direct-client-matches">

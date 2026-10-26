@@ -5118,6 +5118,41 @@ body,
   border-color: var(--primary);
   color: var(--primary);
 }
+.direct-contact-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+.selected-contact-summary {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(200px, auto);
+  gap: 8px 24px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--accent-border);
+  border-radius: 9px;
+  background: var(--accent-soft);
+}
+.selected-contact-summary span,
+.selected-contact-summary small,
+.selected-contact-summary p {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.selected-contact-summary strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-heading);
+}
+.selected-contact-details {
+  display: grid;
+  gap: 3px;
+}
+.selected-contact-summary p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
 .search-select {
   position: relative;
 }
@@ -5174,6 +5209,10 @@ body,
     grid-column: 2;
   }
   .direct-client-choice {
+    grid-template-columns: 1fr;
+  }
+  .direct-contact-fields,
+  .selected-contact-summary {
     grid-template-columns: 1fr;
   }
 }
