@@ -716,6 +716,7 @@ function App() {
       return;
     }
     if (item.opportunityId) {
+      setOpportunities(loadOpportunities().items);
       setDetailOpportunityId(item.opportunityId);
       setCurrentView('opportunityDetail');
       return;

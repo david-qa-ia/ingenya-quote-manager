@@ -3,6 +3,7 @@ import type { Prospect } from '../types/prospect';
 import { loadClients } from './clientStorage';
 import { loadActivities } from './activityStorage';
 import { loadOpportunities, OPPORTUNITIES_STORAGE_KEY } from './opportunityStorage';
+import { deriveFollowUpInbox } from './followUpInbox';
 import {
   canQualifyProspect,
   createPendingProspectConversion,
@@ -166,5 +167,33 @@ describe('prospect conversion', () => {
     if (!result.ok) throw new Error(result.error);
     expect(result.prospect.activities).toHaveLength(prospect.activities.length + 1);
     expect(getDueGroup(result.prospect, new Date('2026-10-16T12:00:00Z'))).toBeNull();
+  });
+  it('removes the prospect action even when copying its history fails after the opportunity is saved', () => {
+    const pending = createPendingProspectConversion(prospect, input);
+    expect(saveProspectWithResult(pending).ok).toBe(true);
+    const originalSet = localStorage.setItem;
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        if (key === 'ingenya.activities.v1') throw new Error('blocked');
+        originalSet(key, value);
+      },
+    });
+
+    const result = resumeProspectConversion(pending);
+
+    expect(result).toMatchObject({ ok: true, warning: expect.any(String) });
+    expect(loadProspects().items[0]).toMatchObject({ status: 'converted', nextAction: '' });
+    expect(
+      deriveFollowUpInbox(
+        loadOpportunities().items,
+        loadClients().items,
+        [],
+        [],
+        [],
+        new Date('2026-10-16T12:00:00Z'),
+        loadProspects().items,
+      ).filter((item) => item.prospectId === prospect.id),
+    ).toEqual([]);
   });
 });
