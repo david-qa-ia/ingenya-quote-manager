@@ -24,6 +24,7 @@ interface Props {
     status: CommercialStatus,
     audit: CommercialStatusAudit,
   ): string | null;
+  onContinueEditing(quote: SavedQuote): void;
   onRegisterSend(quote: SavedQuote): void;
   onRequestChange(quote: SavedQuote, reason: string, responsible: string): void;
   onConvertDirect(quote: SavedQuote): string | null;
@@ -37,6 +38,7 @@ export function QuoteDetailView({
   onBack,
   onPdf,
   onStatus,
+  onContinueEditing,
   onRegisterSend,
   onRequestChange,
   onConvertDirect,
@@ -53,6 +55,7 @@ export function QuoteDetailView({
   const total = calculateQuoteTotal(quote.lines);
   const targets = getCommercialTransitionTargets(quote.commercialStatus, quote.status);
   const displayName = opportunity?.name || quote.projectName || 'Presupuesto';
+  const isDraft = quote.status === 'draft';
 
   async function pdf() {
     if (loadingPdf) return;
@@ -160,6 +163,15 @@ export function QuoteDetailView({
               <strong>{currencyFormatter.format(total)}</strong>
             </footer>
             <div className="quote-document-actions">
+              {isDraft && (
+                <button
+                  className="button button-primary"
+                  type="button"
+                  onClick={() => onContinueEditing(quote)}
+                >
+                  <UiIcon name="document" /> Completar y finalizar
+                </button>
+              )}
               <button
                 className="button button-primary"
                 type="button"
@@ -203,10 +215,19 @@ export function QuoteDetailView({
                 type="button"
                 onClick={() => onRegisterSend(quote)}
                 disabled={!targets.includes('sent')}
+                title={
+                  isDraft ? 'Finalizá el presupuesto para poder registrar su envío.' : undefined
+                }
               >
                 <UiIcon name="send" /> Registrar envío
               </button>
             </div>
+            {isDraft && (
+              <p className="quote-detail-feedback" role="status">
+                Este presupuesto está listo para revisar, pero todavía es un borrador. Completalo y
+                finalizalo para habilitar el registro de envío.
+              </p>
+            )}
             {feedback && (
               <p className="quote-detail-feedback" role="status">
                 {feedback}

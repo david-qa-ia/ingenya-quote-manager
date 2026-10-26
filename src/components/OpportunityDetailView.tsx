@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityTimeline } from './ActivityTimeline';
+import { ClientForm } from './ClientForm';
 import { UiIcon } from './UiIcon';
-import type { Client } from '../types/client';
+import type { Client, ClientInput } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
 import type { Activity } from '../types/activity';
@@ -9,6 +10,7 @@ import { businessTimeZone } from '../utils/opportunityNextAction';
 import { loadActivities } from '../utils/activityStorage';
 import { mirrorProspectActivitiesToOpportunity } from '../utils/prospectConversion';
 import { loadProspects } from '../utils/prospectStorage';
+import { getOpportunityQuoteAction } from '../utils/opportunityQuoteAction';
 
 type DetailTab = 'summary' | 'activity' | 'quotes' | 'notes' | 'files';
 type OpportunityDataDraft = {
@@ -27,8 +29,10 @@ interface Props {
   quotes: readonly SavedQuote[];
   onBack: () => void;
   onSaveOpportunity: (opportunity: Opportunity, event: string) => boolean;
-  onPrepareContact: (channel: 'call' | 'whatsapp') => void;
+  onUpdateClient: (input: ClientInput) => string | null;
   onRegisterResult: () => void;
+  onCreateQuote: () => void;
+  onContinueQuote: (quote: SavedQuote) => void;
   onOpenQuote: (quote: SavedQuote) => void;
   onCreateQuoteVersion: (quote: SavedQuote, reason: string) => void;
   activities: readonly Activity[];
@@ -63,8 +67,10 @@ export function OpportunityDetailView({
   quotes,
   onBack,
   onSaveOpportunity,
-  onPrepareContact,
+  onUpdateClient,
   onRegisterResult,
+  onCreateQuote,
+  onContinueQuote,
   onOpenQuote,
   onCreateQuoteVersion,
   activities,
@@ -73,6 +79,7 @@ export function OpportunityDetailView({
   const [copied, setCopied] = useState('');
   const [, setActivityRevision] = useState(0);
   const [editingOpportunityData, setEditingOpportunityData] = useState(false);
+  const [editingClient, setEditingClient] = useState(false);
   const [dataDraft, setDataDraft] = useState<OpportunityDataDraft>(() => ({
     serviceOfInterest: opportunity.qualification?.serviceOfInterest ?? '',
     estimatedValue: opportunity.qualification?.estimatedValue?.toString() ?? '',
@@ -93,6 +100,10 @@ export function OpportunityDetailView({
   const qualification = opportunity.qualification;
   const isMissingClient = !client;
   const currentQuote = relatedQuotes[0];
+  const quoteAction = getOpportunityQuoteAction(relatedQuotes);
+  const isSendQuoteAction =
+    action?.kind === 'sendQuote' ||
+    action?.description.trim().toLowerCase() === 'enviar presupuesto';
   const pipeline = [
     ['prospect', 'Prospecto'],
     ['contacted', 'Contactado'],
@@ -100,7 +111,28 @@ export function OpportunityDetailView({
     ['proposal', 'Propuesta'],
     ['won', 'Ganada'],
   ] as const;
-  const currentStage = opportunity.pipelineStage ?? (currentQuote ? 'proposal' : 'opportunity');
+  const currentStage = opportunity.pipelineStage ?? 'opportunity';
+
+  function runQuoteAction() {
+    if (quoteAction.type === 'create') {
+      onCreateQuote();
+      return;
+    }
+    if (quoteAction.type === 'continueDraft') {
+      onContinueQuote(quoteAction.quote);
+      return;
+    }
+    onOpenQuote(quoteAction.quote);
+  }
+
+  const quoteActionLabel =
+    quoteAction.type === 'create'
+      ? 'Crear presupuesto'
+      : quoteAction.type === 'continueDraft'
+        ? 'Continuar presupuesto'
+        : quoteAction.type === 'openPrepared'
+          ? 'Abrir presupuesto para enviar'
+          : 'Ver presupuesto enviado';
   useEffect(() => {
     const refreshActivities = () => setActivityRevision((current) => current + 1);
     window.addEventListener('activitiesupdated', refreshActivities);
@@ -241,7 +273,7 @@ export function OpportunityDetailView({
               <UiIcon name="document" />
             </span>
             <div>
-              <strong>Propuesta actual</strong>
+              <strong>Presupuesto actual</strong>
               <span>
                 {currentQuote.id} · V{currentQuote.version ?? 1}
               </span>
@@ -372,17 +404,11 @@ export function OpportunityDetailView({
                   </p>
                 </>
               )}
-              {!isMissingClient &&
-                action &&
-                (action.type === 'call' || action.type === 'whatsapp') && (
-                  <button
-                    className="button button-line"
-                    type="button"
-                    onClick={() => onPrepareContact(action.type as 'call' | 'whatsapp')}
-                  >
-                    <UiIcon name="document" /> Preparar contacto
-                  </button>
-                )}
+              {!isMissingClient && isSendQuoteAction && (
+                <button className="button button-primary" type="button" onClick={runQuoteAction}>
+                  <UiIcon name="document" /> {quoteActionLabel}
+                </button>
+              )}
             </section>
             {currentQuote && (
               <section className="quote-card opportunity-versions-card">
@@ -625,7 +651,18 @@ export function OpportunityDetailView({
           </div>
           <aside className="opportunity-detail-side">
             <section className="quote-card opportunity-contact-card">
-              <h2>Contacto</h2>
+              <div className="opportunity-contact-heading">
+                <h2>Contacto</h2>
+                {client && !editingClient && (
+                  <button
+                    className="button button-line"
+                    type="button"
+                    onClick={() => setEditingClient(true)}
+                  >
+                    Editar contacto
+                  </button>
+                )}
+              </div>
               <div className="opportunity-contact-identity">
                 <span className="opportunity-avatar">
                   {client?.name
@@ -675,6 +712,17 @@ export function OpportunityDetailView({
                 <small className="commercial-note" role="status">
                   {copied}
                 </small>
+              )}
+              {client && editingClient && (
+                <ClientForm
+                  client={client}
+                  onSave={(input) => {
+                    const error = onUpdateClient(input);
+                    if (!error) setEditingClient(false);
+                    return error;
+                  }}
+                  onCancel={() => setEditingClient(false)}
+                />
               )}
             </section>
             <section className="quote-card opportunity-activity-preview">
@@ -776,6 +824,11 @@ export function OpportunityDetailView({
             <div className="empty-state">
               <h3>Aún no hay presupuestos</h3>
               <p>Cuando generes uno vinculado a esta oportunidad aparecerá aquí.</p>
+              {!isMissingClient && (
+                <button className="button button-primary" type="button" onClick={runQuoteAction}>
+                  <UiIcon name="document" /> Crear presupuesto
+                </button>
+              )}
             </div>
           )}
         </section>

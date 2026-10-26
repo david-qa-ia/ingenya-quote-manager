@@ -7,6 +7,7 @@ export interface AuthSession {
 }
 
 const SESSION_KEY = 'ingenya.auth.session.v1';
+let refreshInFlight: Promise<AuthSession | null> | null = null;
 
 export function getSupabaseConfig() {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim();
@@ -21,14 +22,72 @@ export function isAuthConfigured(): boolean {
 }
 
 export function loadAuthSession(): AuthSession | null {
+  const session = readStoredAuthSession();
+  if (!session || session.expiresAt <= Date.now()) return null;
+  return session;
+}
+
+function readStoredAuthSession(): AuthSession | null {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const session = JSON.parse(raw) as AuthSession;
-    if (!session.accessToken || session.expiresAt <= Date.now()) return null;
+    if (!session.accessToken || !Number.isFinite(session.expiresAt)) return null;
     return session;
   } catch {
     return null;
+  }
+}
+
+export async function getValidAuthSession(): Promise<AuthSession | null> {
+  return loadAuthSession() ?? refreshAuthSession();
+}
+
+export async function refreshAuthSession(): Promise<AuthSession | null> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    const config = getSupabaseConfig();
+    const previous = readStoredAuthSession();
+    if (!config || !previous?.refreshToken) return null;
+    try {
+      const response = await fetch(`${config.url}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { apikey: config.anonKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: previous.refreshToken }),
+      });
+      if (!response.ok) {
+        if (response.status === 400 || response.status === 401) persistSession(null);
+        return null;
+      }
+      const body = (await response.json()) as {
+        access_token?: string;
+        refresh_token?: string;
+        expires_in?: number;
+        user?: { id?: string; email?: string };
+      };
+      if (
+        !body.access_token ||
+        typeof body.expires_in !== 'number' ||
+        !Number.isFinite(body.expires_in)
+      )
+        return null;
+      const refreshed: AuthSession = {
+        accessToken: body.access_token,
+        refreshToken: body.refresh_token ?? previous.refreshToken,
+        expiresAt: Date.now() + body.expires_in * 1000,
+        userId: body.user?.id ?? previous.userId,
+        email: body.user?.email ?? previous.email,
+      };
+      persistSession(refreshed);
+      return refreshed;
+    } catch {
+      return null;
+    }
+  })();
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
   }
 }
 

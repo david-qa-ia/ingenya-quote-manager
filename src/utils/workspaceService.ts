@@ -4,7 +4,12 @@ import type {
   WorkspaceSession,
 } from '../types/workspace';
 import { getActiveWorkspaceId, setActiveWorkspaceId } from './workspaceStorage';
-import { getSupabaseConfig, isAuthConfigured, loadAuthSession } from './authService';
+import {
+  getSupabaseConfig,
+  getValidAuthSession,
+  isAuthConfigured,
+  loadAuthSession,
+} from './authService';
 
 const demoUserId = 'david-identity';
 const demoMemberships: WorkspaceMembership[] = [
@@ -74,7 +79,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 async function supabaseRequest<T>(path: string): Promise<T> {
   const config = getSupabaseConfig();
-  const authSession = loadAuthSession();
+  const authSession = await getValidAuthSession();
   if (!config || !authSession) throw new Error('session-expired');
   const response = await fetch(`${config.url}/rest/v1${path}`, {
     headers: {
@@ -96,9 +101,9 @@ interface SupabaseMembershipRow {
 }
 
 export async function loadWorkspaceSession(): Promise<WorkspaceSession> {
-  if (isAuthConfigured() && !loadAuthSession()) throw new Error('session-expired');
+  if (isAuthConfigured() && !(await getValidAuthSession())) throw new Error('session-expired');
   if (isAuthConfigured()) {
-    const authSession = loadAuthSession();
+    const authSession = await getValidAuthSession();
     const rows = await supabaseRequest<SupabaseMembershipRow[]>(
       `/workspace_memberships?select=workspace_id,role,status,workspace:workspaces!workspace_memberships_workspace_id_fkey(id,name,slug,status)&user_id=eq.${encodeURIComponent(authSession?.userId ?? '')}&status=eq.active`,
     );

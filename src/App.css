@@ -2965,6 +2965,20 @@ button.opportunity-nav-item:hover {
 .opportunity-contact-card {
   padding: 22px 24px;
 }
+.opportunity-contact-heading {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.opportunity-contact-heading h2 {
+  margin: 0;
+}
+.opportunity-contact-heading .button {
+  min-height: 36px;
+  padding: 7px 10px;
+}
 .opportunity-contact-identity {
   display: flex;
   align-items: center;
@@ -3942,6 +3956,27 @@ button.opportunity-nav-item:hover {
 .commercial-context {
   min-width: 0;
 }
+.opportunity-quote-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  border-color: #b6dfd3;
+  background: linear-gradient(115deg, #effaf6 0%, #ffffff 72%);
+}
+.opportunity-quote-context h2 {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 1.12rem;
+}
+.opportunity-quote-context p {
+  margin: 6px 0 0;
+}
+.opportunity-quote-context > .commercial-note {
+  max-width: 460px;
+  margin: 0;
+}
 .commercial-context dd {
   overflow-wrap: anywhere;
 }
@@ -4314,6 +4349,13 @@ button.opportunity-nav-item:hover {
   border: 0;
 }
 @media (max-width: 640px) {
+  .opportunity-quote-context {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .opportunity-quote-context > .commercial-note {
+    max-width: none;
+  }
   .commercial-context-grid {
     grid-template-columns: 1fr;
     gap: 20px;

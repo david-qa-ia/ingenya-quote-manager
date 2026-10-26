@@ -76,7 +76,9 @@ describe('quote send transaction', () => {
     expect(result.ok).toBe(true);
     expect(JSON.parse(memory.get(SAVED_QUOTES_STORAGE_KEY)!)[0].commercialStatus).toBe('sent');
     expect(JSON.parse(memory.get(ACTIVITIES_STORAGE_KEY)!).length).toBe(1);
-    expect(JSON.parse(memory.get(OPPORTUNITIES_STORAGE_KEY)!)[0].nextAction.type).toBe('call');
+    const opportunity = JSON.parse(memory.get(OPPORTUNITIES_STORAGE_KEY)!)[0];
+    expect(opportunity.pipelineStage).toBe('proposal');
+    expect(opportunity.nextAction.type).toBe('call');
   });
   it('does not register a second send for the same version', () => {
     memory.set(SAVED_QUOTES_STORAGE_KEY, JSON.stringify([{ ...quote, commercialStatus: 'sent' }]));
