@@ -64,6 +64,7 @@ export function DirectClientQuotePanel({
       .slice(0, 6);
   }, [clients, opportunities, opportunityQuery]);
   const duplicates = useMemo(() => {
+    if (input.existingClientId) return [];
     const phone = input.phone.replace(/\D/g, '');
     const email = input.email.trim().toLowerCase();
     const name = input.name.trim().toLowerCase();
