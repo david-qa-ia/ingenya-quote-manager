@@ -191,7 +191,10 @@ export function DirectClientQuotePanel({
       )}
       {mode === 'direct' && (
         <div className="direct-client-fields">
-          <label className="field">
+          <div className="direct-linking-grid">
+            <section className="direct-linking-card" aria-labelledby="client-details-title">
+              <h3 id="client-details-title">Datos del cliente</h3>
+              <label className="field">
             <span>Buscar cliente existente</span>
             <div className="search-select">
               <input
@@ -229,7 +232,7 @@ export function DirectClientQuotePanel({
                 </div>
               )}
             </div>
-          </label>
+              </label>
           {input.existingClientId && (
             <section className="selected-contact-summary" aria-label="Cliente seleccionado">
               <div>
@@ -321,7 +324,9 @@ export function DirectClientQuotePanel({
               )}
             </aside>
           )}
-          <h3 className="direct-client-subheading">Datos de la oportunidad</h3>
+            </section>
+            <section className="direct-linking-card" aria-labelledby="opportunity-details-title">
+              <h3 id="opportunity-details-title">Datos de la oportunidad</h3>
           <div className="form-grid">
             <label className="field">
               <span>Obra o trabajo</span>
@@ -419,6 +424,8 @@ export function DirectClientQuotePanel({
               </div>
             )}
           </section>
+            </section>
+          </div>
         </div>
       )}
     </section>
