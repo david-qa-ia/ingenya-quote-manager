@@ -5,10 +5,10 @@ import { DirectClientQuotePanel } from './components/DirectClientQuotePanel';
 import { QuoteCommercialStatus } from './components/QuoteCommercialStatus';
 import { QuoteActivityPanel } from './components/QuoteActivityPanel';
 import { ContactAssistant } from './components/ContactAssistant';
-import type { Client } from './types/client';
+import type { Client, ClientInput } from './types/client';
 import type { FollowUpInboxItem } from './types/followUpInbox';
 import type { Opportunity } from './types/opportunity';
-import { loadClients } from './utils/clientStorage';
+import { loadClients, saveClient } from './utils/clientStorage';
 import { associateQuote } from './utils/quoteAssociations';
 import {
   loadOpportunities,
@@ -112,6 +112,7 @@ import {
   loadRemoteProspects,
   registerRemoteProspectResult,
   registerRemoteQuoteSend,
+  syncAndRegisterRemoteLocalQuoteSend,
   SupabaseRepositoryError,
   type SupabaseProspectRow,
 } from './utils/supabaseRepository';
@@ -277,6 +278,15 @@ function App() {
   );
   const selectedJob = activeCatalogJobs.find((job) => job.id === selectedJobId);
   const selectedVisibleJob = visibleActiveCatalogJobs.find((job) => job.id === selectedJobId);
+  const associatedClient = clientId
+    ? loadClients().items.find((item) => item.id === clientId)
+    : undefined;
+  const associatedOpportunity = opportunityId
+    ? opportunities.find(
+        (item) => item.id === opportunityId && item.clientId === associatedClient?.id,
+      )
+    : undefined;
+  const isContextualOpportunityQuote = Boolean(associatedClient && associatedOpportunity);
   const quoteTotal = calculateQuoteTotal(quoteLines);
   const visibleSavedQuotes = filterSavedQuotesByCommercialStatus(
     filterSavedQuotes(savedQuotes, savedQuoteFilter),
@@ -647,6 +657,15 @@ function App() {
     setCurrentView('editor');
   }
 
+  function handleNewOpportunityQuote(opportunity: Opportunity) {
+    const client = loadClients().items.find((item) => item.id === opportunity.clientId);
+    handleNewQuote();
+    setClientId(client?.id);
+    setOpportunityId(opportunity.id);
+    setClientName(client?.name ?? '');
+    setProjectName(opportunity.name);
+  }
+
   function handleSavedQuoteOpen(savedQuote: SavedQuote) {
     setQuoteId(savedQuote.id);
     setQuoteStatus(savedQuote.status);
@@ -775,6 +794,40 @@ function App() {
     if (!saveOpportunity(next)) return false;
     if (event === 'edited') setOpportunities(loadOpportunities().items);
     return true;
+  }
+
+  function updateOpportunityClient(client: Client, input: ClientInput): string | null {
+    const now = new Date().toISOString();
+    const next: Client = {
+      ...input,
+      id: client.id,
+      createdAt: client.createdAt,
+      updatedAt: now,
+    };
+    if (!saveClient(next))
+      return 'No se pudo guardar el contacto. Los datos existentes se conservaron.';
+    if (next.doNotContact) {
+      loadOpportunities()
+        .items.filter((item) => item.clientId === next.id && item.nextAction?.status === 'pending')
+        .forEach((item) => {
+          const cancelled = transitionNextAction(
+            item,
+            'cancelled',
+            next.doNotContact!.recordedBy,
+            `Pedido de no contacto: ${next.doNotContact!.reason}`,
+            next.doNotContact!.recordedAt,
+          );
+          if (saveOpportunity(cancelled) && cancelled.nextAction)
+            recordNextActionActivity(
+              cancelled.id,
+              cancelled.nextAction.id,
+              'cancelled',
+              'Recordatorio cancelado por pedido de no contacto.',
+            );
+        });
+    }
+    setOpportunities(loadOpportunities().items);
+    return null;
   }
 
   async function handleFollowUpAction(
@@ -1004,7 +1057,9 @@ function App() {
       setSaveFeedback({
         type: activitySaved ? 'success' : 'error',
         message: activitySaved
-          ? 'Borrador guardado correctamente.'
+          ? draft.opportunityId
+            ? 'Borrador guardado y vinculado a la oportunidad.'
+            : 'Borrador guardado correctamente.'
           : 'Borrador guardado, pero no se pudo registrar la actividad de creación.',
       });
       return;
@@ -1124,31 +1179,53 @@ function App() {
       };
     if (isAuthConfigured() && workspaceId) {
       try {
-        const remoteResult = await registerRemoteQuoteSend({
-          workspaceId,
-          quoteVersionId: quote.id,
-          expectedVersion: quote.version ?? 1,
-          channel: input.channel,
-          recipient:
-            input.channel === 'whatsapp'
-              ? normalizedPhone
-              : input.channel === 'email'
-                ? recipient!
-                : 'Registro comercial',
-          sentAt: input.sentAt,
-          note: audit.reason,
-          ...(input.nextStep !== 'none' && input.nextStepAt
+        const nextAction =
+          input.nextStep !== 'none' && input.nextStepAt
             ? {
-                nextAction: {
-                  type: input.nextStep,
-                  dueAt: input.nextStepAt,
-                  responsible: input.responsible,
-                },
+                type: input.nextStep,
+                dueAt: input.nextStepAt,
+                responsible: input.responsible,
               }
-            : {}),
-          nextActionDecision: input.replaceExistingNextAction ? 'replace' : 'preserve',
-          idempotencyKey: `quote-send:${quote.id}`,
-        });
+            : undefined;
+        const remoteRecipient =
+          input.channel === 'whatsapp'
+            ? normalizedPhone
+            : input.channel === 'email'
+              ? recipient!
+              : 'Registro comercial';
+        const localClient = loadClients().items.find((item) => item.id === quote.clientId);
+        if (!isWorkspaceUuid(quote.id) && !localClient)
+          return {
+            ok: false,
+            error: 'No se encontró el contacto local para sincronizar este presupuesto.',
+          };
+        const remoteResult = isWorkspaceUuid(quote.id)
+          ? await registerRemoteQuoteSend({
+              workspaceId,
+              quoteVersionId: quote.id,
+              expectedVersion: quote.version ?? 1,
+              channel: input.channel,
+              recipient: remoteRecipient,
+              sentAt: input.sentAt,
+              note: audit.reason,
+              ...(nextAction ? { nextAction } : {}),
+              nextActionDecision: input.replaceExistingNextAction ? 'replace' : 'preserve',
+              idempotencyKey: `quote-send:${quote.id}`,
+            })
+          : await syncAndRegisterRemoteLocalQuoteSend({
+              workspaceId,
+              quote,
+              client: localClient!,
+              opportunity: quote.opportunityId
+                ? loadOpportunities().items.find((item) => item.id === quote.opportunityId)
+                : undefined,
+              channel: input.channel,
+              recipient: remoteRecipient,
+              sentAt: input.sentAt,
+              note: audit.reason,
+              ...(nextAction ? { nextAction } : {}),
+              idempotencyKey: `quote-send:${quote.id}`,
+            });
         if (!remoteResult.ok) return { ok: false, error: remoteResult.message };
       } catch (error) {
         if (!(error instanceof SupabaseRepositoryError) || error.code !== 'network')
@@ -1286,19 +1363,6 @@ function App() {
 
       setQuoteStatus('finalized');
       setSavedQuotes(loadSavedQuotes());
-      if (finalizedQuote.opportunityId) {
-        const opportunity = loadOpportunities().items.find(
-          (item) => item.id === finalizedQuote.opportunityId,
-        );
-        if (opportunity && opportunity.pipelineStage !== 'proposal') {
-          saveOpportunity({
-            ...opportunity,
-            pipelineStage: 'proposal',
-            updatedAt: new Date().toISOString(),
-          });
-          setOpportunities(loadOpportunities().items);
-        }
-      }
       const creationActivitySaved =
         !isNewQuote ||
         recordAutomaticActivity(
@@ -1683,31 +1747,11 @@ function App() {
               quotes={savedQuotes}
               onBack={() => setCurrentView('nextActions')}
               onSaveOpportunity={saveOpportunityFromDetail}
-              onPrepareContact={(channel) => {
-                setInboxContact({
-                  id: `opportunity:${opportunity.id}`,
-                  opportunityId: opportunity.id,
-                  clientId: opportunity.clientId,
-                  opportunityName: opportunity.name,
-                  clientName:
-                    loadClients().items.find((item) => item.id === opportunity.clientId)?.name ??
-                    '',
-                  clientCompany: loadClients().items.find(
-                    (item) => item.id === opportunity.clientId,
-                  )?.company,
-                  action: opportunity.nextAction,
-                  channel,
-                  responsible: opportunity.nextAction?.responsible ?? opportunity.responsibleSeller,
-                  priority: {
-                    score: 0,
-                    level: opportunity.nextAction?.priority ?? 'medium',
-                    reasons: [],
-                  },
-                  rescheduleCount: 0,
-                  bucket: 'upcoming',
-                  source: 'manual',
-                  contactRestricted: false,
-                });
+              onUpdateClient={(input) => {
+                const client = loadClients().items.find((item) => item.id === opportunity.clientId);
+                return client
+                  ? updateOpportunityClient(client, input)
+                  : 'No se encontró el contacto de esta oportunidad.';
               }}
               onRegisterResult={() => {
                 const item = followUpItems.find(
@@ -1736,6 +1780,8 @@ function App() {
                   priority: { score: 0, level: 'medium', reasons: ['Sin próxima acción'] },
                 });
               }}
+              onCreateQuote={() => handleNewOpportunityQuote(opportunity)}
+              onContinueQuote={handleSavedQuoteOpen}
               onOpenQuote={handleQuoteDetailOpen}
               onCreateQuoteVersion={handleCreateQuoteVersion}
               activities={loadActivities().items}
@@ -1833,6 +1879,7 @@ function App() {
           }}
           onPdf={handleQuoteDetailPdfDownload}
           onStatus={(_quote, status, audit) => handleCommercialStatusChange(status, audit)}
+          onContinueEditing={handleSavedQuoteOpen}
           onRegisterSend={setQuoteSendTarget}
           onRequestChange={handleQuoteChangeRequest}
           onConvertDirect={handleDirectQuoteConversion}
@@ -2409,7 +2456,11 @@ function App() {
         <header className="page-header">
           <div>
             <p className="eyebrow">INGENYA · PRESUPUESTOS</p>
-            <h1>Crear presupuesto</h1>
+            <h1>
+              {isContextualOpportunityQuote
+                ? `Presupuesto para ${associatedOpportunity!.name}`
+                : 'Crear presupuesto'}
+            </h1>
             <p className="page-description">
               Agregá los servicios, ajustá cantidades y precios, y revisá el total antes de
               continuar.
@@ -2426,21 +2477,41 @@ function App() {
           </div>
         </header>
 
-        <DirectClientQuotePanel
-          clients={loadClients().items}
-          selectedClientId={clientId}
-          onSelectExisting={(client) => handleAssociation(client, undefined)}
-          onDirectChange={(input, followUp) => {
-            setDirectClientInput(input);
-            setDirectFollowUp(followUp);
-            if (!input) return;
-            setClientId(undefined);
-            setOpportunityId(undefined);
-            setClientName(input.name.trim() || input.company.trim());
-            setProjectName(input.projectName.trim());
-            setSaveFeedback(null);
-          }}
-        />
+        {isContextualOpportunityQuote ? (
+          <section
+            className="quote-card opportunity-quote-context"
+            aria-label="Presupuesto vinculado"
+          >
+            <div>
+              <p className="eyebrow">PRESUPUESTO VINCULADO</p>
+              <h2>{associatedOpportunity!.name}</h2>
+              <p>
+                Cliente: <strong>{associatedClient!.name}</strong>
+                {associatedClient!.company ? ` · ${associatedClient!.company}` : ''}
+              </p>
+            </div>
+            <p className="commercial-note">
+              Ya está vinculado a este cliente y oportunidad. No tenés que seleccionar nada más; la
+              vinculación se guardará al guardar el borrador o finalizar el presupuesto.
+            </p>
+          </section>
+        ) : (
+          <DirectClientQuotePanel
+            clients={loadClients().items}
+            selectedClientId={clientId}
+            onSelectExisting={(client) => handleAssociation(client, undefined)}
+            onDirectChange={(input, followUp) => {
+              setDirectClientInput(input);
+              setDirectFollowUp(followUp);
+              if (!input) return;
+              setClientId(undefined);
+              setOpportunityId(undefined);
+              setClientName(input.name.trim() || input.company.trim());
+              setProjectName(input.projectName.trim());
+              setSaveFeedback(null);
+            }}
+          />
+        )}
 
         <section className="entry-grid" aria-label="Agregar mano de obra">
           <form className="entry-card" onSubmit={handleCatalogSubmit}>

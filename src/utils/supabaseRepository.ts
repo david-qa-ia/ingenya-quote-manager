@@ -1,6 +1,9 @@
 import type { Prospect, ProspectActivity } from '../types/prospect';
+import type { Client } from '../types/client';
+import type { Opportunity } from '../types/opportunity';
+import type { SavedQuote } from '../types/quote';
 import type { PreparedProspectImport } from './prospectImportTransaction';
-import { getSupabaseConfig, loadAuthSession } from './authService';
+import { getSupabaseConfig, getValidAuthSession, refreshAuthSession } from './authService';
 
 export type RemoteQuoteSendResult =
   | {
@@ -70,6 +73,75 @@ export async function registerRemoteQuoteSend(input: {
     ok: true,
     idempotent: Boolean(result.idempotent),
     version: result.version ?? input.expectedVersion + 1,
+  };
+}
+
+export async function syncAndRegisterRemoteLocalQuoteSend(input: {
+  workspaceId: string;
+  quote: SavedQuote;
+  client: Client;
+  opportunity?: Opportunity;
+  channel: string;
+  recipient: string;
+  sentAt: string;
+  note: string;
+  nextAction?: {
+    type: 'call' | 'whatsapp' | 'email' | 'meeting';
+    dueAt: string;
+    responsible: string;
+  };
+  idempotencyKey: string;
+}): Promise<RemoteQuoteSendResult> {
+  const result = await request<{ code?: string; version?: number; idempotent?: boolean }>(
+    '/rest/v1/rpc/sync_and_register_local_quote_send',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_workspace_id: input.workspaceId,
+        p_payload: {
+          client: input.client,
+          ...(input.opportunity ? { opportunity: input.opportunity } : {}),
+          quote: {
+            localId: input.quote.id,
+            clientName: input.quote.clientName,
+            projectName: input.quote.projectName,
+            lines: input.quote.lines,
+          },
+        },
+        p_channel: input.channel,
+        p_recipient: input.recipient,
+        p_sent_at: input.sentAt,
+        p_note: input.note,
+        p_next_action: input.nextAction
+          ? {
+              kind: 'followUp',
+              type: input.nextAction.type,
+              description: 'Dar seguimiento al presupuesto enviado',
+              dueAt: input.nextAction.dueAt,
+              responsible: input.nextAction.responsible,
+              priority: 'medium',
+            }
+          : null,
+        p_idempotency_key: input.idempotencyKey,
+        p_request_id: crypto.randomUUID(),
+      }),
+    },
+  );
+  if (result.code === 'CONFLICT')
+    return {
+      ok: false,
+      reason: 'conflict',
+      message: 'El presupuesto cambió antes de sincronizarse.',
+    };
+  if (result.code !== 'OK')
+    throw new SupabaseRepositoryError(
+      'server',
+      'Supabase no confirmó la sincronización del presupuesto.',
+    );
+  return {
+    ok: true,
+    idempotent: Boolean(result.idempotent),
+    version: result.version ?? 1,
   };
 }
 
@@ -179,22 +251,44 @@ export class SupabaseRepositoryError extends Error {
   }
 }
 
+async function getSupabaseErrorMessage(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { message?: unknown; details?: unknown };
+    const detail = typeof body.message === 'string' ? body.message : body.details;
+    if (typeof detail !== 'string') return 'Supabase rechazó la operación.';
+    if (detail.includes('invalid input syntax for type uuid'))
+      return 'Este presupuesto todavía es local y no tiene una versión migrada en Supabase. Registralo localmente o migrá el presupuesto antes de enviarlo.';
+    if (detail.includes('quote-version-not-sendable'))
+      return 'La versión del presupuesto no está disponible para envío en Supabase. Recargá los datos o migrá el presupuesto antes de enviarlo.';
+    return `Supabase rechazó la operación: ${detail}`;
+  } catch {
+    return 'Supabase rechazó la operación.';
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const config = getSupabaseConfig();
-  const session = loadAuthSession();
+  let session = await getValidAuthSession();
   if (!config) throw new SupabaseRepositoryError('not-configured', 'Supabase no está configurado.');
   if (!session) throw new SupabaseRepositoryError('session-expired', 'La sesión venció.');
-  const headers = new Headers(init?.headers);
-  headers.set('apikey', config.anonKey);
-  headers.set('Authorization', `Bearer ${session.accessToken}`);
-  if (init?.body) headers.set('Content-Type', 'application/json');
-  let response: Response;
-  try {
-    response = await fetch(`${config.url}${path}`, { ...init, headers });
-  } catch (error) {
-    throw new SupabaseRepositoryError('network', 'No se pudo conectar con Supabase.', {
-      cause: error,
-    });
+  const send = async (activeSession: NonNullable<typeof session>) => {
+    const headers = new Headers(init?.headers);
+    headers.set('apikey', config.anonKey);
+    headers.set('Authorization', `Bearer ${activeSession.accessToken}`);
+    if (init?.body) headers.set('Content-Type', 'application/json');
+    try {
+      return await fetch(`${config.url}${path}`, { ...init, headers });
+    } catch (error) {
+      throw new SupabaseRepositoryError('network', 'No se pudo conectar con Supabase.', {
+        cause: error,
+      });
+    }
+  };
+  let response = await send(session);
+  if (response.status === 401) {
+    session = await refreshAuthSession();
+    if (!session) throw new SupabaseRepositoryError('session-expired', 'La sesión venció.');
+    response = await send(session);
   }
   if (response.status === 401)
     throw new SupabaseRepositoryError('session-expired', 'La sesión venció.');
@@ -205,7 +299,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       'server',
       'La función requerida no está disponible en Supabase.',
     );
-  if (!response.ok) throw new SupabaseRepositoryError('server', 'Supabase rechazó la operación.');
+  if (!response.ok)
+    throw new SupabaseRepositoryError('server', await getSupabaseErrorMessage(response));
   return (await response.json()) as T;
 }
 
