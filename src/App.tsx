@@ -120,6 +120,7 @@ import {
   registerRemoteProspectResult,
   registerRemoteQuoteSend,
   syncAndRegisterRemoteLocalQuoteSend,
+  updateRemoteProspectProfile,
   SupabaseRepositoryError,
   type SupabaseProspectRow,
 } from './utils/supabaseRepository';
@@ -883,6 +884,7 @@ function App() {
     if (synced) {
       setProspects(loadProspects().items);
       window.dispatchEvent(new Event('ingenya:prospects-updated'));
+      void syncProspectContextRemotely(synced.prospect);
     }
     if (event === 'edited') setOpportunities(loadOpportunities().items);
     return true;
@@ -912,6 +914,7 @@ function App() {
     if (synced) {
       setProspects(loadProspects().items);
       window.dispatchEvent(new Event('ingenya:prospects-updated'));
+      void syncProspectContextRemotely(synced.prospect);
     }
     if (next.doNotContact) {
       loadOpportunities()
@@ -935,6 +938,36 @@ function App() {
     }
     setOpportunities(loadOpportunities().items);
     return null;
+  }
+
+  async function syncProspectContextRemotely(prospect: Prospect) {
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (!isAuthConfigured() || !isWorkspaceUuid(workspaceId)) return;
+    try {
+      const remote = await updateRemoteProspectProfile({
+        workspaceId,
+        prospect,
+        idempotencyKey: `context-prospect:${prospect.id}:${prospect.version ?? 1}:${prospect.updatedAt}`,
+      });
+      if (!remote.ok) {
+        setSaveFeedback({ type: 'error', message: remote.message });
+        return;
+      }
+      const current = loadProspects().items.find((item) => item.id === prospect.id);
+      if (current?.updatedAt !== prospect.updatedAt) return;
+      if (saveProspectWithResult({ ...current, version: remote.version }).ok) {
+        setProspects(loadProspects().items);
+        window.dispatchEvent(new Event('ingenya:prospects-updated'));
+      }
+    } catch (error) {
+      setSaveFeedback({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? `No se pudo sincronizar el prospecto: ${error.message}`
+            : 'No se pudo sincronizar el prospecto en Supabase.',
+      });
+    }
   }
 
   async function handleFollowUpAction(
