@@ -1009,9 +1009,9 @@
   margin-left: 0;
   padding: 56px;
   background:
-    radial-gradient(circle at 78% 16%, rgba(255, 255, 255, 0.9) 0 10%, transparent 35%),
-    radial-gradient(circle at 8% 95%, rgba(226, 246, 238, 0.95) 0 10%, transparent 37%),
-    linear-gradient(135deg, #e2f5ec 0%, #f8fbf8 48%, #e9f2ef 100%);
+    radial-gradient(circle at 78% 16%, rgba(255, 255, 255, 0.94) 0 10%, transparent 35%),
+    radial-gradient(circle at 8% 95%, rgba(214, 233, 249, 0.9) 0 10%, transparent 37%),
+    linear-gradient(135deg, #dcecf9 0%, #f8fbff 48%, #e8f1fa 100%);
 }
 
 .workspace-access-state.login-experience::before,
@@ -1036,7 +1036,7 @@
 .workspace-access-state.login-experience::after {
   right: -24vw;
   bottom: -28vw;
-  background: rgba(176, 226, 207, 0.34);
+  background: rgba(158, 203, 238, 0.38);
 }
 
 .login-welcome {
@@ -1187,7 +1187,7 @@
   width: 210px;
   height: 55px;
   border-radius: 60px;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(250, 253, 255, 0.72);
   filter: blur(0.2px);
   opacity: 0.92;
 }
