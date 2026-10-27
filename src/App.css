@@ -996,6 +996,242 @@
     border-radius: 0;
   }
 }
+
+/* SCRUM-92: guided quote editor, styled as one calm step-by-step workspace. */
+.quote-editor-shell {
+  max-width: 1280px;
+}
+
+.quote-editor-header {
+  align-items: center;
+  min-height: 132px;
+  padding: 8px 0 12px;
+}
+
+.quote-editor-header h1 {
+  max-width: none;
+}
+
+.quote-editor-header .page-description {
+  max-width: 710px;
+}
+
+.quote-editor-header .header-total {
+  min-width: 205px;
+  padding: 20px 22px;
+  border-color: #cfe5d9;
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, #fff, #edf9f3);
+  box-shadow: 0 12px 27px rgba(22, 88, 65, 0.09);
+}
+
+.quote-editor-header .header-total strong {
+  color: var(--accent-dark);
+  font-size: 1.8rem;
+}
+
+.optional-linking-card,
+.opportunity-quote-context {
+  margin-bottom: 20px;
+  border-color: #d7e8df;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #fff, #f6fbf8);
+}
+
+.optional-linking-card > .quote-heading {
+  min-height: 110px;
+  padding: 21px 25px;
+  border-bottom: 0;
+}
+
+.optional-linking-card > .quote-heading h2 {
+  font-size: 1.18rem;
+}
+
+.optional-linking-card > .quote-heading .commercial-note {
+  max-width: 700px;
+  margin-top: 6px;
+}
+
+.optional-linking-card > .quote-heading .button {
+  min-width: max-content;
+  min-height: 44px;
+}
+
+.optional-linking-card > .direct-client-panel {
+  margin: 0;
+  padding: 0 25px 25px;
+}
+
+.service-entry-grid {
+  margin-bottom: 20px;
+}
+
+.service-entry-card {
+  width: 100%;
+  max-width: none;
+  min-height: 420px;
+  padding: 28px;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(90deg, rgba(230, 245, 236, 0.58), rgba(255, 255, 255, 0) 48%),
+    var(--surface);
+}
+
+.service-entry-card .card-heading {
+  align-items: flex-start;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.service-entry-card .step-number {
+  width: 36px;
+  height: 36px;
+  flex-basis: 36px;
+  border-radius: 11px;
+  font-size: 0.9rem;
+}
+
+.service-entry-card .card-heading h2 {
+  font-size: 1.35rem;
+}
+
+.service-entry-toggle {
+  padding: 4px;
+  border: 1px solid #d4e2db;
+  border-radius: 10px;
+  background: #f6faf8;
+}
+
+.service-entry-toggle .button {
+  min-height: 38px;
+  padding-inline: 12px;
+  border-color: transparent;
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.service-entry-toggle .button:hover {
+  background: #e7f2ec;
+}
+
+.service-entry-toggle .is-selected {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, #287460, var(--accent-dark));
+  box-shadow: 0 5px 12px rgba(18, 72, 59, 0.16);
+}
+
+.service-entry-card form {
+  width: min(100%, 880px);
+  margin-top: 24px;
+}
+
+.service-entry-card .search-select-menu {
+  z-index: 12;
+}
+
+.service-entry-card .form-grid {
+  max-width: 720px;
+  margin-top: 22px;
+}
+
+.service-entry-card .button-secondary {
+  width: min(100%, 360px);
+  min-height: 50px;
+  margin-top: 4px;
+  background: #edf8f2;
+}
+
+.service-entry-card .button-secondary:disabled {
+  border-color: var(--border);
+  color: var(--text-subtle);
+  background: var(--disabled-bg);
+}
+
+.quote-editor-shell > .quote-card[aria-labelledby='quote-lines-title'] {
+  border-radius: var(--radius-lg);
+}
+
+.quote-editor-shell > .quote-card[aria-labelledby='quote-lines-title'] .quote-heading {
+  min-height: 96px;
+  background: #fbfdfc;
+}
+
+.quote-editor-shell > .quote-card[aria-labelledby='quote-lines-title'] .empty-state {
+  min-height: 210px;
+  padding: 56px 24px;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(225, 246, 235, 0.55), transparent 13rem),
+    #fff;
+}
+
+.quote-editor-shell > .quote-card[aria-labelledby='quote-lines-title'] .empty-state > span {
+  width: 52px;
+  height: 52px;
+  border-style: solid;
+  border-color: #b9ddca;
+  border-radius: 16px;
+  color: var(--accent-dark);
+}
+
+.quote-editor-shell > .quote-card[aria-labelledby='quote-lines-title'] table tbody tr:hover {
+  background: #fbfefc;
+  box-shadow: inset 3px 0 0 #5fbf91;
+}
+
+.quote-editor-shell > .quote-card[aria-labelledby='quote-lines-title'] .quote-footer {
+  border-top: 1px solid var(--border);
+  background: linear-gradient(135deg, #f4faf7, #fff);
+}
+
+@media (max-width: 760px) {
+  .quote-editor-header {
+    align-items: stretch;
+  }
+
+  .quote-editor-header .header-total {
+    width: 100%;
+  }
+
+  .optional-linking-card > .quote-heading {
+    align-items: stretch;
+    flex-direction: column;
+    min-height: auto;
+  }
+
+  .optional-linking-card > .quote-heading .button {
+    width: 100%;
+  }
+
+  .optional-linking-card > .direct-client-panel,
+  .service-entry-card {
+    padding: 20px;
+  }
+
+  .service-entry-card {
+    min-height: auto;
+  }
+
+  .service-entry-card .card-heading {
+    flex-wrap: wrap;
+  }
+
+  .service-entry-toggle {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .service-entry-toggle .button {
+    flex: 1;
+  }
+
+  .service-entry-card .form-grid,
+  .service-entry-card .button-secondary {
+    max-width: none;
+    width: 100%;
+  }
+}
 .prospect-filters {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

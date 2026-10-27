@@ -2656,8 +2656,8 @@ function App() {
   return (
     <>
       {appHeader}
-      <main className="app-shell">
-        <header className="page-header">
+      <main className="app-shell quote-editor-shell">
+        <header className="page-header quote-editor-header">
           <div>
             <p className="eyebrow">INGENYA · PRESUPUESTOS</p>
             <h1>
