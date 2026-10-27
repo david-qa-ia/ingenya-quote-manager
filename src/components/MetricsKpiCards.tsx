@@ -1,27 +1,43 @@
-import type { CommercialMetrics } from '../types/commercialMetrics';
-const labels = {
-  opportunitiesCreated: 'Obras o trabajos creados',
-  quotesSent: 'Presupuestos enviados',
-  quotesAccepted: 'Presupuestos aceptados',
-  quotesRejected: 'Presupuestos rechazados',
-  opportunitiesLost: 'Obras o trabajos perdidos',
-  opportunitiesReopened: 'Obras o trabajos reabiertos',
-  followUpsCompleted: 'Seguimientos completados',
-  followUpsOverdue: 'Seguimientos vencidos',
-  followUpsRescheduled: 'Seguimientos reprogramados',
-} as const;
+import type { CommercialMetrics, MetricValue } from '../types/commercialMetrics';
+import { UiIcon, type UiIconName } from './UiIcon';
+
+const comparisonText = (metric: MetricValue) =>
+  metric.comparison === null
+    ? 'Sin comparación'
+    : `${metric.comparison >= 0 ? '+' : ''}${metric.comparison.toFixed(0)}% vs. período anterior`;
+
 export function MetricsKpiCards({ metrics }: { metrics: CommercialMetrics }) {
+  const items = [
+    {
+      label: 'Contactos registrados',
+      icon: 'phone',
+      metric: metrics.kpis.contactsRegistered,
+    },
+    {
+      label: 'Contactos efectivos',
+      icon: 'check-circle',
+      metric: metrics.kpis.effectiveContacts,
+      detail: `${metrics.contactEffectiveness.effective} de ${metrics.contactEffectiveness.registered} contactos avanzaron`,
+    },
+    { label: 'Presupuestos enviados', icon: 'document', metric: metrics.kpis.quotesSent },
+    {
+      label: 'Seguimientos completados',
+      icon: 'calendar-check',
+      metric: metrics.kpis.followUpsCompleted,
+    },
+  ] satisfies { label: string; icon: UiIconName; metric: MetricValue; detail?: string }[];
   return (
     <section className="metrics-kpis" aria-label="Indicadores clave">
-      {Object.entries(metrics.kpis).map(([key, metric]) => (
-        <article className="follow-up-summary-card" key={key}>
-          <span>{labels[key as keyof typeof labels]}</span>
+      {items.map(({ label, icon, metric, detail }) => (
+        <article className="metrics-kpi-card" key={label}>
+          <div className="metrics-kpi-heading">
+            <span className="metrics-kpi-icon">
+              <UiIcon name={icon} />
+            </span>
+            <span>{label}</span>
+          </div>
           <strong>{metric.value}</strong>
-          <small>
-            {metric.comparison === null
-              ? 'Sin comparación'
-              : `${metric.comparison >= 0 ? '+' : ''}${metric.comparison.toFixed(0)}% vs. período anterior`}
-          </small>
+          <small>{detail ?? comparisonText(metric)}</small>
         </article>
       ))}
     </section>
