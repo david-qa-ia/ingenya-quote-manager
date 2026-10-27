@@ -230,7 +230,9 @@ export function OpportunityNextActionsInbox({
                       <div>
                         <div className="follow-up-item-title">
                           <strong>{item.clientName}</strong>
-                          <span className={`follow-up-priority follow-up-priority-${item.priority.level}`}>
+                          <span
+                            className={`follow-up-priority follow-up-priority-${item.priority.level}`}
+                          >
                             Prioridad {priorityLabels[item.priority.level]}
                           </span>
                         </div>

@@ -47,13 +47,19 @@ export function LoginView({ onAuthenticated }: Props) {
           Organizá oportunidades, presupuestos y próximos pasos desde un solo lugar.
         </p>
         <div className="login-welcome-points" aria-label="Funciones de Brio">
-          <span><UiIcon name="check-circle" /> Seguimiento ordenado</span>
-          <span><UiIcon name="check-circle" /> Presupuestos a mano</span>
+          <span>
+            <UiIcon name="check-circle" /> Seguimiento ordenado
+          </span>
+          <span>
+            <UiIcon name="check-circle" /> Presupuestos a mano
+          </span>
         </div>
       </section>
       <form className="workspace-access-card login-card" onSubmit={handleSubmit}>
         <div className="login-card-heading">
-          <div className="login-card-icon"><UiIcon name="building" /></div>
+          <div className="login-card-icon">
+            <UiIcon name="building" />
+          </div>
           <div>
             <p className="login-card-overline">BIENVENIDO A BRIO</p>
             <h2>Iniciá sesión</h2>

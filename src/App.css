@@ -1213,9 +1213,22 @@
   height: 68px;
 }
 
-.login-cloud-one { top: 16%; right: 8%; transform: scale(0.82); }
-.login-cloud-two { bottom: 16%; left: 6%; transform: scale(1.05); }
-.login-cloud-three { top: 71%; right: 18%; transform: scale(0.52); opacity: 0.68; }
+.login-cloud-one {
+  top: 16%;
+  right: 8%;
+  transform: scale(0.82);
+}
+.login-cloud-two {
+  bottom: 16%;
+  left: 6%;
+  transform: scale(1.05);
+}
+.login-cloud-three {
+  top: 71%;
+  right: 18%;
+  transform: scale(0.52);
+  opacity: 0.68;
+}
 
 @media (max-width: 820px) {
   .workspace-access-state.login-experience {
@@ -1224,18 +1237,40 @@
     padding: 44px 24px;
   }
 
-  .login-welcome { text-align: center; }
-  .login-brand-mark { margin: 0 auto; }
-  .login-welcome h1, .login-welcome-copy { margin-right: auto; margin-left: auto; }
-  .login-welcome-points { justify-items: center; }
+  .login-welcome {
+    text-align: center;
+  }
+  .login-brand-mark {
+    margin: 0 auto;
+  }
+  .login-welcome h1,
+  .login-welcome-copy {
+    margin-right: auto;
+    margin-left: auto;
+  }
+  .login-welcome-points {
+    justify-items: center;
+  }
 }
 
 @media (max-width: 520px) {
-  .workspace-access-state.login-experience { min-height: 100svh; padding: 32px 18px; }
-  .login-welcome h1 { font-size: 2.25rem; }
-  .login-experience .workspace-access-card.login-card { padding: 25px 22px; border-radius: 18px; }
-  .login-cloud-one { right: -70px; }
-  .login-cloud-two { left: -90px; }
+  .workspace-access-state.login-experience {
+    min-height: 100svh;
+    padding: 32px 18px;
+  }
+  .login-welcome h1 {
+    font-size: 2.25rem;
+  }
+  .login-experience .workspace-access-card.login-card {
+    padding: 25px 22px;
+    border-radius: 18px;
+  }
+  .login-cloud-one {
+    right: -70px;
+  }
+  .login-cloud-two {
+    left: -90px;
+  }
 }
 
 /* SCRUM-92: a quieter, more deliberate desktop navigation rail. */
@@ -1335,7 +1370,11 @@
     color: rgba(238, 251, 245, 0.84);
     font-size: 0.93rem;
     font-weight: 690;
-    transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+    transition:
+      background 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      transform 160ms ease;
   }
 
   .app-sidebar-header .navigation-link .ui-icon {
@@ -1358,7 +1397,9 @@
   .app-sidebar-header .navigation-link[aria-current='page'] {
     border-color: rgba(157, 233, 194, 0.12);
     background: linear-gradient(90deg, rgba(109, 210, 162, 0.24), rgba(101, 190, 151, 0.12));
-    box-shadow: inset 3px 0 0 #8de4b4, 0 5px 14px rgba(0, 26, 20, 0.08);
+    box-shadow:
+      inset 3px 0 0 #8de4b4,
+      0 5px 14px rgba(0, 26, 20, 0.08);
     color: #fff;
   }
 
@@ -1510,8 +1551,7 @@
   padding: 28px;
   border-radius: var(--radius-lg);
   background:
-    linear-gradient(90deg, rgba(230, 245, 236, 0.58), rgba(255, 255, 255, 0) 48%),
-    var(--surface);
+    linear-gradient(90deg, rgba(230, 245, 236, 0.58), rgba(255, 255, 255, 0) 48%), var(--surface);
 }
 
 .service-entry-card .card-heading {
@@ -1598,8 +1638,7 @@
   min-height: 210px;
   padding: 56px 24px;
   background:
-    radial-gradient(circle at 50% 30%, rgba(225, 246, 235, 0.55), transparent 13rem),
-    #fff;
+    radial-gradient(circle at 50% 30%, rgba(225, 246, 235, 0.55), transparent 13rem), #fff;
 }
 
 .quote-editor-shell > .quote-card[aria-labelledby='quote-lines-title'] .empty-state > span {
@@ -6897,8 +6936,12 @@ tr:last-child td {
 }
 
 @keyframes ui-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -7597,11 +7640,19 @@ tr:last-child td {
       linear-gradient(180deg, #075045 0%, #043d35 56%, #03352f 100%);
   }
 
-  .app-sidebar-header .main-header-content { padding: 2px 10px 14px; }
-  .app-sidebar-header .brand-name { margin: 27px 18px 9px; }
-  .app-sidebar-header .workspace-switcher { margin: 0 8px 24px; }
+  .app-sidebar-header .main-header-content {
+    padding: 2px 10px 14px;
+  }
+  .app-sidebar-header .brand-name {
+    margin: 27px 18px 9px;
+  }
+  .app-sidebar-header .workspace-switcher {
+    margin: 0 8px 24px;
+  }
 
-  .app-sidebar-header .primary-navigation::before { display: none; }
+  .app-sidebar-header .primary-navigation::before {
+    display: none;
+  }
 
   #global-search-panel {
     position: absolute;
@@ -7625,7 +7676,9 @@ tr:last-child td {
   .app-sidebar-header .navigation-link[aria-current='page'] {
     border-color: rgba(157, 233, 194, 0.12);
     background: linear-gradient(90deg, rgba(109, 210, 162, 0.24), rgba(101, 190, 151, 0.12));
-    box-shadow: inset 3px 0 0 #8de4b4, 0 5px 14px rgba(0, 26, 20, 0.08);
+    box-shadow:
+      inset 3px 0 0 #8de4b4,
+      0 5px 14px rgba(0, 26, 20, 0.08);
   }
 
   .app-sidebar-header .header-new-quote {

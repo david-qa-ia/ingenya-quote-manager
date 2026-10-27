@@ -44,8 +44,7 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at 82% -12%, rgba(202, 231, 216, 0.55), transparent 30rem),
-    #f5f7f5;
+    radial-gradient(circle at 82% -12%, rgba(202, 231, 216, 0.55), transparent 30rem), #f5f7f5;
 }
 button,
 input,

@@ -137,7 +137,9 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen }: Props) {
               <article className="daily-dashboard-row" key={item.id}>
                 <div>
                   <strong>{item.clientName}</strong>
-                  <small>{item.opportunityName ?? item.quoteName ?? 'Sin contexto disponible'}</small>
+                  <small>
+                    {item.opportunityName ?? item.quoteName ?? 'Sin contexto disponible'}
+                  </small>
                 </div>
                 <span className="daily-type-badge">
                   {item.subjectType === 'prospect'

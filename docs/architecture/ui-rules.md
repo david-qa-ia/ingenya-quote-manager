@@ -61,6 +61,57 @@ Avoid:
 - Confusing worker/payroll language
 - References to UOCRA or salary tables
 
+## Approved Administrative Visual Language (SCRUM-92)
+
+The administrative application has one shared visual language. Future UI work must extend this
+language instead of introducing a separate style for each feature.
+
+For the broader interaction rationale and a pre-merge visual checklist, consult
+[`heloc-ui-reference.md`](./heloc-ui-reference.md). It is a visual reference, never a source of
+product or business-rule changes.
+
+### Foundations
+
+- Desktop is the primary workspace. Use a permanent dark-green navigation rail with a clear
+  active state, a distinct workspace selector and a single prominent primary action.
+- Keep the main workspace light, calm and information-led. Use white or very light surfaces,
+  subtle borders, restrained shadows and generous spacing to group related information.
+- Use green for product identity, success and primary actions. The sign-in welcome may use a
+  soft blue sky background; that blue is an entry-screen accent, not a replacement for the
+  product's green identity.
+- Prefer a small number of strong visual groups over many boxed-in controls. Cards must have a
+  clear purpose: summary, action, form, list or status.
+- Typography must establish an obvious reading order: page purpose first, concise guidance
+  second, then actions and data. Avoid decorative headings that compete with operational data.
+
+### Components And Interaction
+
+- Reuse the shared visual tokens and patterns in `src/index.css` and `src/App.css`. Do not add
+  one-off colors, radii, shadows or button styles when an existing pattern fits.
+- Primary actions are filled green buttons. Secondary actions are quiet outlined or text
+  actions. Destructive actions must remain visually distinct and never look primary.
+- Inputs, filters and searchable selectors must have a visible label, calm resting state,
+  obvious keyboard focus and clear selected, disabled and error states.
+- Search panels, workspace menus, dropdowns, dialogs and tooltips must open above surrounding
+  content without being clipped. Their trigger must remain usable, and closing with Escape and
+  clicking outside must keep working where that behavior already exists.
+- Use responsive layouts without changing the meaning or order of actions. On narrow screens,
+  stack related controls and preserve readable target sizes rather than shrinking controls.
+- Use concise Spanish copy that explains the user's next action. Do not expose implementation,
+  storage or synchronization terminology unless it is necessary to resolve an actual user issue.
+
+### Guardrails For Visual Tickets
+
+- A visual-only ticket must not alter business rules, persistence, status transitions, data
+  structures or authorization behavior.
+- Before considering a UI change complete, inspect the affected desktop view and its narrow
+  layout. For any overlay or selector, verify the open state, selection/change state, keyboard
+  focus and dismissal state.
+- Preserve existing accessible labels, focus behavior and semantic controls. Use CSS and
+  presentation-focused components before changing an interaction contract.
+- When a feature needs a new icon, follow the shared icon rules below. Do not use emojis,
+  arbitrary glyphs or a second icon family as decoration.
+
 ## Icon System
 
 Use the shared `UiIcon` component from `src/components/UiIcon.tsx` for interface icons.
