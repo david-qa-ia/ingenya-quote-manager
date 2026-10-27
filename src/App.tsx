@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './App.css';
-import { QuoteCommercialContext } from './components/QuoteCommercialContext';
 import { DirectClientQuotePanel } from './components/DirectClientQuotePanel';
-import { QuoteCommercialStatus } from './components/QuoteCommercialStatus';
-import { QuoteActivityPanel } from './components/QuoteActivityPanel';
 import { ContactAssistant } from './components/ContactAssistant';
 import type { Client, ClientInput } from './types/client';
 import type { FollowUpInboxItem } from './types/followUpInbox';
@@ -93,6 +90,11 @@ import {
   saveCadenceExecution,
 } from './utils/cadenceStorage';
 import { transitionNextAction } from './utils/opportunityNextAction';
+import {
+  closeOpportunityForAcceptedQuote,
+  closeOpportunityForRejectedQuote,
+} from './utils/opportunityQuoteSettlement';
+import { canCreateQuoteVersion } from './utils/quoteVersioning';
 import { completeCadenceAction } from './utils/cadenceTransitions';
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
 import { deriveFollowUpInbox } from './utils/followUpInbox';
@@ -179,6 +181,45 @@ function loadProspectFilters(): ProspectFilters {
   }
 }
 
+function loadOpportunitiesWithAcceptedQuoteRepair(): Opportunity[] {
+  const settledQuotes = loadSavedQuotes().filter(
+    (quote) =>
+      (quote.commercialStatus === 'accepted' || quote.commercialStatus === 'rejected') &&
+      quote.opportunityId,
+  );
+  loadOpportunities().items.forEach((opportunity) => {
+    const settledQuote = settledQuotes
+      .filter((quote) => quote.opportunityId === opportunity.id)
+      .sort(
+        (left, right) =>
+          Date.parse(right.commercialStatusAudit.changedAt) -
+          Date.parse(left.commercialStatusAudit.changedAt),
+      )[0];
+    if (!settledQuote) return;
+    const isAccepted = settledQuote.commercialStatus === 'accepted';
+    const needsRepair =
+      opportunity.pipelineStage !== (isAccepted ? 'won' : 'lost') ||
+      opportunity.commercialState !== (isAccepted ? 'won' : 'lost') ||
+      opportunity.status !== 'closed' ||
+      opportunity.nextAction?.status === 'pending';
+    if (!needsRepair) return;
+    const next = (isAccepted ? closeOpportunityForAcceptedQuote : closeOpportunityForRejectedQuote)(
+      opportunity,
+      settledQuote.commercialStatusAudit.changedBy,
+      settledQuote.commercialStatusAudit.changedAt,
+    );
+    if (!saveOpportunity(next)) return;
+    if (opportunity.nextAction?.status === 'pending' && next.nextAction)
+      recordNextActionActivity(
+        next.id,
+        next.nextAction.id,
+        'cancelled',
+        `Próximo paso cancelado porque el presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}.`,
+      );
+  });
+  return loadOpportunities().items;
+}
+
 function App() {
   const workspaceContext = useWorkspace();
   const [initialCatalogLoad] = useState(loadLaborCatalog);
@@ -219,7 +260,7 @@ function App() {
   const [prospectHasUnsavedChanges, setProspectHasUnsavedChanges] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [opportunities, setOpportunities] = useState(() => loadOpportunities().items);
+  const [opportunities, setOpportunities] = useState(loadOpportunitiesWithAcceptedQuoteRepair);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [quoteVersion, setQuoteVersion] = useState(1);
@@ -249,10 +290,12 @@ function App() {
     initialCatalogLoad.jobs.find((job) => job.isActive)?.id ?? '',
   );
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [isCatalogMenuOpen, setIsCatalogMenuOpen] = useState(false);
   const [catalogQuantity, setCatalogQuantity] = useState('1');
   const [catalogUnitPrice, setCatalogUnitPrice] = useState(
     String(initialCatalogLoad.jobs.find((job) => job.isActive)?.defaultPrice ?? ''),
   );
+  const [serviceEntryMode, setServiceEntryMode] = useState<'catalog' | 'manual'>('catalog');
   const [manualName, setManualName] = useState('');
   const [manualDescription, setManualDescription] = useState('');
   const [manualUnit, setManualUnit] = useState<WorkUnit>('squareMeter');
@@ -260,6 +303,7 @@ function App() {
   const [manualUnitPrice, setManualUnitPrice] = useState('');
   const [saveManualToCatalog, setSaveManualToCatalog] = useState(false);
   const [isOptionalDataOpen, setIsOptionalDataOpen] = useState(false);
+  const [isLinkingOpen, setIsLinkingOpen] = useState(false);
   const [catalogError, setCatalogError] = useState('');
   const [manualError, setManualError] = useState('');
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
@@ -276,7 +320,6 @@ function App() {
       .toLocaleLowerCase('es')
       .includes(catalogSearch.trim().toLocaleLowerCase('es')),
   );
-  const selectedJob = activeCatalogJobs.find((job) => job.id === selectedJobId);
   const selectedVisibleJob = visibleActiveCatalogJobs.find((job) => job.id === selectedJobId);
   const associatedClient = clientId
     ? loadClients().items.find((item) => item.id === clientId)
@@ -435,6 +478,7 @@ function App() {
     setSaveFeedback(null);
     if (client) setDirectClientInput(null);
     if (client) setDirectFollowUp(undefined);
+    if (opportunity) setIsLinkingOpen(false);
   }
 
   function handleCatalogJobChange(jobId: string) {
@@ -449,18 +493,24 @@ function App() {
 
   function handleCatalogSearchChange(value: string) {
     setCatalogSearch(value);
-    const normalized = value.trim().toLocaleLowerCase('es');
-    const firstMatch = activeCatalogJobs.find((job) =>
-      `${job.name} ${job.description ?? ''}`.toLocaleLowerCase('es').includes(normalized),
-    );
-    if (
-      firstMatch &&
-      !`${selectedJob?.name ?? ''} ${selectedJob?.description ?? ''}`
-        .toLocaleLowerCase('es')
-        .includes(normalized)
-    ) {
-      handleCatalogJobChange(firstMatch.id);
+    setIsCatalogMenuOpen(true);
+    if (selectedJobId) {
+      setSelectedJobId('');
+      setCatalogUnitPrice('');
     }
+    setCatalogError('');
+  }
+
+  function handleCatalogServiceSelection(job: CatalogJob) {
+    setCatalogSearch(job.name);
+    handleCatalogJobChange(job.id);
+    setIsCatalogMenuOpen(false);
+  }
+
+  function handleServiceEntryModeChange(mode: 'catalog' | 'manual') {
+    setServiceEntryMode(mode);
+    setCatalogError('');
+    setManualError('');
   }
 
   function handleCatalogSubmit(event: FormEvent<HTMLFormElement>) {
@@ -653,6 +703,7 @@ function App() {
     setOpportunityId(undefined);
     setDirectClientInput(null);
     setDirectFollowUp(undefined);
+    setIsLinkingOpen(false);
     resetTransientState();
     setCurrentView('editor');
   }
@@ -666,7 +717,7 @@ function App() {
     setProjectName(opportunity.name);
   }
 
-  function handleSavedQuoteOpen(savedQuote: SavedQuote) {
+  function loadSavedQuoteIntoState(savedQuote: SavedQuote) {
     setQuoteId(savedQuote.id);
     setQuoteStatus(savedQuote.status);
     setCommercialStatus(savedQuote.commercialStatus);
@@ -682,8 +733,18 @@ function App() {
     setQuoteChangeRequest(savedQuote.changeRequest);
     setDirectClientInput(null);
     setDirectFollowUp(undefined);
+    setIsLinkingOpen(false);
     resetTransientState();
+  }
+
+  function handleSavedQuoteOpen(savedQuote: SavedQuote) {
+    loadSavedQuoteIntoState(savedQuote);
     setCurrentView(savedQuote.status === 'draft' ? 'editor' : 'summary');
+  }
+
+  function handleSavedQuoteReview(savedQuote: SavedQuote) {
+    loadSavedQuoteIntoState(savedQuote);
+    setCurrentView('summary');
   }
 
   function handleQuoteDetailOpen(savedQuote: SavedQuote) {
@@ -707,6 +768,10 @@ function App() {
   }
 
   function handleCreateQuoteVersion(source: SavedQuote, reason: string) {
+    const opportunity = source.opportunityId
+      ? loadOpportunities().items.find((item) => item.id === source.opportunityId)
+      : undefined;
+    if (!canCreateQuoteVersion(source, opportunity)) return;
     setQuoteId(createQuoteId());
     setQuoteStatus('draft');
     setCommercialStatus('prepared');
@@ -1037,6 +1102,7 @@ function App() {
       }
       setClientId(result.client.id);
       setClientName(result.client.name);
+      setOpportunityId(result.opportunity?.id);
       setDirectClientInput(null);
       setSavedQuotes(loadSavedQuotes());
       setSaveFeedback({
@@ -1108,6 +1174,38 @@ function App() {
             pipelineStage: 'proposal',
             updatedAt: audit.changedAt,
           });
+          setOpportunities(loadOpportunities().items);
+        }
+      }
+      if (quote.opportunityId && ['accepted', 'rejected'].includes(nextStatus)) {
+        const opportunity = loadOpportunities().items.find(
+          (item) => item.id === quote.opportunityId,
+        );
+        if (opportunity) {
+          const isAccepted = nextStatus === 'accepted';
+          const closedOpportunity = (
+            isAccepted ? closeOpportunityForAcceptedQuote : closeOpportunityForRejectedQuote
+          )(opportunity, audit.changedBy, audit.changedAt);
+          if (
+            !saveOpportunity({
+              ...closedOpportunity,
+              pipelineStage: isAccepted ? 'won' : 'lost',
+              commercialState: isAccepted ? 'won' : 'lost',
+              status: 'closed',
+              updatedAt: audit.changedAt,
+            })
+          )
+            return `El presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}, pero no se pudo cerrar la oportunidad.`;
+          if (
+            closedOpportunity.nextAction?.status === 'cancelled' &&
+            !recordNextActionActivity(
+              closedOpportunity.id,
+              closedOpportunity.nextAction.id,
+              'cancelled',
+              `Próximo paso cancelado porque el presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}.`,
+            )
+          )
+            return `El presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}, pero no se pudo registrar la cancelación del próximo paso.`;
           setOpportunities(loadOpportunities().items);
         }
       }
@@ -1257,6 +1355,10 @@ function App() {
   }
 
   function handleQuoteChangeRequest(quote: SavedQuote, reason: string, responsible: string) {
+    const opportunity = quote.opportunityId
+      ? loadOpportunities().items.find((item) => item.id === quote.opportunityId)
+      : undefined;
+    if (!canCreateQuoteVersion(quote, opportunity)) return;
     const now = new Date().toISOString();
     const next: SavedQuote = {
       ...quote,
@@ -1334,6 +1436,7 @@ function App() {
         };
         setClientId(result.client.id);
         setClientName(result.client.name);
+        setOpportunityId(result.opportunity?.id);
         setDirectClientInput(null);
         setQuoteStatus('finalized');
         setSavedQuotes(loadSavedQuotes());
@@ -1879,7 +1982,7 @@ function App() {
           }}
           onPdf={handleQuoteDetailPdfDownload}
           onStatus={(_quote, status, audit) => handleCommercialStatusChange(status, audit)}
-          onContinueEditing={handleSavedQuoteOpen}
+          onContinueEditing={handleSavedQuoteReview}
           onRegisterSend={setQuoteSendTarget}
           onRequestChange={handleQuoteChangeRequest}
           onConvertDirect={handleDirectQuoteConversion}
@@ -2377,35 +2480,6 @@ function App() {
                 </footer>
               </section>
             </div>
-
-            <section className="quote-commercial-sections" aria-label="Seguimiento comercial">
-              <QuoteCommercialContext
-                key={quoteId}
-                quote={getCurrentQuote()}
-                savedQuotes={savedQuotes}
-                onAssociate={handleAssociation}
-                onEntitiesChange={() => setOpportunities(loadOpportunities().items)}
-                onQuoteResult={handleCommercialStatusChange}
-              />
-              <section
-                className="summary-panel commercial-follow-up"
-                aria-labelledby="commercial-follow-up-title"
-              >
-                <div className="summary-panel-heading">
-                  <p className="eyebrow">Seguimiento comercial</p>
-                  <h2 id="commercial-follow-up-title">Seguimiento comercial</h2>
-                </div>
-                <QuoteCommercialStatus
-                  documentStatus={quoteStatus}
-                  commercialStatus={commercialStatus}
-                  commercialStatusAudit={commercialStatusAudit}
-                  sentAudit={sentAudit}
-                  hasOpportunity={Boolean(opportunityId)}
-                  onChange={handleCommercialStatusChange}
-                />
-                <QuoteActivityPanel quote={getCurrentQuote()} />
-              </section>
-            </section>
           </div>
           {isFinalizationConfirmationOpen && (
             <div className="modal-backdrop">
@@ -2494,194 +2568,278 @@ function App() {
               Ya está vinculado a este cliente y oportunidad. No tenés que seleccionar nada más; la
               vinculación se guardará al guardar el borrador o finalizar el presupuesto.
             </p>
+            <button
+              type="button"
+              className="button button-line"
+              onClick={() => {
+                setClientId(undefined);
+                setOpportunityId(undefined);
+                setIsLinkingOpen(true);
+              }}
+            >
+              Cambiar oportunidad
+            </button>
           </section>
         ) : (
-          <DirectClientQuotePanel
-            clients={loadClients().items}
-            selectedClientId={clientId}
-            onSelectExisting={(client) => handleAssociation(client, undefined)}
-            onDirectChange={(input, followUp) => {
-              setDirectClientInput(input);
-              setDirectFollowUp(followUp);
-              if (!input) return;
-              setClientId(undefined);
-              setOpportunityId(undefined);
-              setClientName(input.name.trim() || input.company.trim());
-              setProjectName(input.projectName.trim());
-              setSaveFeedback(null);
-            }}
-          />
+          <section className="quote-card optional-linking-card" aria-label="Vinculación opcional">
+            <div className="quote-heading">
+              <div>
+                <p className="eyebrow">SEGUIMIENTO OPCIONAL</p>
+                <h2>¿Querés vincular este presupuesto a seguimiento?</h2>
+                <p className="commercial-note">
+                  Podés continuar sin vincularlo. La vinculación no modifica los servicios, el total
+                  ni los datos del documento.
+                </p>
+              </div>
+              <button
+                className="button button-line"
+                type="button"
+                aria-expanded={isLinkingOpen}
+                onClick={() => setIsLinkingOpen((isOpen) => !isOpen)}
+              >
+                {isLinkingOpen ? 'Cerrar vinculación' : 'Vincular a seguimiento'}
+              </button>
+            </div>
+            {isLinkingOpen && (
+              <DirectClientQuotePanel
+                clients={loadClients().items}
+                opportunities={opportunities}
+                onSelectOpportunity={(opportunity) => {
+                  const client = loadClients().items.find(
+                    (item) => item.id === opportunity.clientId,
+                  );
+                  if (client) handleAssociation(client, opportunity);
+                }}
+                onDirectChange={(input, followUp) => {
+                  setDirectClientInput(input);
+                  setDirectFollowUp(followUp);
+                  if (!input) return;
+                  setClientId(undefined);
+                  setOpportunityId(undefined);
+                  setClientName(input.name.trim() || input.company.trim());
+                  setProjectName(input.projectName.trim());
+                  setSaveFeedback(null);
+                }}
+              />
+            )}
+          </section>
         )}
 
-        <section className="entry-grid" aria-label="Agregar mano de obra">
-          <form className="entry-card" onSubmit={handleCatalogSubmit}>
+        <section className="entry-grid service-entry-grid" aria-label="Agregar servicio">
+          <div className="entry-card service-entry-card">
             <div className="card-heading">
               <span className="step-number">1</span>
               <div>
-                <h2>Elegir del catálogo</h2>
-                <p>Usá un servicio existente y ajustá su precio para este presupuesto.</p>
+                <h2>
+                  {serviceEntryMode === 'catalog' ? 'Agregar servicio' : 'Agregar servicio manual'}
+                </h2>
+                <p>
+                  {serviceEntryMode === 'catalog'
+                    ? 'Buscá un servicio del catálogo y ajustá su precio para este presupuesto.'
+                    : 'Completá el servicio que no está disponible en el catálogo.'}
+                </p>
               </div>
-            </div>
-
-            <label className="field">
-              <span>Buscar servicio activo</span>
-              <input
-                type="search"
-                value={catalogSearch}
-                onChange={(event) => handleCatalogSearchChange(event.target.value)}
-                placeholder="Nombre o descripción"
-              />
-            </label>
-
-            <label className="field catalog-quote-select">
-              <span>Servicio</span>
-              <select
-                value={selectedJobId}
-                onChange={(event) => handleCatalogJobChange(event.target.value)}
-                disabled={visibleActiveCatalogJobs.length === 0}
-              >
-                {visibleActiveCatalogJobs.length === 0 && <option value="">Sin resultados</option>}
-                {visibleActiveCatalogJobs.map((job) => (
-                  <option key={job.id} value={job.id}>
-                    {job.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="form-grid">
-              <div className="field read-only-field">
-                <span>Unidad</span>
-                <strong>
-                  {selectedVisibleJob
-                    ? `${workUnitLabels[selectedVisibleJob.unit]} (${workUnitSymbols[selectedVisibleJob.unit]})`
-                    : 'Sin servicio seleccionado'}
-                </strong>
-              </div>
-              <label className="field">
-                <span>Cantidad</span>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={catalogQuantity}
-                  onChange={(event) => setCatalogQuantity(event.target.value)}
-                  required
-                />
-              </label>
-              <label className="field">
-                <span>Precio unitario</span>
-                <div className="money-input">
-                  <span>$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={catalogUnitPrice}
-                    onChange={(event) => setCatalogUnitPrice(event.target.value)}
-                    required
-                  />
-                </div>
-                <small>Precio sugerido, editable para este presupuesto.</small>
-              </label>
-            </div>
-
-            {catalogError && <p className="form-error">{catalogError}</p>}
-            <button
-              className="button button-secondary"
-              type="submit"
-              disabled={!selectedVisibleJob}
-            >
-              Agregar servicio
-            </button>
-          </form>
-
-          <form className="entry-card" onSubmit={handleManualSubmit}>
-            <div className="card-heading">
-              <span className="step-number">2</span>
-              <div>
-                <h2>Agregar servicio manual</h2>
-                <p>Creá una línea cuando el servicio no esté disponible en el catálogo.</p>
-              </div>
-            </div>
-
-            <label className="field">
-              <span>Nombre del servicio</span>
-              <input
-                type="text"
-                value={manualName}
-                onChange={(event) => setManualName(event.target.value)}
-                placeholder="Ej.: Reparar revoque"
-                required
-              />
-            </label>
-
-            <label className="field quick-description">
-              <span>Descripción (opcional)</span>
-              <textarea
-                value={manualDescription}
-                onChange={(event) => setManualDescription(event.target.value)}
-                placeholder="Detalle breve del trabajo"
-                rows={3}
-              />
-            </label>
-
-            <div className="form-grid">
-              <label className="field">
-                <span>Unidad</span>
-                <select
-                  value={manualUnit}
-                  onChange={(event) => setManualUnit(event.target.value as WorkUnit)}
+              <div className="service-entry-toggle" aria-label="Modo de carga">
+                <button
+                  className={`button button-line ${serviceEntryMode === 'catalog' ? 'is-selected' : ''}`}
+                  type="button"
+                  onClick={() => handleServiceEntryModeChange('catalog')}
                 >
-                  {availableWorkUnits.map((unit) => (
-                    <option key={unit} value={unit}>
-                      {workUnitLabels[unit]} ({workUnitSymbols[unit]})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Cantidad</span>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={manualQuantity}
-                  onChange={(event) => setManualQuantity(event.target.value)}
-                  required
-                />
-              </label>
-              <label className="field">
-                <span>Precio unitario</span>
-                <div className="money-input">
-                  <span>$</span>
+                  Catálogo
+                </button>
+                <button
+                  className={`button button-line ${serviceEntryMode === 'manual' ? 'is-selected' : ''}`}
+                  type="button"
+                  onClick={() => handleServiceEntryModeChange('manual')}
+                >
+                  Agregar manualmente
+                </button>
+              </div>
+            </div>
+            {serviceEntryMode === 'catalog' ? (
+              <form onSubmit={handleCatalogSubmit}>
+                <label className="field">
+                  <span>Buscar servicio activo</span>
+                  <div className="search-select">
+                    <input
+                      type="search"
+                      value={catalogSearch}
+                      onFocus={() => setIsCatalogMenuOpen(true)}
+                      onChange={(event) => handleCatalogSearchChange(event.target.value)}
+                      placeholder="Nombre o descripción"
+                      aria-expanded={isCatalogMenuOpen}
+                      aria-controls="catalog-service-results"
+                    />
+                    {isCatalogMenuOpen && (
+                      <div
+                        id="catalog-service-results"
+                        className="search-select-menu"
+                        role="listbox"
+                      >
+                        {visibleActiveCatalogJobs.length > 0 ? (
+                          visibleActiveCatalogJobs.map((job) => (
+                            <button
+                              type="button"
+                              key={job.id}
+                              className="search-select-option"
+                              role="option"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => handleCatalogServiceSelection(job)}
+                            >
+                              <strong>{job.name}</strong>
+                              <span>
+                                {job.description || 'Sin descripción'} · {workUnitLabels[job.unit]}{' '}
+                                · {currencyFormatter.format(job.defaultPrice)}
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="search-select-empty">
+                            <p>No encontramos un servicio activo con esos datos.</p>
+                            <button
+                              type="button"
+                              className="button button-line"
+                              onClick={() => handleServiceEntryModeChange('manual')}
+                            >
+                              Agregar manualmente
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </label>
+                <p className="commercial-note">
+                  Escribí para filtrar y elegí un servicio de la lista. Podés borrar y buscar otro.
+                </p>
+
+                <div className="form-grid">
+                  <div className="field read-only-field">
+                    <span>Unidad</span>
+                    <strong>
+                      {selectedVisibleJob
+                        ? `${workUnitLabels[selectedVisibleJob.unit]} (${workUnitSymbols[selectedVisibleJob.unit]})`
+                        : 'Sin servicio seleccionado'}
+                    </strong>
+                  </div>
+                  <label className="field">
+                    <span>Cantidad</span>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={catalogQuantity}
+                      onChange={(event) => setCatalogQuantity(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Precio unitario</span>
+                    <div className="money-input">
+                      <span>$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={catalogUnitPrice}
+                        onChange={(event) => setCatalogUnitPrice(event.target.value)}
+                        required
+                      />
+                    </div>
+                    <small>Precio sugerido, editable para este presupuesto.</small>
+                  </label>
+                </div>
+
+                {catalogError && <p className="form-error">{catalogError}</p>}
+                <button
+                  className="button button-secondary"
+                  type="submit"
+                  disabled={!selectedVisibleJob}
+                >
+                  Agregar servicio
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleManualSubmit}>
+                <label className="field">
+                  <span>Nombre del servicio</span>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={manualUnitPrice}
-                    onChange={(event) => setManualUnitPrice(event.target.value)}
-                    placeholder="0"
+                    type="text"
+                    value={manualName}
+                    onChange={(event) => setManualName(event.target.value)}
+                    placeholder="Ej.: Reparar revoque"
                     required
                   />
+                </label>
+
+                <label className="field quick-description">
+                  <span>Descripción (opcional)</span>
+                  <textarea
+                    value={manualDescription}
+                    onChange={(event) => setManualDescription(event.target.value)}
+                    placeholder="Detalle breve del trabajo"
+                    rows={3}
+                  />
+                </label>
+
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Unidad</span>
+                    <select
+                      value={manualUnit}
+                      onChange={(event) => setManualUnit(event.target.value as WorkUnit)}
+                    >
+                      {availableWorkUnits.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {workUnitLabels[unit]} ({workUnitSymbols[unit]})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Cantidad</span>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={manualQuantity}
+                      onChange={(event) => setManualQuantity(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Precio unitario</span>
+                    <div className="money-input">
+                      <span>$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={manualUnitPrice}
+                        onChange={(event) => setManualUnitPrice(event.target.value)}
+                        placeholder="0"
+                        required
+                      />
+                    </div>
+                  </label>
                 </div>
-              </label>
-            </div>
 
-            <label className="checkbox-field">
-              <input
-                type="checkbox"
-                checked={saveManualToCatalog}
-                onChange={(event) => setSaveManualToCatalog(event.target.checked)}
-              />
-              <span>Guardar también en el catálogo para reutilizarlo</span>
-            </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={saveManualToCatalog}
+                    onChange={(event) => setSaveManualToCatalog(event.target.checked)}
+                  />
+                  <span>Guardar también en el catálogo para reutilizarlo</span>
+                </label>
 
-            {manualError && <p className="form-error">{manualError}</p>}
-            <button className="button button-secondary" type="submit">
-              Agregar servicio manual
-            </button>
-          </form>
+                {manualError && <p className="form-error">{manualError}</p>}
+                <button className="button button-secondary" type="submit">
+                  Agregar servicio
+                </button>
+              </form>
+            )}
+          </div>
         </section>
 
         <section className="quote-card" aria-labelledby="quote-lines-title">

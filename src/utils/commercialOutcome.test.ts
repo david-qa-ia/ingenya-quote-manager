@@ -40,11 +40,24 @@ describe('commercial outcomes', () => {
     ).toBe(true);
   });
 
-  it('sets commercial state without mapping the pre-existing operational status', () => {
+  it('closes an accepted opportunity as won in the pipeline', () => {
     const won = applyCommercialOutcome(opportunity, accepted);
     expect(won.status).toBe('closed');
     expect(won.commercialState).toBe('won');
+    expect(won.pipelineStage).toBe('won');
     expect(won.currentCommercialOutcomeId).toBe(accepted.id);
+  });
+
+  it('closes a lost opportunity in the lost pipeline stage', () => {
+    const lost = applyCommercialOutcome(opportunity, {
+      ...accepted,
+      id: 'outcome-lost',
+      type: 'lost',
+      quoteId: undefined,
+    });
+    expect(lost.commercialState).toBe('lost');
+    expect(lost.pipelineStage).toBe('lost');
+    expect(lost.status).toBe('closed');
   });
 
   it('models loss, reopening and corrections without mutating the previous event', () => {

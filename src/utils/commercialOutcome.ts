@@ -65,9 +65,16 @@ export function applyCommercialOutcome(
 ): Opportunity {
   if (outcome.opportunityId !== opportunity.id)
     throw new Error('El resultado no pertenece a la obra o trabajo.');
+  const closesAsWon = outcome.type === 'accepted';
+  const closesAsLost = outcome.type === 'lost';
   return {
     ...opportunity,
     commercialState: getOpportunityCommercialState(outcome),
+    ...(closesAsWon
+      ? { pipelineStage: 'won' as const, status: 'closed' as const }
+      : closesAsLost
+        ? { pipelineStage: 'lost' as const, status: 'closed' as const }
+        : {}),
     currentCommercialOutcomeId: outcome.id,
     updatedAt: outcome.occurredAt,
   };

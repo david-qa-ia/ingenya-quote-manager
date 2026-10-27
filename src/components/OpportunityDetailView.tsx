@@ -3,7 +3,7 @@ import { ActivityTimeline } from './ActivityTimeline';
 import { ClientForm } from './ClientForm';
 import { UiIcon } from './UiIcon';
 import type { Client, ClientInput } from '../types/client';
-import type { Opportunity } from '../types/opportunity';
+import type { Opportunity, OpportunityPipelineStage } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
 import type { Activity } from '../types/activity';
 import { businessTimeZone } from '../utils/opportunityNextAction';
@@ -11,6 +11,7 @@ import { loadActivities } from '../utils/activityStorage';
 import { mirrorProspectActivitiesToOpportunity } from '../utils/prospectConversion';
 import { loadProspects } from '../utils/prospectStorage';
 import { getOpportunityQuoteAction } from '../utils/opportunityQuoteAction';
+import { canCreateQuoteVersion } from '../utils/quoteVersioning';
 
 type DetailTab = 'summary' | 'activity' | 'quotes' | 'notes' | 'files';
 type OpportunityDataDraft = {
@@ -100,18 +101,21 @@ export function OpportunityDetailView({
   const qualification = opportunity.qualification;
   const isMissingClient = !client;
   const currentQuote = relatedQuotes[0];
+  const canCreateVersion = Boolean(
+    currentQuote && canCreateQuoteVersion(currentQuote, opportunity),
+  );
   const quoteAction = getOpportunityQuoteAction(relatedQuotes);
   const isSendQuoteAction =
     action?.kind === 'sendQuote' ||
     action?.description.trim().toLowerCase() === 'enviar presupuesto';
-  const pipeline = [
+  const currentStage = opportunity.pipelineStage ?? 'opportunity';
+  const pipeline: readonly (readonly [OpportunityPipelineStage, string])[] = [
     ['prospect', 'Prospecto'],
     ['contacted', 'Contactado'],
     ['opportunity', 'Oportunidad'],
     ['proposal', 'Propuesta'],
-    ['won', 'Ganada'],
-  ] as const;
-  const currentStage = opportunity.pipelineStage ?? 'opportunity';
+    currentStage === 'lost' ? ['lost', 'Perdida'] : ['won', 'Ganada'],
+  ];
 
   function runQuoteAction() {
     if (quoteAction.type === 'create') {
@@ -245,7 +249,7 @@ export function OpportunityDetailView({
             const reached = pipeline.findIndex(([value]) => value === currentStage) >= index;
             return (
               <div
-                className={`opportunity-pipeline-step ${active ? 'active' : ''} ${reached ? 'reached' : ''}`}
+                className={`opportunity-pipeline-step ${active ? 'active' : ''} ${reached ? 'reached' : ''} ${stage === 'lost' ? 'lost-stage' : ''}`}
                 key={stage}
               >
                 <span className="opportunity-pipeline-icon">
@@ -257,7 +261,9 @@ export function OpportunityDetailView({
                           ? 'phone'
                           : stage === 'opportunity' || stage === 'proposal'
                             ? 'document'
-                            : 'trophy'
+                            : stage === 'lost'
+                              ? 'x-circle'
+                              : 'trophy'
                     }
                   />
                 </span>
@@ -316,7 +322,7 @@ export function OpportunityDetailView({
                   const reached = pipeline.findIndex(([value]) => value === currentStage) >= index;
                   return (
                     <div
-                      className={`opportunity-pipeline-step ${active ? 'active' : ''} ${reached ? 'reached' : ''} ${reached && !active ? 'completed' : ''}`}
+                      className={`opportunity-pipeline-step ${active ? 'active' : ''} ${reached ? 'reached' : ''} ${reached && !active ? 'completed' : ''} ${stage === 'lost' ? 'lost-stage' : ''}`}
                       key={stage}
                     >
                       <span className="opportunity-pipeline-icon">
@@ -328,7 +334,9 @@ export function OpportunityDetailView({
                                 ? 'phone'
                                 : stage === 'opportunity' || stage === 'proposal'
                                   ? 'document'
-                                  : 'trophy'
+                                  : stage === 'lost'
+                                    ? 'x-circle'
+                                    : 'trophy'
                           }
                         />
                         {reached && !active && (
@@ -417,15 +425,21 @@ export function OpportunityDetailView({
                     <p className="eyebrow">Propuesta</p>
                     <h2>Versiones del presupuesto</h2>
                   </div>
-                  <button
-                    className="button button-line"
-                    type="button"
-                    onClick={() =>
-                      onCreateQuoteVersion(currentQuote, 'El cliente solicitó cambios.')
-                    }
-                  >
-                    Crear V{(currentQuote.version ?? 1) + 1} desde V{currentQuote.version ?? 1}
-                  </button>
+                  {canCreateVersion ? (
+                    <button
+                      className="button button-line"
+                      type="button"
+                      onClick={() =>
+                        onCreateQuoteVersion(currentQuote, 'El cliente solicitó cambios.')
+                      }
+                    >
+                      Crear V{(currentQuote.version ?? 1) + 1} desde V{currentQuote.version ?? 1}
+                    </button>
+                  ) : (
+                    <p className="commercial-note">
+                      Presupuesto aceptado: la oportunidad está cerrada.
+                    </p>
+                  )}
                 </div>
                 <ul className="opportunity-quote-list">
                   {relatedQuotes.map((quote) => (

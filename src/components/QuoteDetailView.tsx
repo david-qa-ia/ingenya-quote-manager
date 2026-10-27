@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { loadActivities } from '../utils/activityStorage';
 import { UiIcon } from './UiIcon';
+import { canCreateQuoteVersion } from '../utils/quoteVersioning';
 import { workUnitSymbols } from '../data/workUnits';
 import type { Client } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
@@ -56,6 +57,7 @@ export function QuoteDetailView({
   const targets = getCommercialTransitionTargets(quote.commercialStatus, quote.status);
   const displayName = opportunity?.name || quote.projectName || 'Presupuesto';
   const isDraft = quote.status === 'draft';
+  const canCreateVersion = canCreateQuoteVersion(quote, opportunity);
 
   async function pdf() {
     if (loadingPdf) return;
@@ -169,7 +171,7 @@ export function QuoteDetailView({
                   type="button"
                   onClick={() => onContinueEditing(quote)}
                 >
-                  <UiIcon name="document" /> Completar y finalizar
+                  <UiIcon name="document" /> Revisar y finalizar
                 </button>
               )}
               <button
@@ -266,7 +268,7 @@ export function QuoteDetailView({
                   </small>
                 </article>
               ))}
-            {quote.commercialStatus === 'sent' && (
+            {quote.commercialStatus === 'sent' && canCreateVersion && (
               <>
                 <p className="commercial-note">
                   La versión enviada queda preservada. Para aplicar cambios, registrá el pedido y

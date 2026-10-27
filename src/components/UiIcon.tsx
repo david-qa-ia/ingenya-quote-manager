@@ -34,7 +34,8 @@ export type UiIconName =
   | 'tag'
   | 'trophy'
   | 'users'
-  | 'whatsapp';
+  | 'whatsapp'
+  | 'x-circle';
 
 interface Props extends SVGProps<SVGSVGElement> {
   name: UiIconName;
@@ -184,6 +185,12 @@ const paths: Record<UiIconName, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="9" />
       <path d="m8 12 2.5 2.5L16 9" />
+    </>
+  ),
+  'x-circle': (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m9 9 6 6m0-6-6 6" />
     </>
   ),
   menu: (
