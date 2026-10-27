@@ -48,6 +48,13 @@ const tabLabels: Record<DetailTab, string> = {
   files: 'Archivos',
 };
 const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
+const preferredChannelLabels = {
+  phone: 'Teléfono',
+  whatsapp: 'WhatsApp',
+  email: 'Email',
+  instagram: 'Instagram',
+  '': 'Sin preferencia',
+} as const;
 
 const fullDateTime = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'full',
@@ -102,6 +109,9 @@ export function OpportunityDetailView({
   const action = opportunity.nextAction?.status === 'pending' ? opportunity.nextAction : undefined;
   const qualification = opportunity.qualification;
   const isMissingClient = !client;
+  const sourceProspect = loadProspects().items.find(
+    (item) => item.conversion?.draft.opportunityId === opportunity.id,
+  );
   const currentQuote = relatedQuotes[0];
   const canCreateVersion = Boolean(
     currentQuote && canCreateQuoteVersion(currentQuote, opportunity),
@@ -743,6 +753,33 @@ export function OpportunityDetailView({
                     ⧉
                   </button>
                 </p>
+              )}
+              {sourceProspect && (
+                <section className="opportunity-prospect-context" aria-label="Datos del prospecto">
+                  <p className="eyebrow">Datos del prospecto</p>
+                  <dl>
+                    <div>
+                      <dt>Instagram</dt>
+                      <dd>{sourceProspect.instagram || 'Sin definir'}</dd>
+                    </div>
+                    <div>
+                      <dt>Dirección</dt>
+                      <dd>{opportunity.address || sourceProspect.address || 'Sin definir'}</dd>
+                    </div>
+                    <div>
+                      <dt>Origen</dt>
+                      <dd>{sourceProspect.source || 'Sin definir'}</dd>
+                    </div>
+                    <div>
+                      <dt>Servicio potencial</dt>
+                      <dd>{sourceProspect.potentialService || 'Sin definir'}</dd>
+                    </div>
+                    <div>
+                      <dt>Canal preferido</dt>
+                      <dd>{preferredChannelLabels[sourceProspect.preferredChannel]}</dd>
+                    </div>
+                  </dl>
+                </section>
               )}
               {copied && (
                 <small className="commercial-note" role="status">

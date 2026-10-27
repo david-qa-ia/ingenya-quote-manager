@@ -3091,6 +3091,33 @@ button.opportunity-nav-item:hover {
   font-size: 15px;
   height: 30px;
 }
+.opportunity-prospect-context {
+  border-top: 1px solid var(--border, #dfe5e1);
+  margin-top: 4px;
+  padding-top: 14px;
+}
+.opportunity-prospect-context .eyebrow {
+  margin: 0 0 8px;
+}
+.opportunity-prospect-context dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.opportunity-prospect-context dl > div {
+  display: grid;
+  gap: 4px;
+}
+.opportunity-prospect-context dt {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.opportunity-prospect-context dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 .opportunity-quote-list {
   display: grid;
   gap: 10px;
