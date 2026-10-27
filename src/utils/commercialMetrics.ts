@@ -213,6 +213,18 @@ export function calculateCommercialMetrics(
     sources.issues.some(Boolean) ||
     opportunities.some((item) => !clients.has(item.clientId)) ||
     quotes.some((item) => item.opportunityId && !scopedOpportunityIds.has(item.opportunityId));
+  const currentContacts = contacts.filter((item) => current(item.occurredAt)).length;
+  const currentEffectiveContacts = effectiveContacts.filter((item) =>
+    current(item.occurredAt),
+  ).length;
+  const focus =
+    currentContacts === 0
+      ? 'registerContact'
+      : currentEffectiveContacts === 0
+        ? 'followUpContacts'
+        : completed === 0
+          ? 'defineNextStep'
+          : 'keepMomentum';
   return {
     kpis,
     trend: [...days.values()].sort((a, b) => a.day.localeCompare(b.day)),
@@ -234,6 +246,8 @@ export function calculateCommercialMetrics(
       { label: 'Notas', count: notes.filter((item) => current(item.occurredAt)).length },
     ],
     followUpActions: { completed, rescheduled },
+    contactEffectiveness: { effective: currentEffectiveContacts, registered: currentContacts },
+    focus,
     partialCoverage,
     empty: Object.values(kpis).every((item) => item.value === 0),
   };

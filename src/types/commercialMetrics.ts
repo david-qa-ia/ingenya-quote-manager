@@ -31,6 +31,10 @@ export interface MetricValue {
   previous: number;
   comparison: number | null;
 }
+
+export type ActivityFocus =
+  'registerContact' | 'followUpContacts' | 'defineNextStep' | 'keepMomentum';
+
 export interface CommercialMetrics {
   kpis: Record<
     | 'activitiesRegistered'
@@ -56,6 +60,8 @@ export interface CommercialMetrics {
     count: number;
   }[];
   followUpActions: { completed: number; rescheduled: number };
+  contactEffectiveness: { effective: number; registered: number };
+  focus: ActivityFocus;
   partialCoverage: boolean;
   empty: boolean;
 }

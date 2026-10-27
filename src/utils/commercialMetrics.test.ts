@@ -133,6 +133,8 @@ describe('commercial metrics', () => {
     expect(metrics.kpis.quotesSent.value).toBe(1);
     expect(metrics.kpis.followUpsCompleted.value).toBe(1);
     expect(metrics.kpis.followUpsRescheduled.value).toBe(1);
+    expect(metrics.contactEffectiveness).toEqual({ effective: 1, registered: 1 });
+    expect(metrics.focus).toBe('keepMomentum');
     expect(metrics.trend).toHaveLength(2);
     expect(base).toEqual(original);
   });
@@ -175,5 +177,16 @@ describe('commercial metrics', () => {
     expect(metrics.kpis.activitiesRegistered.value).toBe(1);
     expect(metrics.kpis.notesAdded.value).toBe(1);
     expect(metrics.kpis.contactsRegistered.value).toBe(0);
+    expect(metrics.focus).toBe('registerContact');
+  });
+  it('suggests following up when contacts have no effective result', () => {
+    const metrics = calculateCommercialMetrics(
+      {
+        ...base,
+        activities: [{ ...base.activities[0], result: 'noResponse' }],
+      },
+      filters,
+    );
+    expect(metrics.focus).toBe('followUpContacts');
   });
 });

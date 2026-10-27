@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { CommercialMetricsSources } from '../types/commercialMetrics';
 import { defaultCommercialMetricsFilters } from '../types/commercialMetrics';
 import { calculateCommercialMetrics, getArgentinaToday } from '../utils/commercialMetrics';
+import { MetricsActivityFocus } from './MetricsActivityFocus';
 import { MetricsEffectivenessTable } from './MetricsEffectivenessTable';
 import { MetricsFilters } from './MetricsFilters';
 import { MetricsKpiCards } from './MetricsKpiCards';
@@ -83,9 +84,13 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
         </section>
       ) : (
         <>
+          <MetricsActivityFocus metrics={metrics} />
           <MetricsKpiCards metrics={metrics} />
-          <MetricsTrend metrics={metrics} />
-          <MetricsEffectivenessTable metrics={metrics} />
+          <details className="metrics-traceability">
+            <summary>Ver trazabilidad del período</summary>
+            <MetricsTrend metrics={metrics} />
+            <MetricsEffectivenessTable metrics={metrics} />
+          </details>
         </>
       )}
     </main>

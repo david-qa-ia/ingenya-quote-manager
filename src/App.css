@@ -5110,8 +5110,32 @@ button.opportunity-nav-item:hover {
 }
 
 .metrics-filters {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  display: block;
   margin-bottom: 1rem;
+}
+
+.metrics-filter-core,
+.metrics-context-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.metrics-context-filters {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.85rem;
+}
+
+.metrics-context-filters summary,
+.metrics-traceability summary {
+  color: var(--color-primary, #176b5b);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.metrics-context-filter-grid {
+  margin-top: 1rem;
 }
 
 .metrics-kpis {
@@ -5132,6 +5156,39 @@ button.opportunity-nav-item:hover {
 
 .metrics-section {
   margin: 1rem 0;
+}
+
+.metrics-focus-card {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.35fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  border: 1px solid #a9dfc9;
+  border-radius: 16px;
+  background: #effaf5;
+  padding: 1.25rem;
+}
+
+.metrics-focus-card .eyebrow {
+  margin: 0.2rem 0 0;
+}
+
+.metrics-focus-card h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.metrics-focus-card p:last-child {
+  margin: 0.45rem 0 0;
+  color: var(--text-muted);
+}
+
+.metrics-traceability {
+  margin-top: 1.25rem;
+}
+
+.metrics-traceability > summary {
+  width: fit-content;
 }
 .metrics-funnel {
   display: grid;
@@ -5194,6 +5251,9 @@ button.opportunity-nav-item:hover {
   border: 0;
 }
 @media (max-width: 640px) {
+  .metrics-focus-card {
+    grid-template-columns: 1fr;
+  }
   .opportunity-quote-context {
     align-items: flex-start;
     flex-direction: column;

@@ -1,25 +1,28 @@
-import type { CommercialMetrics } from '../types/commercialMetrics';
-const labels = {
-  activitiesRegistered: 'Acciones registradas',
-  contactsRegistered: 'Contactos registrados',
-  effectiveContacts: 'Contactos efectivos',
-  notesAdded: 'Notas agregadas',
-  quotesSent: 'Presupuestos enviados',
-  followUpsCompleted: 'Seguimientos completados',
-  followUpsRescheduled: 'Seguimientos reprogramados',
-} as const;
+import type { CommercialMetrics, MetricValue } from '../types/commercialMetrics';
+
+const comparisonText = (metric: MetricValue) =>
+  metric.comparison === null
+    ? 'Sin comparación'
+    : `${metric.comparison >= 0 ? '+' : ''}${metric.comparison.toFixed(0)}% vs. período anterior`;
+
 export function MetricsKpiCards({ metrics }: { metrics: CommercialMetrics }) {
+  const items = [
+    { label: 'Contactos registrados', metric: metrics.kpis.contactsRegistered },
+    {
+      label: 'Contactos efectivos',
+      metric: metrics.kpis.effectiveContacts,
+      detail: `${metrics.contactEffectiveness.effective} de ${metrics.contactEffectiveness.registered} contactos avanzaron`,
+    },
+    { label: 'Presupuestos enviados', metric: metrics.kpis.quotesSent },
+    { label: 'Seguimientos completados', metric: metrics.kpis.followUpsCompleted },
+  ];
   return (
     <section className="metrics-kpis" aria-label="Indicadores clave">
-      {Object.entries(metrics.kpis).map(([key, metric]) => (
-        <article className="follow-up-summary-card" key={key}>
-          <span>{labels[key as keyof typeof labels]}</span>
+      {items.map(({ label, metric, detail }) => (
+        <article className="follow-up-summary-card" key={label}>
+          <span>{label}</span>
           <strong>{metric.value}</strong>
-          <small>
-            {metric.comparison === null
-              ? 'Sin comparación'
-              : `${metric.comparison >= 0 ? '+' : ''}${metric.comparison.toFixed(0)}% vs. período anterior`}
-          </small>
+          <small>{detail ?? comparisonText(metric)}</small>
         </article>
       ))}
     </section>
