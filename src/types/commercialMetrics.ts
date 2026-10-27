@@ -1,8 +1,8 @@
 import type { Activity } from './activity';
 import type { CadenceExecution } from './cadence';
 import type { Client } from './client';
-import type { CommercialOutcome, CommercialReasonCode } from './commercialOutcome';
-import type { Opportunity, OpportunityCommercialState } from './opportunity';
+import type { CommercialOutcome } from './commercialOutcome';
+import type { Opportunity } from './opportunity';
 import type { SavedQuote } from './quote';
 
 export interface CommercialMetricsFilters {
@@ -10,10 +10,7 @@ export interface CommercialMetricsFilters {
   endDate: string;
   period: 'current' | 'previous';
   responsible: string;
-  service: string;
   channel: string;
-  commercialState: 'all' | OpportunityCommercialState;
-  reason: 'all' | CommercialReasonCode;
   clientId: string;
   opportunityId: string;
   quoteId: string;
@@ -36,33 +33,29 @@ export interface MetricValue {
 }
 export interface CommercialMetrics {
   kpis: Record<
-    | 'opportunitiesCreated'
+    | 'activitiesRegistered'
+    | 'contactsRegistered'
+    | 'effectiveContacts'
+    | 'notesAdded'
     | 'quotesSent'
-    | 'quotesAccepted'
-    | 'quotesRejected'
-    | 'opportunitiesLost'
-    | 'opportunitiesReopened'
     | 'followUpsCompleted'
-    | 'followUpsOverdue'
     | 'followUpsRescheduled',
     MetricValue
   >;
-  opportunityConversion: { numerator: number; denominator: number; rate: number | null };
-  quoteConversion: { numerator: number; denominator: number; rate: number | null };
-  reasons: { code: CommercialReasonCode; count: number }[];
   trend: {
     day: string;
     label: string;
-    created: number;
+    activities: number;
+    contacts: number;
+    effectiveContacts: number;
+    notes: number;
     sent: number;
-    accepted: number;
-    rejected: number;
-    lost: number;
   }[];
-  effectiveness: { label: string; completed: number; overdue: number; rescheduled: number }[];
-  averageFirstContactHours: number | null;
-  averageResultHours: number | null;
-  hasAmbiguousCorrections: boolean;
+  activityBreakdown: {
+    label: string;
+    count: number;
+  }[];
+  followUpActions: { completed: number; rescheduled: number };
   partialCoverage: boolean;
   empty: boolean;
 }
@@ -72,10 +65,7 @@ export const defaultCommercialMetricsFilters: CommercialMetricsFilters = {
   endDate: '',
   period: 'current',
   responsible: 'all',
-  service: 'all',
   channel: 'all',
-  commercialState: 'all',
-  reason: 'all',
   clientId: 'all',
   opportunityId: 'all',
   quoteId: 'all',

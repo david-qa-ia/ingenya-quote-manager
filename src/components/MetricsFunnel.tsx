@@ -1,34 +1,29 @@
 import type { CommercialMetrics } from '../types/commercialMetrics';
-const rate = (value: number | null) =>
-  value === null ? '— · Sin base suficiente' : `${value.toFixed(1)}%`;
+
 export function MetricsFunnel({ metrics }: { metrics: CommercialMetrics }) {
   return (
     <section className="quote-card metrics-section" aria-labelledby="metrics-funnel">
-      <h2 id="metrics-funnel">Embudo comercial</h2>
+      <h2 id="metrics-funnel">Resumen de actividad</h2>
       <dl className="metrics-funnel">
         <div>
-          <dt>Obras o trabajos con resultado definitivo</dt>
-          <dd>{metrics.opportunityConversion.denominator}</dd>
+          <dt>Acciones registradas</dt>
+          <dd>{metrics.kpis.activitiesRegistered.value}</dd>
         </div>
         <div>
-          <dt>Obras o trabajos ganados</dt>
-          <dd>{metrics.opportunityConversion.numerator}</dd>
+          <dt>Contactos efectivos</dt>
+          <dd>{metrics.kpis.effectiveContacts.value}</dd>
         </div>
         <div>
-          <dt>Conversión por obra o trabajo</dt>
-          <dd>{rate(metrics.opportunityConversion.rate)}</dd>
+          <dt>Notas agregadas</dt>
+          <dd>{metrics.kpis.notesAdded.value}</dd>
         </div>
         <div>
           <dt>Presupuestos enviados</dt>
-          <dd>{metrics.quoteConversion.denominator}</dd>
+          <dd>{metrics.kpis.quotesSent.value}</dd>
         </div>
         <div>
-          <dt>Presupuestos aceptados</dt>
-          <dd>{metrics.quoteConversion.numerator}</dd>
-        </div>
-        <div>
-          <dt>Conversión por presupuesto</dt>
-          <dd>{rate(metrics.quoteConversion.rate)}</dd>
+          <dt>Seguimientos completados</dt>
+          <dd>{metrics.kpis.followUpsCompleted.value}</dd>
         </div>
       </dl>
     </section>

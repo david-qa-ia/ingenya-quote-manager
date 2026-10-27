@@ -123,21 +123,20 @@ describe('commercial metrics', () => {
     expect(getArgentinaToday(new Date('2026-10-15T02:00:00.000Z'))).toBe('2026-10-14');
     expect(getPreviousPeriod(filters)?.start).toContain('2026-10-07');
   });
-  it('counts objective flow metrics, rates and durations without mutating sources', () => {
+  it('counts recorded activity without inferring funnel status', () => {
     const original = structuredClone(base);
-    const metrics = calculateCommercialMetrics(base, filters, new Date('2026-10-13T00:00:00.000Z'));
-    expect(metrics.kpis.opportunitiesCreated.value).toBe(1);
+    const metrics = calculateCommercialMetrics(base, filters);
+    expect(metrics.kpis.activitiesRegistered.value).toBe(1);
+    expect(metrics.kpis.contactsRegistered.value).toBe(1);
+    expect(metrics.kpis.effectiveContacts.value).toBe(1);
+    expect(metrics.kpis.notesAdded.value).toBe(0);
     expect(metrics.kpis.quotesSent.value).toBe(1);
-    expect(metrics.kpis.quotesAccepted.value).toBe(1);
     expect(metrics.kpis.followUpsCompleted.value).toBe(1);
     expect(metrics.kpis.followUpsRescheduled.value).toBe(1);
-    expect(metrics.opportunityConversion.rate).toBe(100);
-    expect(metrics.quoteConversion.rate).toBe(100);
-    expect(metrics.averageFirstContactHours).toBe(2);
-    expect(metrics.averageResultHours).toBe(48);
+    expect(metrics.trend).toHaveLength(2);
     expect(base).toEqual(original);
   });
-  it('returns null rates for zero denominators and flags corrections and partial coverage', () => {
+  it('flags partial coverage without substituting activity data', () => {
     const metrics = calculateCommercialMetrics(
       {
         ...base,
@@ -148,34 +147,33 @@ describe('commercial metrics', () => {
       },
       filters,
     );
-    expect(metrics.quoteConversion.rate).toBeNull();
-    expect(metrics.hasAmbiguousCorrections).toBe(true);
     expect(metrics.partialCoverage).toBe(true);
   });
-  it('keeps multiple quote rejections and filters services without exposing contact data', () => {
+  it('filters recorded activity by author and selected quote', () => {
     const second = {
       ...base.quotes[0],
       id: 'quote-2',
-      lines: [{ ...base.quotes[0].lines[0], name: 'Revoque' }],
     };
     const metrics = calculateCommercialMetrics(
       {
         ...base,
         quotes: [...base.quotes, second],
-        outcomes: [
-          ...base.outcomes,
+        activities: [
+          ...base.activities,
           {
-            ...base.outcomes[0],
-            id: 'rejected',
-            type: 'rejected',
-            quoteId: 'quote-2',
+            ...base.activities[0],
+            id: 'note-by-ana',
+            type: 'note',
+            author: 'Ana',
             occurredAt: '2026-10-12T13:00:00.000Z',
+            subject: { kind: 'quote', quoteId: 'quote-2' },
           },
         ],
       },
-      { ...filters, service: 'Revoque' },
+      { ...filters, quoteId: 'quote-2', responsible: 'Ana' },
     );
-    expect(metrics.kpis.quotesRejected.value).toBe(1);
-    expect(metrics.kpis.quotesSent.value).toBe(1);
+    expect(metrics.kpis.activitiesRegistered.value).toBe(1);
+    expect(metrics.kpis.notesAdded.value).toBe(1);
+    expect(metrics.kpis.contactsRegistered.value).toBe(0);
   });
 });

@@ -1,13 +1,11 @@
 import type { CommercialMetrics } from '../types/commercialMetrics';
 const labels = {
-  opportunitiesCreated: 'Obras o trabajos creados',
+  activitiesRegistered: 'Acciones registradas',
+  contactsRegistered: 'Contactos registrados',
+  effectiveContacts: 'Contactos efectivos',
+  notesAdded: 'Notas agregadas',
   quotesSent: 'Presupuestos enviados',
-  quotesAccepted: 'Presupuestos aceptados',
-  quotesRejected: 'Presupuestos rechazados',
-  opportunitiesLost: 'Obras o trabajos perdidos',
-  opportunitiesReopened: 'Obras o trabajos reabiertos',
   followUpsCompleted: 'Seguimientos completados',
-  followUpsOverdue: 'Seguimientos vencidos',
   followUpsRescheduled: 'Seguimientos reprogramados',
 } as const;
 export function MetricsKpiCards({ metrics }: { metrics: CommercialMetrics }) {

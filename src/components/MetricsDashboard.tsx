@@ -4,7 +4,6 @@ import { defaultCommercialMetricsFilters } from '../types/commercialMetrics';
 import { calculateCommercialMetrics, getArgentinaToday } from '../utils/commercialMetrics';
 import { MetricsEffectivenessTable } from './MetricsEffectivenessTable';
 import { MetricsFilters } from './MetricsFilters';
-import { MetricsFunnel } from './MetricsFunnel';
 import { MetricsKpiCards } from './MetricsKpiCards';
 import { MetricsTrend } from './MetricsTrend';
 
@@ -17,11 +16,16 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
   });
   const metrics = useMemo(() => calculateCommercialMetrics(sources, filters), [sources, filters]);
   const responsible = [
-    ...new Set(sources.opportunities.map((item) => item.responsibleSeller).filter(Boolean)),
+    ...new Set(
+      [
+        ...sources.activities.map((item) => item.author),
+        ...sources.quotes.flatMap((item) => [item.sentAudit?.changedBy ?? '']),
+        ...sources.opportunities.flatMap((item) =>
+          item.nextAction ? item.nextAction.history.map((entry) => entry.actor) : [],
+        ),
+      ].filter(Boolean),
+    ),
   ].sort();
-  const services = [
-    ...new Set(sources.quotes.flatMap((item) => item.lines.map((line) => line.name))),
-  ].sort((a, b) => a.localeCompare(b, 'es'));
   const channels = [
     ...new Set([
       ...sources.activities.map((item) => item.type),
@@ -39,10 +43,11 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
     <main className="app-shell metrics-dashboard">
       <header className="saved-quotes-header">
         <div>
-          <p className="eyebrow">Seguimiento comercial</p>
-          <h1>Indicadores</h1>
+          <p className="eyebrow">Actividad comercial</p>
+          <h1>Mi actividad</h1>
           <p className="page-description">
-            Vista de solo lectura calculada desde los registros disponibles.
+            Lo que registraste y avanzaste en el período. Para ver el estado de cada oportunidad,
+            usá Seguimiento.
           </p>
         </div>
       </header>
@@ -50,7 +55,6 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
         filters={filters}
         onChange={setFilters}
         responsible={responsible}
-        services={services}
         channels={channels}
         clients={sources.clients.map((item) => ({
           id: item.id,
@@ -66,44 +70,20 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
           locales no fueron modificados.
         </p>
       )}
-      {(metrics.partialCoverage || metrics.hasAmbiguousCorrections) && !recoveryError && (
+      {metrics.partialCoverage && !recoveryError && (
         <p className="commercial-warning" role="alert">
-          {metrics.partialCoverage
-            ? 'Cobertura parcial: algunos registros históricos, asociaciones o datos recuperados no están disponibles.'
-            : ''}
-          {metrics.partialCoverage && metrics.hasAmbiguousCorrections ? ' ' : ''}
-          {metrics.hasAmbiguousCorrections
-            ? 'Hay correcciones comerciales ambiguas; no se inventan resultados sustitutos.'
-            : ''}
+          Cobertura parcial: algunos registros históricos, asociaciones o datos recuperados no están
+          disponibles.
         </p>
       )}
       {metrics.empty ? (
         <section className="empty-state">
-          <h2>No hay métricas para los filtros elegidos</h2>
+          <h2>No registraste actividad con estos filtros</h2>
           <p>Probá otro período o una combinación de filtros más amplia.</p>
         </section>
       ) : (
         <>
           <MetricsKpiCards metrics={metrics} />
-          <MetricsFunnel metrics={metrics} />
-          <section className="metrics-time">
-            <article>
-              <h2>Tiempo hasta primer contacto</h2>
-              <p>
-                {metrics.averageFirstContactHours === null
-                  ? 'Sin datos suficientes'
-                  : `${metrics.averageFirstContactHours.toFixed(1)} horas promedio`}
-              </p>
-            </article>
-            <article>
-              <h2>Tiempo hasta resultado</h2>
-              <p>
-                {metrics.averageResultHours === null
-                  ? 'Sin datos suficientes'
-                  : `${metrics.averageResultHours.toFixed(1)} horas promedio`}
-              </p>
-            </article>
-          </section>
           <MetricsTrend metrics={metrics} />
           <MetricsEffectivenessTable metrics={metrics} />
         </>
