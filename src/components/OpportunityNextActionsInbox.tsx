@@ -3,6 +3,7 @@ import type { FollowUpFilters, FollowUpInboxItem } from '../types/followUpInbox'
 import { defaultFollowUpFilters, filterFollowUpInbox } from '../utils/followUpInbox';
 import { businessTimeZone } from '../utils/opportunityNextAction';
 import type { RegisterResultInput } from './RegisterResultDrawer';
+import { UiIcon, type UiIconName } from './UiIcon';
 
 interface Props {
   items: readonly FollowUpInboxItem[];
@@ -38,6 +39,18 @@ const channelLabels = {
   other: 'Otra',
 } as const;
 const priorityLabels = { high: 'Alta', medium: 'Media', low: 'Baja' } as const;
+const bucketDescriptions = {
+  overdue: 'Acciones que necesitan atención.',
+  today: 'Acciones agendadas para hoy.',
+  upcoming: 'Acciones previstas para los próximos días.',
+  missing: 'Oportunidades sin una próxima acción.',
+} as const;
+const bucketIcons: Record<keyof typeof bucketLabels, UiIconName> = {
+  overdue: 'clock',
+  today: 'calendar-check',
+  upcoming: 'calendar',
+  missing: 'help',
+};
 
 export function OpportunityNextActionsInbox({
   items,
@@ -184,63 +197,88 @@ export function OpportunityNextActionsInbox({
         const items = visible.filter((item) => item.bucket === bucket);
         return (
           <section className="quote-card inbox-section" key={bucket}>
-            <h2>{bucketLabels[bucket]}</h2>
+            <header className="inbox-section-heading">
+              <div>
+                <span className={`inbox-section-icon inbox-section-icon-${bucket}`}>
+                  <UiIcon name={bucketIcons[bucket]} />
+                </span>
+                <div>
+                  <h2>{bucketLabels[bucket]}</h2>
+                  <p>{bucketDescriptions[bucket]}</p>
+                </div>
+              </div>
+              <span className="inbox-section-count">
+                {items.length} {items.length === 1 ? 'acción' : 'acciones'}
+              </span>
+            </header>
             {items.length === 0 ? (
-              <p className="commercial-note">No hay elementos con los filtros actuales.</p>
+              <div className="inbox-empty-state">
+                <UiIcon name={bucketIcons[bucket]} />
+                <div>
+                  <strong>No hay acciones en este estado</strong>
+                  <p>Probá cambiando los filtros o registrá una nueva acción desde el contexto.</p>
+                </div>
+              </div>
             ) : (
-              <ul className="activity-list">
+              <ul className="follow-up-list">
                 {items.map((item) => (
                   <li key={item.id} className="follow-up-item">
-                    <div>
-                      <strong>{item.clientName}</strong>
-                      {item.clientCompany && <small>Empresa: {item.clientCompany}</small>}
-                      <span>
-                        {item.opportunityName ?? item.quoteName ?? 'Sin contexto disponible'}
+                    <div className="follow-up-item-main">
+                      <span className="follow-up-item-avatar">
+                        <UiIcon name="person" />
                       </span>
+                      <div>
+                        <div className="follow-up-item-title">
+                          <strong>{item.clientName}</strong>
+                          <span className={`follow-up-priority follow-up-priority-${item.priority.level}`}>
+                            Prioridad {priorityLabels[item.priority.level]}
+                          </span>
+                        </div>
+                        <p>{item.opportunityName ?? item.quoteName ?? 'Sin contexto disponible'}</p>
+                        {item.clientCompany && <small>{item.clientCompany}</small>}
+                      </div>
                     </div>
-                    {item.action && (
+                    <div className="follow-up-item-details">
+                      {item.action && (
+                        <span>
+                          <UiIcon name="calendar" />
+                          {new Intl.DateTimeFormat('es-AR', {
+                            dateStyle: 'short',
+                            timeStyle: 'short',
+                            timeZone: businessTimeZone,
+                          }).format(new Date(item.action.dueAt))}{' '}
+                          · {channelLabels[item.channel!]}
+                        </span>
+                      )}
                       <span>
-                        {new Intl.DateTimeFormat('es-AR', {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                          timeZone: businessTimeZone,
-                        }).format(new Date(item.action.dueAt))}{' '}
-                        · {channelLabels[item.channel!]}
+                        <UiIcon name="person" /> Responsable: {item.responsible}
                       </span>
-                    )}
-                    {item.estimatedValue !== undefined && (
-                      <small>
-                        Valor estimado:{' '}
-                        {new Intl.NumberFormat('es-AR', {
-                          style: 'currency',
-                          currency: 'ARS',
-                        }).format(item.estimatedValue)}
-                      </small>
-                    )}
-                    <small>
-                      Responsable: {item.responsible} · Prioridad{' '}
-                      {priorityLabels[item.priority.level]}
-                      {item.priority.reasons.length
-                        ? ` · ${item.priority.reasons.join(' · ')}`
-                        : ''}
-                    </small>
-                    {item.cadenceStep && (
-                      <small>
-                        Cadencia · Paso {item.cadenceStep.current} de {item.cadenceStep.total}
-                      </small>
-                    )}
-                    {item.source !== 'missing' && (
-                      <small>Origen: {item.source === 'manual' ? 'Manual' : 'Cadencia'}</small>
+                      {item.estimatedValue !== undefined && (
+                        <span>
+                          <UiIcon name="tag" />
+                          {new Intl.NumberFormat('es-AR', {
+                            style: 'currency',
+                            currency: 'ARS',
+                          }).format(item.estimatedValue)}
+                        </span>
+                      )}
+                      {item.cadenceStep && (
+                        <span>
+                          <UiIcon name="activity" /> Cadencia: paso {item.cadenceStep.current} de{' '}
+                          {item.cadenceStep.total}
+                        </span>
+                      )}
+                    </div>
+                    {item.priority.reasons.length > 0 && (
+                      <p className="follow-up-item-reason">{item.priority.reasons.join(' · ')}</p>
                     )}
                     {item.contactRestricted ? (
-                      <small className="commercial-warning">
-                        Contacto restringido: no contactar.
-                      </small>
+                      <p className="commercial-warning">Contacto restringido: no contactar.</p>
                     ) : (
-                      <small>
-                        {item.phone ? `Tel. ${item.phone}` : 'Teléfono pendiente'} ·{' '}
-                        {item.email ? item.email : 'Email pendiente'}
-                      </small>
+                      <p className="follow-up-contact">
+                        <UiIcon name="phone" /> {item.phone ?? 'Teléfono pendiente'}
+                        <UiIcon name="email" /> {item.email ?? 'Email pendiente'}
+                      </p>
                     )}
                     <div className="commercial-actions">
                       <button
