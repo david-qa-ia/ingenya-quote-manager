@@ -33,10 +33,33 @@ export function LoginView({ onAuthenticated }: Props) {
   }
 
   return (
-    <main className="workspace-access-state">
+    <main className="workspace-access-state login-experience">
+      <div className="login-cloud login-cloud-one" aria-hidden="true" />
+      <div className="login-cloud login-cloud-two" aria-hidden="true" />
+      <div className="login-cloud login-cloud-three" aria-hidden="true" />
+      <section className="login-welcome" aria-label="Bienvenida a Brio">
+        <div className="login-brand-mark" aria-hidden="true">
+          <UiIcon name="building" />
+        </div>
+        <p className="login-eyebrow">BRIO · GESTIÓN COMERCIAL</p>
+        <h1>Tu día de trabajo, más claro.</h1>
+        <p className="login-welcome-copy">
+          Organizá oportunidades, presupuestos y próximos pasos desde un solo lugar.
+        </p>
+        <div className="login-welcome-points" aria-label="Funciones de Brio">
+          <span><UiIcon name="check-circle" /> Seguimiento ordenado</span>
+          <span><UiIcon name="check-circle" /> Presupuestos a mano</span>
+        </div>
+      </section>
       <form className="workspace-access-card login-card" onSubmit={handleSubmit}>
-        <UiIcon name="building" />
-        <h1>Iniciar sesión</h1>
+        <div className="login-card-heading">
+          <div className="login-card-icon"><UiIcon name="building" /></div>
+          <div>
+            <p className="login-card-overline">BIENVENIDO A BRIO</p>
+            <h2>Iniciá sesión</h2>
+          </div>
+        </div>
+        <p className="login-card-description">Ingresá tus datos para continuar.</p>
         <label htmlFor="login-email">Email</label>
         <input
           id="login-email"
@@ -61,7 +84,7 @@ export function LoginView({ onAuthenticated }: Props) {
           </p>
         ) : null}
         <button className="button button-primary" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Ingresando…' : 'Ingresar'}
+          {isSubmitting ? 'Ingresando…' : 'Ingresar a Brio'}
         </button>
       </form>
     </main>
