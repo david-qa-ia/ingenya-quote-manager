@@ -1238,6 +1238,201 @@
   .login-cloud-two { left: -90px; }
 }
 
+/* SCRUM-92: a quieter, more deliberate desktop navigation rail. */
+@media (min-width: 801px) {
+  .app-sidebar-header {
+    width: 232px;
+    overflow: hidden;
+    border-right-color: rgba(208, 246, 229, 0.12);
+    background:
+      radial-gradient(circle at 25% -8%, rgba(91, 188, 151, 0.2), transparent 34%),
+      linear-gradient(180deg, #075045 0%, #043d35 56%, #03352f 100%);
+    box-shadow: 10px 0 32px rgba(7, 44, 36, 0.08);
+  }
+
+  .app-sidebar-header .main-header-content {
+    padding: 2px 10px 14px;
+  }
+
+  .app-sidebar-header .brand-name {
+    position: relative;
+    margin: 27px 18px 9px;
+    padding-left: 10px;
+    font-size: 2.08rem;
+    letter-spacing: -0.065em;
+  }
+
+  .app-sidebar-header .brand-name::before {
+    position: absolute;
+    top: 8px;
+    left: 0;
+    width: 4px;
+    height: 25px;
+    border-radius: 99px;
+    background: #7ee0b1;
+    content: '';
+  }
+
+  .app-sidebar-header .brand-name::after {
+    margin: 7px 0 29px 1px;
+    color: rgba(225, 248, 239, 0.68);
+    font-size: 0.52rem;
+    letter-spacing: 0.2em;
+  }
+
+  .app-sidebar-header .workspace-switcher {
+    margin: 0 8px 24px;
+  }
+
+  .app-sidebar-header .workspace-switcher-trigger {
+    min-height: 58px;
+    padding: 9px 10px;
+    border-color: rgba(220, 248, 236, 0.1);
+    border-radius: 12px;
+    background: rgba(3, 42, 35, 0.28);
+  }
+
+  .app-sidebar-header .workspace-switcher-trigger:hover,
+  .app-sidebar-header .workspace-switcher-trigger:focus-visible {
+    border-color: rgba(163, 231, 197, 0.38);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 3px rgba(135, 223, 181, 0.1);
+  }
+
+  .app-sidebar-header .workspace-switcher-icon {
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(205, 249, 229, 0.11);
+    border-radius: 10px;
+    background: rgba(141, 224, 181, 0.14);
+  }
+
+  .app-sidebar-header .workspace-switcher-copy strong {
+    font-size: 0.9rem;
+  }
+
+  .app-sidebar-header .primary-navigation {
+    gap: 4px;
+    padding: 0 2px;
+  }
+
+  .app-sidebar-header .primary-navigation::before {
+    display: block;
+    margin: 0 10px 8px;
+    color: rgba(218, 247, 235, 0.52);
+    content: 'NAVEGACIÓN';
+    font-size: 0.61rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+  }
+
+  .app-sidebar-header .navigation-link {
+    position: relative;
+    min-height: 46px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: rgba(238, 251, 245, 0.84);
+    font-size: 0.93rem;
+    font-weight: 690;
+    transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+  }
+
+  .app-sidebar-header .navigation-link .ui-icon {
+    width: 20px;
+    height: 20px;
+    color: rgba(190, 240, 215, 0.84);
+  }
+
+  .app-sidebar-header .navigation-link:hover {
+    border-color: rgba(194, 242, 220, 0.1);
+    background: rgba(255, 255, 255, 0.075);
+    color: #fff;
+    transform: translateX(2px);
+  }
+
+  .app-sidebar-header .navigation-link:hover .ui-icon {
+    color: #bdf3d2;
+  }
+
+  .app-sidebar-header .navigation-link[aria-current='page'] {
+    border-color: rgba(157, 233, 194, 0.12);
+    background: linear-gradient(90deg, rgba(109, 210, 162, 0.24), rgba(101, 190, 151, 0.12));
+    box-shadow: inset 3px 0 0 #8de4b4, 0 5px 14px rgba(0, 26, 20, 0.08);
+    color: #fff;
+  }
+
+  .app-sidebar-header .navigation-link[aria-current='page'] .ui-icon {
+    color: #b9f7d2;
+  }
+
+  .app-sidebar-header .navigation-search-link {
+    margin-bottom: 8px;
+    border-color: rgba(190, 239, 215, 0.16);
+    background: rgba(3, 41, 34, 0.24);
+  }
+
+  .app-sidebar-header .navigation-search-link kbd {
+    margin-left: auto;
+    border-color: rgba(218, 247, 235, 0.14);
+    border-radius: 5px;
+    color: rgba(238, 251, 245, 0.75);
+    background: rgba(255, 255, 255, 0.1);
+    font-size: 0.64rem;
+  }
+
+  .app-sidebar-header .header-new-quote {
+    min-height: 50px;
+    margin: 18px 4px 0;
+    width: calc(100% - 8px);
+    border: 1px solid rgba(187, 243, 215, 0.2);
+    border-radius: 11px;
+    background: linear-gradient(135deg, #2d876c, #17634f);
+    box-shadow: 0 12px 23px rgba(1, 31, 23, 0.2);
+    font-size: 0.89rem;
+  }
+
+  .app-sidebar-header .header-new-quote:hover:not(:disabled) {
+    background: linear-gradient(135deg, #359477, #1a6e59);
+    box-shadow: 0 14px 27px rgba(1, 31, 23, 0.27);
+    transform: translateY(-1px);
+  }
+
+  .app-sidebar-header .sidebar-footer {
+    gap: 3px;
+    margin: auto 4px 5px;
+    padding: 14px 4px 0;
+    border-top-color: rgba(216, 247, 234, 0.14);
+  }
+
+  .app-sidebar-header .sidebar-footer-action {
+    min-height: 40px;
+    padding: 0 9px;
+    border-radius: 9px;
+    color: rgba(234, 249, 242, 0.73);
+    font-size: 0.84rem;
+  }
+
+  .app-sidebar-header .sidebar-footer-action:hover,
+  .app-sidebar-header .sidebar-footer-action:focus-visible {
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+  }
+
+  .app-sidebar-header .sidebar-footer-logout {
+    margin-top: 5px;
+    padding-top: 9px;
+    border-top-color: rgba(216, 247, 234, 0.1);
+  }
+
+  .app-sidebar-header + main,
+  .app-sidebar-header + .prospecting-view,
+  .app-sidebar-header + .metrics-dashboard {
+    margin-left: 232px;
+    width: calc(100% - 232px);
+  }
+}
+
 /* SCRUM-92: guided quote editor, styled as one calm step-by-step workspace. */
 .quote-editor-shell {
   max-width: 1280px;
@@ -7388,5 +7583,50 @@ tr:last-child td {
 
   .saved-quote-filter-label {
     flex-basis: 100%;
+  }
+}
+
+/* SCRUM-92: final desktop navigation overrides (kept after responsive legacy rules). */
+@media (min-width: 801px) {
+  .app-sidebar-header {
+    width: 232px;
+    border-right-color: rgba(208, 246, 229, 0.12);
+    background:
+      radial-gradient(circle at 25% -8%, rgba(91, 188, 151, 0.2), transparent 34%),
+      linear-gradient(180deg, #075045 0%, #043d35 56%, #03352f 100%);
+  }
+
+  .app-sidebar-header .main-header-content { padding: 2px 10px 14px; }
+  .app-sidebar-header .brand-name { margin: 27px 18px 9px; }
+  .app-sidebar-header .workspace-switcher { margin: 0 8px 24px; }
+
+  .app-sidebar-header .navigation-link {
+    min-height: 46px;
+    border-radius: 10px;
+  }
+
+  .app-sidebar-header .navigation-link:hover {
+    border-color: rgba(194, 242, 220, 0.1);
+    background: rgba(255, 255, 255, 0.075);
+    color: #fff;
+    transform: translateX(2px);
+  }
+
+  .app-sidebar-header .navigation-link[aria-current='page'] {
+    border-color: rgba(157, 233, 194, 0.12);
+    background: linear-gradient(90deg, rgba(109, 210, 162, 0.24), rgba(101, 190, 151, 0.12));
+    box-shadow: inset 3px 0 0 #8de4b4, 0 5px 14px rgba(0, 26, 20, 0.08);
+  }
+
+  .app-sidebar-header .header-new-quote {
+    margin: 18px 4px 0;
+    width: calc(100% - 8px);
+  }
+
+  .app-sidebar-header + main,
+  .app-sidebar-header + .prospecting-view,
+  .app-sidebar-header + .metrics-dashboard {
+    margin-left: 232px;
+    width: calc(100% - 232px);
   }
 }
