@@ -808,6 +808,7 @@ export function OpportunityDetailView({
             ]}
             initialFilter="note"
             hideFilters
+            noteOnly
             emptyMessage="Todavía no hay notas para esta oportunidad."
             registerLabel="Registrar nota"
           />

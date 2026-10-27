@@ -41,6 +41,7 @@ interface Props {
   subjects: readonly TimelineSubject[];
   initialFilter?: ActivityFilter;
   hideFilters?: boolean;
+  noteOnly?: boolean;
   emptyMessage?: string;
   registerLabel?: string;
 }
@@ -56,6 +57,7 @@ export function ActivityTimeline({
   subjects,
   initialFilter = 'all',
   hideFilters = false,
+  noteOnly = false,
   emptyMessage = 'Todavía no hay actividades para este presupuesto.',
   registerLabel = 'Registrar actividad',
 }: Props) {
@@ -104,16 +106,19 @@ export function ActivityTimeline({
   function submit(event: FormEvent) {
     event.preventDefault();
     const normalizedAuthor = input.author.trim();
-    if (!normalizedAuthor || !input.note.trim() || !input.occurredAt || !input.result) {
-      setFeedback('Completá autor, fecha, resultado y nota.');
+    const result = noteOnly ? 'Nota registrada' : input.result.trim();
+    if (!normalizedAuthor || !input.note.trim() || !input.occurredAt || !result) {
+      setFeedback(
+        noteOnly ? 'Completá autor, fecha y nota.' : 'Completá autor, fecha, resultado y nota.',
+      );
       return;
     }
     const activity: Activity = {
       id: crypto.randomUUID(),
-      type: input.type,
+      type: noteOnly ? 'note' : input.type,
       occurredAt: new Date(input.occurredAt).toISOString(),
       author: normalizedAuthor,
-      result: input.result,
+      result,
       note: input.note.trim(),
       subject: entrySubject,
       source: 'manual',
@@ -179,25 +184,27 @@ export function ActivityTimeline({
       </button>
       {isFormOpen && (
         <form className="commercial-form" onSubmit={submit} noValidate>
-          <label className="field">
-            <span>Tipo</span>
-            <select
-              value={input.type}
-              onChange={(event) =>
-                setInput((current) => ({
-                  ...current,
-                  type: event.target.value as ActivityType,
-                  result: '',
-                }))
-              }
-            >
-              {activityTypes.map((type) => (
-                <option key={type} value={type}>
-                  {typeLabels[type]}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!noteOnly && (
+            <label className="field">
+              <span>Tipo</span>
+              <select
+                value={input.type}
+                onChange={(event) =>
+                  setInput((current) => ({
+                    ...current,
+                    type: event.target.value as ActivityType,
+                    result: '',
+                  }))
+                }
+              >
+                {activityTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {typeLabels[type]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="field">
             <span>Fecha y hora</span>
             <input
@@ -217,7 +224,7 @@ export function ActivityTimeline({
               }
             />
           </label>
-          {input.type === 'call' ? (
+          {!noteOnly && input.type === 'call' ? (
             <label className="field">
               <span>Resultado</span>
               <select
@@ -237,7 +244,7 @@ export function ActivityTimeline({
                 ))}
               </select>
             </label>
-          ) : (
+          ) : !noteOnly ? (
             <label className="field">
               <span>Resultado</span>
               <input
@@ -247,7 +254,7 @@ export function ActivityTimeline({
                 }
               />
             </label>
-          )}
+          ) : null}
           <label className="field">
             <span>Nota</span>
             <textarea
@@ -258,7 +265,7 @@ export function ActivityTimeline({
             />
           </label>
           <button className="button button-primary" type="submit">
-            Guardar actividad
+            {noteOnly ? 'Guardar nota' : 'Guardar actividad'}
           </button>
         </form>
       )}

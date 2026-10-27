@@ -8,6 +8,7 @@ import {
   recordNextActionActivity,
   saveActivity,
 } from './activityStorage';
+import { getTimelineActivities } from './activityTimeline';
 
 const activity: Activity = {
   id: 'activity-1',
@@ -36,6 +37,26 @@ describe('activity storage', () => {
     expect(saveActivity(activity)).toBe(true);
     stored.set(ACTIVITIES_STORAGE_KEY, JSON.stringify([{ id: 'broken' }, activity]));
     expect(loadActivities()).toEqual({ items: [activity], issue: 'invalid-entries' });
+  });
+
+  it('persists an opportunity note and loads it again for the notes timeline', () => {
+    const opportunityNote: Activity = {
+      ...activity,
+      id: 'opportunity-note-1',
+      subject: { kind: 'opportunity', opportunityId: 'opportunity-1' },
+      result: 'Nota registrada',
+      note: 'Confirmó que revisará la propuesta el viernes.',
+    };
+    expect(saveActivity(opportunityNote)).toBe(true);
+
+    const afterReload = loadActivities().items;
+    expect(
+      getTimelineActivities(
+        afterReload,
+        { kind: 'opportunity', opportunityId: 'opportunity-1' },
+        'note',
+      ),
+    ).toEqual([opportunityNote]);
   });
 
   it('does not duplicate an activity id or overwrite an invalid root', () => {
