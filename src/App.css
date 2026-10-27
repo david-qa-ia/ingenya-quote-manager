@@ -5735,3 +5735,268 @@ tr:last-child td {
     gap: 20px;
   }
 }
+
+/* SCRUM-92: high-visibility layout polish for the daily operational views. */
+.prospecting-view,
+.metrics-dashboard,
+.app-sidebar-header + main {
+  background: transparent;
+}
+
+.page-header h1,
+.summary-header h1,
+.opportunity-detail-header h1 {
+  max-width: 18ch;
+  letter-spacing: -0.052em;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #17634f;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+}
+
+.eyebrow::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #50aa82;
+  content: '';
+}
+
+.opportunity-detail-header {
+  padding: 8px 0 10px;
+}
+
+.opportunity-title-row .status-badge {
+  min-height: 30px;
+  padding-inline: 12px;
+  border: 1px solid #d4c3ff;
+  box-shadow: 0 3px 10px rgba(97, 61, 165, 0.08);
+}
+
+.opportunity-tabs {
+  border-bottom: 0;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(210, 223, 216, 0.82);
+}
+
+.opportunity-tab {
+  min-height: 48px;
+  margin: 5px 0 5px 5px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 8px;
+}
+
+.opportunity-tab-active {
+  border: 0;
+  box-shadow: 0 3px 9px rgba(22, 72, 59, 0.09);
+}
+
+.opportunity-detail-main > .quote-card,
+.opportunity-detail-side > .quote-card,
+.opportunity-data-card,
+.opportunity-contact-card,
+.opportunity-activity-preview {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.opportunity-pipeline-card {
+  padding: 24px;
+  border: 1px solid rgba(191, 203, 196, 0.72);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #ffffff, #f5fbf8);
+  box-shadow: var(--shadow-sm);
+}
+
+.opportunity-pipeline-card h2 {
+  margin-bottom: 22px;
+  color: var(--text-heading);
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+}
+
+.opportunity-pipeline-icon {
+  box-shadow: inset 0 0 0 1px rgba(179, 195, 187, 0.26);
+}
+
+.opportunity-pipeline-step.active .opportunity-pipeline-icon {
+  box-shadow:
+    inset 0 0 0 2px #8c6be8,
+    0 6px 14px rgba(93, 66, 155, 0.15);
+}
+
+.opportunity-next-step {
+  position: relative;
+  overflow: hidden;
+  padding: 26px 24px 22px;
+  background: linear-gradient(135deg, #effaf4, #f9fdfb 68%);
+}
+
+.opportunity-next-step::after {
+  position: absolute;
+  top: -46px;
+  right: -32px;
+  width: 155px;
+  height: 155px;
+  border-radius: 50%;
+  background: rgba(105, 194, 149, 0.13);
+  content: '';
+  pointer-events: none;
+}
+
+.opportunity-next-step > * {
+  position: relative;
+  z-index: 1;
+}
+
+.opportunity-step-icon {
+  box-shadow: 0 8px 17px rgba(36, 114, 82, 0.12);
+}
+
+.opportunity-next-step .commercial-actions {
+  padding-top: 16px;
+}
+
+.opportunity-next-step .commercial-actions .button {
+  min-height: 42px;
+}
+
+.opportunity-data-card {
+  padding: 24px;
+  background: var(--surface);
+}
+
+.opportunity-data-heading {
+  margin-bottom: 14px;
+}
+
+.opportunity-data-heading .button {
+  min-height: 34px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+}
+
+.opportunity-data-row {
+  min-height: 58px;
+  padding: 13px 4px;
+}
+
+.opportunity-data-row:first-of-type {
+  border-top: 0;
+}
+
+.opportunity-data-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+}
+
+.opportunity-data-card dt {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.opportunity-data-card dd {
+  color: var(--text-heading);
+  font-size: 0.92rem;
+}
+
+.opportunity-contact-card {
+  padding: 24px;
+  background: var(--surface);
+}
+
+.opportunity-contact-heading {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.opportunity-contact-identity {
+  padding: 4px 0 2px;
+}
+
+.opportunity-avatar {
+  border: 3px solid #edf7f2;
+  box-shadow: 0 4px 11px rgba(41, 88, 72, 0.1);
+}
+
+.opportunity-contact-line {
+  min-height: 48px;
+  padding: 10px 0;
+}
+
+.opportunity-contact-line button {
+  width: 32px;
+  border-radius: 8px;
+  background: #f8fbf9;
+}
+
+.opportunity-prospect-context {
+  margin-top: 10px;
+  padding-top: 18px;
+}
+
+.opportunity-prospect-context li {
+  min-height: 40px;
+  padding: 5px 7px;
+  border-radius: 8px;
+  background: #f8faf9;
+}
+
+.prospect-inbox-tabs {
+  gap: 12px;
+}
+
+.prospect-inbox-tab {
+  min-height: 76px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 5px 15px rgba(26, 52, 43, 0.035);
+}
+
+.prospect-queue-row,
+.prospect-row {
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 14px rgba(26, 52, 43, 0.035);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.prospect-queue-row:hover,
+.prospect-row:hover {
+  border-color: var(--accent-border);
+  box-shadow: 0 10px 22px rgba(26, 52, 43, 0.075);
+  transform: translateY(-1px);
+}
+
+.prospect-inbox-detail {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+@media (max-width: 800px) {
+  .opportunity-tabs {
+    margin-inline: -2px;
+  }
+
+  .opportunity-tab {
+    padding-inline: 13px;
+  }
+
+  .opportunity-pipeline-card,
+  .opportunity-next-step,
+  .opportunity-data-card,
+  .opportunity-contact-card {
+    padding: 20px;
+  }
+}
