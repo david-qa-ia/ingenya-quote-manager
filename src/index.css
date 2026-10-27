@@ -13,23 +13,27 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --text: #39443f;
-  --text-heading: #17231e;
-  --text-muted: #65716c;
-  --text-subtle: #8a948f;
+  --text: #33413b;
+  --text-heading: #17261f;
+  --text-muted: #68776f;
+  --text-subtle: #89958f;
   --surface: #fff;
-  --surface-subtle: #f7f8f6;
-  --border: #e1e6e2;
-  --border-strong: #cbd3ce;
-  --accent: #2b5348;
-  --accent-dark: #1d4036;
-  --accent-soft: #eaf2ef;
-  --accent-soft-hover: #ddebe6;
-  --accent-border: #bad0c8;
-  --accent-ring: rgba(43, 83, 72, 0.18);
+  --surface-subtle: #f6f8f6;
+  --border: #dde5df;
+  --border-strong: #bfcbc4;
+  --accent: #1e6855;
+  --accent-dark: #12483b;
+  --accent-soft: #e8f4ee;
+  --accent-soft-hover: #d9ebe2;
+  --accent-border: #aed4c4;
+  --accent-ring: rgba(30, 104, 85, 0.2);
   --danger: #a43b32;
   --disabled-bg: #e5e9e6;
-  --shadow-sm: 0 8px 24px rgba(25, 43, 35, 0.045);
+  --shadow-sm: 0 10px 30px rgba(26, 52, 43, 0.065);
+  --shadow-lg: 0 22px 54px rgba(26, 52, 43, 0.1);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
 }
 
 * {
@@ -39,11 +43,20 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background:
+    radial-gradient(circle at 82% -12%, rgba(202, 231, 216, 0.55), transparent 30rem),
+    #f5f7f5;
 }
 button,
 input,
 select {
   font: inherit;
+}
+button,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
 }
 button,
 select {

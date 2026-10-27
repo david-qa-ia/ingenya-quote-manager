@@ -5476,3 +5476,262 @@ body,
     margin-top: 0;
   }
 }
+
+/* SCRUM-92: shared visual system. These rules only restyle existing controls and views. */
+.app-shell {
+  width: min(1280px, calc(100% - 64px));
+}
+
+.page-header,
+.summary-header,
+.opportunity-detail-header {
+  margin-bottom: 32px;
+}
+
+.page-description {
+  line-height: 1.55;
+}
+
+.entry-card,
+.quote-card,
+.header-total,
+.quote-identity,
+.prospect-import,
+.prospect-inbox,
+.prospect-list,
+.prospect-form,
+.prospect-timeline {
+  border-color: rgba(191, 203, 196, 0.72);
+  box-shadow: var(--shadow-sm);
+}
+
+.entry-card,
+.quote-card {
+  border-radius: var(--radius-lg);
+}
+
+.quote-heading {
+  padding: 24px 28px 20px;
+}
+
+.card-heading {
+  min-height: auto;
+  margin-bottom: 22px;
+}
+
+.card-heading h2,
+.quote-heading h2 {
+  font-size: 1.3rem;
+}
+
+.step-number {
+  border-radius: var(--radius-sm);
+}
+
+.field {
+  gap: 7px;
+}
+
+.field > span {
+  letter-spacing: 0.01em;
+}
+
+.field input,
+.field select,
+.field textarea,
+.line-edit-input,
+.login-card input {
+  border-color: var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #fdfefd;
+}
+
+.field input,
+.field select,
+.read-only-field strong {
+  min-height: 50px;
+}
+
+.field input:hover,
+.field select:hover,
+.field textarea:hover,
+.line-edit-input:hover {
+  border-color: var(--accent-border);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.line-edit-input:focus,
+.login-card input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-ring);
+}
+
+.button {
+  min-height: 48px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.005em;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.button:hover:not(:disabled) {
+  box-shadow: 0 7px 16px rgba(22, 72, 59, 0.1);
+}
+
+.button-primary,
+.button-save {
+  background: linear-gradient(135deg, #287460, var(--accent-dark));
+  box-shadow: 0 9px 20px rgba(18, 72, 59, 0.2);
+}
+
+.button-primary:hover:not(:disabled),
+.button-save:hover {
+  background: linear-gradient(135deg, #1e6855, #0f3d32);
+}
+
+.button-secondary {
+  border-color: var(--accent-border);
+  background: #f5fbf8;
+}
+
+.button-line {
+  border-radius: 7px;
+}
+
+.status-badge {
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  font-weight: 750;
+}
+
+th {
+  background: #f2f6f3;
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+.empty-state {
+  padding: 64px 24px;
+}
+
+.empty-state > span {
+  background: var(--accent-soft);
+}
+
+.modal-backdrop,
+.workspace-modal-backdrop {
+  backdrop-filter: blur(3px);
+}
+
+.global-search-panel,
+.workspace-switcher-popover,
+.confirmation-modal,
+.workspace-confirmation-modal {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.opportunity-tabs {
+  gap: 8px;
+  padding-bottom: 6px;
+}
+
+.opportunity-tab {
+  border-radius: 8px 8px 0 0;
+  color: var(--text-muted);
+  font-weight: 650;
+}
+
+.opportunity-tab:hover {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
+.opportunity-tab-active {
+  color: var(--accent-dark);
+  background: rgba(232, 244, 238, 0.68);
+}
+
+.opportunity-next-step {
+  border: 1px solid #cfe9dc;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 28px rgba(40, 94, 74, 0.055);
+}
+
+.opportunity-current-proposal {
+  border-radius: var(--radius-md);
+}
+
+@media (min-width: 801px) {
+  .app-sidebar-header {
+    width: 224px;
+    border-right: 1px solid rgba(225, 243, 234, 0.12);
+    background: linear-gradient(180deg, #06493e 0%, #063b33 100%);
+    box-shadow: 8px 0 30px rgba(10, 43, 35, 0.05);
+  }
+
+  .app-sidebar-header .brand-name {
+    margin: 30px 28px 10px;
+  }
+
+  .app-sidebar-header .workspace-switcher {
+    margin: 0 14px 30px;
+  }
+
+  .app-sidebar-header .workspace-switcher-trigger {
+    min-height: 52px;
+    padding: 7px 9px;
+    border-radius: var(--radius-sm);
+  }
+
+  .app-sidebar-header .navigation-link {
+    min-height: 48px;
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+  }
+
+  .app-sidebar-header .navigation-link:hover,
+  .app-sidebar-header .navigation-link[aria-current='page'] {
+    background: rgba(143, 220, 184, 0.16);
+    box-shadow: inset 3px 0 0 #86ddaf;
+  }
+
+  .app-sidebar-header .navigation-link[aria-current='page']::after {
+    display: none;
+  }
+
+  .app-sidebar-header .header-new-quote {
+    min-height: 50px;
+    margin: 20px 0 0;
+  }
+
+  .app-sidebar-header + main,
+  .app-sidebar-header + .prospecting-view,
+  .app-sidebar-header + .metrics-dashboard {
+    margin-left: 224px;
+    padding: 52px 44px 76px;
+    width: calc(100% - 224px);
+  }
+}
+
+@media (max-width: 800px) {
+  .app-shell {
+    width: min(100% - 28px, 720px);
+  }
+
+  .page-header,
+  .summary-header,
+  .opportunity-detail-header {
+    gap: 20px;
+  }
+}
