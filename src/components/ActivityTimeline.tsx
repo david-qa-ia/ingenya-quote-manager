@@ -107,7 +107,12 @@ export function ActivityTimeline({
     event.preventDefault();
     const normalizedAuthor = input.author.trim();
     const result = noteOnly ? 'Nota registrada' : input.result.trim();
-    if (!normalizedAuthor || !input.note.trim() || !input.occurredAt || !result) {
+    const occurredAt = noteOnly
+      ? new Date().toISOString()
+      : input.occurredAt
+        ? new Date(input.occurredAt).toISOString()
+        : '';
+    if (!normalizedAuthor || !input.note.trim() || (!noteOnly && !input.occurredAt) || !result) {
       setFeedback(
         noteOnly ? 'Completá autor, fecha y nota.' : 'Completá autor, fecha, resultado y nota.',
       );
@@ -116,7 +121,7 @@ export function ActivityTimeline({
     const activity: Activity = {
       id: crypto.randomUUID(),
       type: noteOnly ? 'note' : input.type,
-      occurredAt: new Date(input.occurredAt).toISOString(),
+      occurredAt,
       author: normalizedAuthor,
       result,
       note: input.note.trim(),
@@ -205,16 +210,18 @@ export function ActivityTimeline({
               </select>
             </label>
           )}
-          <label className="field">
-            <span>Fecha y hora</span>
-            <input
-              type="datetime-local"
-              value={toLocalDateTime(input.occurredAt)}
-              onChange={(event) =>
-                setInput((current) => ({ ...current, occurredAt: event.target.value }))
-              }
-            />
-          </label>
+          {!noteOnly && (
+            <label className="field">
+              <span>Fecha y hora</span>
+              <input
+                type="datetime-local"
+                value={toLocalDateTime(input.occurredAt)}
+                onChange={(event) =>
+                  setInput((current) => ({ ...current, occurredAt: event.target.value }))
+                }
+              />
+            </label>
+          )}
           <label className="field">
             <span>Autor</span>
             <input
