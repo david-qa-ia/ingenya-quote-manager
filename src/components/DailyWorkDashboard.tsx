@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FollowUpBucket, FollowUpInboxItem } from '../types/followUpInbox';
 import { businessTimeZone } from '../utils/opportunityNextAction';
 import { getContactAction } from '../utils/contactAction';
+import { UiIcon } from './UiIcon';
 
 interface Props {
   items: readonly FollowUpInboxItem[];
@@ -122,57 +123,71 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen }: Props) {
         ))}
       </section>
       <section className="quote-card daily-dashboard-table">
-        <div className="daily-dashboard-columns">
-          <span>Contacto / Proyecto</span>
-          <span>Tipo</span>
-          <span>Valor comercial</span>
-          <span>Horario</span>
-          <span>Próxima tarea</span>
-          <span>Acción</span>
-        </div>
         {visible.length ? (
-          visible.map((item) => (
-            <article className="daily-dashboard-row" key={item.id}>
-              <div>
-                <strong>{item.clientName}</strong>
-                <small>{item.opportunityName ?? item.quoteName ?? 'Sin contexto disponible'}</small>
-              </div>
-              <span className="daily-type-badge">
-                {item.subjectType === 'prospect'
-                  ? 'Prospecto'
-                  : item.subjectType === 'quote'
-                    ? 'Presupuesto enviado'
-                    : 'Oportunidad'}
-              </span>
-              <span>
-                {item.estimatedValue === undefined
-                  ? 'Sin valor estimado'
-                  : new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
-                      item.estimatedValue,
-                    )}
-              </span>
-              <strong>
-                {new Intl.DateTimeFormat('es-AR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  timeZone: businessTimeZone,
-                }).format(new Date(item.action!.dueAt))}
-              </strong>
-              <span>{item.action?.description}</span>
-              <div className="daily-row-actions">
-                <ContactAction item={item} />
-                <button
-                  className="button button-primary"
-                  type="button"
-                  onClick={() => onOpen(item)}
-                >
-                  ✓ Registrar resultado
-                </button>
-              </div>
-            </article>
-          ))
+          <>
+            <div className="daily-dashboard-columns">
+              <span>Contacto / Proyecto</span>
+              <span>Tipo</span>
+              <span>Valor comercial</span>
+              <span>Horario</span>
+              <span>Próxima tarea</span>
+              <span>Acción</span>
+            </div>
+            {visible.map((item) => (
+              <article className="daily-dashboard-row" key={item.id}>
+                <div>
+                  <strong>{item.clientName}</strong>
+                  <small>{item.opportunityName ?? item.quoteName ?? 'Sin contexto disponible'}</small>
+                </div>
+                <span className="daily-type-badge">
+                  {item.subjectType === 'prospect'
+                    ? 'Prospecto'
+                    : item.subjectType === 'quote'
+                      ? 'Presupuesto enviado'
+                      : 'Oportunidad'}
+                </span>
+                <span>
+                  {item.estimatedValue === undefined
+                    ? 'Sin valor estimado'
+                    : new Intl.NumberFormat('es-AR', {
+                        style: 'currency',
+                        currency: 'ARS',
+                      }).format(item.estimatedValue)}
+                </span>
+                <strong>
+                  {new Intl.DateTimeFormat('es-AR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: businessTimeZone,
+                  }).format(new Date(item.action!.dueAt))}
+                </strong>
+                <span>{item.action?.description}</span>
+                <div className="daily-row-actions">
+                  <ContactAction item={item} />
+                  <button
+                    className="button button-primary"
+                    type="button"
+                    onClick={() => onOpen(item)}
+                  >
+                    ✓ Registrar resultado
+                  </button>
+                </div>
+              </article>
+            ))}
+          </>
         ) : (
-          <p className="commercial-note">Tu bandeja está al día.</p>
+          <div className="daily-dashboard-empty-state">
+            <span className="daily-empty-icon">
+              <UiIcon name="check-circle" />
+            </span>
+            <div>
+              <p>Tu bandeja está al día</p>
+              <small>No hay acciones de seguimiento pendientes en esta vista.</small>
+            </div>
+            <button className="button button-secondary" type="button" onClick={onShowFollowUp}>
+              Ver seguimiento completo
+            </button>
+          </div>
         )}
       </section>
     </main>
