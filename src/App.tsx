@@ -90,7 +90,10 @@ import {
   saveCadenceExecution,
 } from './utils/cadenceStorage';
 import { transitionNextAction } from './utils/opportunityNextAction';
-import { closeOpportunityForAcceptedQuote } from './utils/opportunityQuoteSettlement';
+import {
+  closeOpportunityForAcceptedQuote,
+  closeOpportunityForRejectedQuote,
+} from './utils/opportunityQuoteSettlement';
 import { canCreateQuoteVersion } from './utils/quoteVersioning';
 import { completeCadenceAction } from './utils/cadenceTransitions';
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
@@ -179,22 +182,31 @@ function loadProspectFilters(): ProspectFilters {
 }
 
 function loadOpportunitiesWithAcceptedQuoteRepair(): Opportunity[] {
-  const acceptedQuotes = loadSavedQuotes().filter(
-    (quote) => quote.commercialStatus === 'accepted' && quote.opportunityId,
+  const settledQuotes = loadSavedQuotes().filter(
+    (quote) =>
+      (quote.commercialStatus === 'accepted' || quote.commercialStatus === 'rejected') &&
+      quote.opportunityId,
   );
   loadOpportunities().items.forEach((opportunity) => {
-    const acceptedQuote = acceptedQuotes.find((quote) => quote.opportunityId === opportunity.id);
-    if (!acceptedQuote) return;
+    const settledQuote = settledQuotes
+      .filter((quote) => quote.opportunityId === opportunity.id)
+      .sort(
+        (left, right) =>
+          Date.parse(right.commercialStatusAudit.changedAt) -
+          Date.parse(left.commercialStatusAudit.changedAt),
+      )[0];
+    if (!settledQuote) return;
+    const isAccepted = settledQuote.commercialStatus === 'accepted';
     const needsRepair =
-      opportunity.pipelineStage !== 'won' ||
-      opportunity.commercialState !== 'won' ||
+      opportunity.pipelineStage !== (isAccepted ? 'won' : 'lost') ||
+      opportunity.commercialState !== (isAccepted ? 'won' : 'lost') ||
       opportunity.status !== 'closed' ||
       opportunity.nextAction?.status === 'pending';
     if (!needsRepair) return;
-    const next = closeOpportunityForAcceptedQuote(
+    const next = (isAccepted ? closeOpportunityForAcceptedQuote : closeOpportunityForRejectedQuote)(
       opportunity,
-      acceptedQuote.commercialStatusAudit.changedBy,
-      acceptedQuote.commercialStatusAudit.changedAt,
+      settledQuote.commercialStatusAudit.changedBy,
+      settledQuote.commercialStatusAudit.changedAt,
     );
     if (!saveOpportunity(next)) return;
     if (opportunity.nextAction?.status === 'pending' && next.nextAction)
@@ -202,7 +214,7 @@ function loadOpportunitiesWithAcceptedQuoteRepair(): Opportunity[] {
         next.id,
         next.nextAction.id,
         'cancelled',
-        'Próximo paso cancelado porque el presupuesto fue aceptado.',
+        `Próximo paso cancelado porque el presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}.`,
       );
   });
   return loadOpportunities().items;
@@ -1165,12 +1177,15 @@ function App() {
           setOpportunities(loadOpportunities().items);
         }
       }
-      if (quote.opportunityId && nextStatus === 'accepted') {
+      if (quote.opportunityId && ['accepted', 'rejected'].includes(nextStatus)) {
         const opportunity = loadOpportunities().items.find(
           (item) => item.id === quote.opportunityId,
         );
         if (opportunity) {
-          const closedOpportunity = closeOpportunityForAcceptedQuote(
+          const isAccepted = nextStatus === 'accepted';
+          const closedOpportunity = (isAccepted
+            ? closeOpportunityForAcceptedQuote
+            : closeOpportunityForRejectedQuote)(
             opportunity,
             audit.changedBy,
             audit.changedAt,
@@ -1178,23 +1193,23 @@ function App() {
           if (
             !saveOpportunity({
               ...closedOpportunity,
-              pipelineStage: 'won',
-              commercialState: 'won',
+              pipelineStage: isAccepted ? 'won' : 'lost',
+              commercialState: isAccepted ? 'won' : 'lost',
               status: 'closed',
               updatedAt: audit.changedAt,
             })
           )
-            return 'El presupuesto fue aceptado, pero no se pudo cerrar la oportunidad.';
+            return `El presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}, pero no se pudo cerrar la oportunidad.`;
           if (
             closedOpportunity.nextAction?.status === 'cancelled' &&
             !recordNextActionActivity(
               closedOpportunity.id,
               closedOpportunity.nextAction.id,
               'cancelled',
-              'Próximo paso cancelado porque el presupuesto fue aceptado.',
+              `Próximo paso cancelado porque el presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}.`,
             )
           )
-            return 'El presupuesto fue aceptado, pero no se pudo registrar la cancelación del próximo paso.';
+            return `El presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}, pero no se pudo registrar la cancelación del próximo paso.`;
           setOpportunities(loadOpportunities().items);
         }
       }

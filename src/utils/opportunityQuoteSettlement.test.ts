@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Opportunity } from '../types/opportunity';
-import { closeOpportunityForAcceptedQuote } from './opportunityQuoteSettlement';
+import {
+  closeOpportunityForAcceptedQuote,
+  closeOpportunityForRejectedQuote,
+} from './opportunityQuoteSettlement';
 
 const opportunity: Opportunity = {
   id: 'opportunity-1',
@@ -41,6 +44,36 @@ describe('accepted quote opportunity settlement', () => {
 
     expect(settled.pipelineStage).toBe('won');
     expect(settled.commercialState).toBe('won');
+    expect(settled.status).toBe('closed');
+    expect(settled.nextAction?.status).toBe('cancelled');
+  });
+});
+
+describe('rejected quote opportunity settlement', () => {
+  it('moves the opportunity to lost and cancels a pending follow-up', () => {
+    const settled = closeOpportunityForRejectedQuote(
+      {
+        ...opportunity,
+        nextAction: {
+          id: 'action-2',
+          kind: 'followUp',
+          type: 'call',
+          description: 'Dar seguimiento al presupuesto',
+          dueAt: '2026-10-27T10:00:00.000Z',
+          responsible: 'David',
+          priority: 'medium',
+          status: 'pending',
+          createdAt: opportunity.createdAt,
+          updatedAt: opportunity.updatedAt,
+          history: [],
+        },
+      },
+      'David',
+      '2026-10-26T12:00:00.000Z',
+    );
+
+    expect(settled.pipelineStage).toBe('lost');
+    expect(settled.commercialState).toBe('lost');
     expect(settled.status).toBe('closed');
     expect(settled.nextAction?.status).toBe('cancelled');
   });

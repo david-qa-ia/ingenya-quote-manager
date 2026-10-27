@@ -24,3 +24,27 @@ export function closeOpportunityForAcceptedQuote(
     updatedAt: occurredAt,
   };
 }
+
+export function closeOpportunityForRejectedQuote(
+  opportunity: Opportunity,
+  actor: string,
+  occurredAt: string,
+): Opportunity {
+  const next =
+    opportunity.nextAction?.status === 'pending'
+      ? transitionNextAction(
+          opportunity,
+          'cancelled',
+          actor,
+          'Presupuesto rechazado; la oportunidad fue perdida.',
+          occurredAt,
+        )
+      : opportunity;
+  return {
+    ...next,
+    pipelineStage: 'lost',
+    commercialState: 'lost',
+    status: 'closed',
+    updatedAt: occurredAt,
+  };
+}
