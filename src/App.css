@@ -6000,3 +6000,242 @@ tr:last-child td {
     padding: 20px;
   }
 }
+
+/* SCRUM-92: interaction feedback. All behaviour stays owned by the existing components. */
+.button:active:not(:disabled),
+.navigation-link:active,
+.opportunity-tab:active,
+.prospect-inbox-tab:active,
+.direct-client-option:active,
+.result-option-card:active,
+.search-select-option:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.button:disabled,
+.button[aria-disabled='true'],
+.result-option-card:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.field:focus-within > span {
+  color: var(--accent-dark);
+}
+
+.field:focus-within > span::after {
+  margin-left: 6px;
+  color: var(--accent);
+  content: '•';
+}
+
+.field:has(input:invalid:not(:placeholder-shown)) input,
+.field:has(textarea:invalid:not(:placeholder-shown)) textarea {
+  border-color: var(--danger);
+}
+
+.direct-client-option,
+.result-option-card,
+.prospect-inbox-tab,
+.follow-up-summary-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.direct-client-option:hover,
+.prospect-inbox-tab:hover,
+.follow-up-summary-card:hover {
+  border-color: var(--accent-border);
+  box-shadow: 0 8px 18px rgba(22, 72, 59, 0.08);
+  transform: translateY(-1px);
+}
+
+.direct-client-option-active,
+.direct-client-option[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, #edf9f3, #e1f2e9);
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    0 8px 18px rgba(22, 72, 59, 0.08);
+}
+
+.direct-client-option-active::after,
+.direct-client-option[aria-pressed='true']::after {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--accent);
+  content: '✓';
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.result-option-card:hover,
+.result-option-card:focus-visible {
+  box-shadow: 0 6px 15px rgba(22, 72, 59, 0.09);
+  transform: translateY(-1px);
+}
+
+.result-option-card-selected,
+.result-option-card[aria-pressed='true'] {
+  box-shadow:
+    inset 0 0 0 1px #13bf7b,
+    0 7px 15px rgba(19, 191, 123, 0.1);
+}
+
+.contact-tabs .button,
+.saved-quote-filter,
+.activity-advanced-tools summary {
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.contact-tabs .button[aria-selected='true'],
+.saved-quote-filter[aria-pressed='true'] {
+  box-shadow: 0 5px 12px rgba(18, 72, 59, 0.16);
+}
+
+.search-select:focus-within input {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-ring);
+}
+
+.search-select-menu {
+  overflow: hidden auto;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  animation: ui-pop-in 150ms ease-out both;
+}
+
+.search-select-option {
+  min-height: 58px;
+  transition:
+    background 130ms ease,
+    padding 130ms ease;
+}
+
+.search-select-option:hover,
+.search-select-option:focus-visible {
+  padding-left: 18px;
+}
+
+.save-feedback,
+.settings-feedback,
+.quote-detail-feedback,
+.prospect-toast {
+  border: 1px solid transparent;
+  animation: ui-slide-up 180ms ease-out both;
+}
+
+.save-feedback-success,
+.settings-feedback {
+  border-color: #b9ddca;
+}
+
+.save-feedback-error {
+  border-color: #efc5c1;
+  background: #fff5f4;
+}
+
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 11px;
+  border: 1px solid #efc5c1;
+  border-radius: 8px;
+  background: #fff5f4;
+}
+
+.form-error::before {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--danger);
+  content: '!';
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.modal-backdrop,
+.workspace-modal-backdrop {
+  animation: ui-fade-in 150ms ease-out both;
+}
+
+.confirmation-modal,
+.workspace-confirmation-modal,
+.result-drawer {
+  animation: ui-pop-in 180ms ease-out both;
+}
+
+.activity-advanced-tools summary {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  padding: 0 11px;
+  border-radius: 8px;
+  color: var(--accent-dark);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.activity-advanced-tools summary:hover,
+.activity-advanced-tools[open] summary {
+  background: var(--accent-soft);
+}
+
+@keyframes ui-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ui-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ui-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
