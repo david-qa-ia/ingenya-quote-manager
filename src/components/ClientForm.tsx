@@ -47,6 +47,13 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
         />
       </label>
       <label className="field">
+        <span>Empresa</span>
+        <input
+          value={input.company ?? ''}
+          onChange={(e) => setInput({ ...input, company: e.target.value })}
+        />
+      </label>
+      <label className="field">
         <span>Teléfono del cliente</span>
         <input
           type="tel"

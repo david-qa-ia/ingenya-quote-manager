@@ -5,7 +5,7 @@ import { ContactAssistant } from './components/ContactAssistant';
 import type { Client, ClientInput } from './types/client';
 import type { FollowUpInboxItem } from './types/followUpInbox';
 import type { Opportunity } from './types/opportunity';
-import { loadClients, saveClient } from './utils/clientStorage';
+import { CLIENTS_STORAGE_KEY, loadClients, saveClient } from './utils/clientStorage';
 import { associateQuote } from './utils/quoteAssociations';
 import {
   loadOpportunities,
@@ -83,7 +83,11 @@ import {
   registerProspectAction,
   type ProspectFilters,
 } from './utils/prospectWorkflow';
-import { PROSPECT_FILTERS_STORAGE_KEY, saveProspectWithResult } from './utils/prospectStorage';
+import {
+  PROSPECT_FILTERS_STORAGE_KEY,
+  PROSPECTS_STORAGE_KEY,
+  saveProspectWithResult,
+} from './utils/prospectStorage';
 import {
   CADENCE_EXECUTIONS_STORAGE_KEY,
   cancelCadencesForCommercialClose,
@@ -127,6 +131,10 @@ import {
 } from './utils/directClientQuote';
 import { convertDirectQuoteToOpportunity } from './utils/directQuoteConversion';
 import {
+  syncConvertedProspectContact,
+  syncConvertedProspectOpportunity,
+} from './utils/prospectContextSync';
+import {
   clearProspectResultRecovery,
   loadProspectResultRecovery,
   saveProspectResultRecovery,
@@ -146,6 +154,7 @@ function mapRemoteProspectForInbox(row: SupabaseProspectRow): Prospect {
     phone: row.phone,
     email: row.email,
     instagram: row.instagram ?? '',
+    address: row.address ?? '',
     source: row.source,
     potentialService: row.potential_service,
     notes: row.notes,
@@ -857,7 +866,24 @@ function App() {
   }
 
   function saveOpportunityFromDetail(next: Opportunity, event: string): boolean {
-    if (!saveOpportunity(next)) return false;
+    const sourceProspect = loadProspects().items.find(
+      (prospect) => prospect.conversion?.draft.opportunityId === next.id,
+    );
+    const synced =
+      event === 'edited' && sourceProspect
+        ? syncConvertedProspectOpportunity(sourceProspect, next, next.responsibleSeller)
+        : null;
+    const saved = synced
+      ? commitLocalFollowUpResult(
+          [OPPORTUNITIES_STORAGE_KEY, PROSPECTS_STORAGE_KEY],
+          [() => saveOpportunity(next), () => saveProspectWithResult(synced.prospect).ok],
+        )
+      : { ok: saveOpportunity(next) };
+    if (!saved.ok) return false;
+    if (synced) {
+      setProspects(loadProspects().items);
+      window.dispatchEvent(new Event('ingenya:prospects-updated'));
+    }
     if (event === 'edited') setOpportunities(loadOpportunities().items);
     return true;
   }
@@ -870,8 +896,23 @@ function App() {
       createdAt: client.createdAt,
       updatedAt: now,
     };
-    if (!saveClient(next))
-      return 'No se pudo guardar el contacto. Los datos existentes se conservaron.';
+    const sourceProspect = loadProspects().items.find(
+      (prospect) => prospect.conversion?.draft.clientId === client.id,
+    );
+    const synced = sourceProspect
+      ? syncConvertedProspectContact(sourceProspect, input, sourceProspect.responsible, now)
+      : null;
+    const saved = synced
+      ? commitLocalFollowUpResult(
+          [CLIENTS_STORAGE_KEY, PROSPECTS_STORAGE_KEY],
+          [() => saveClient(next), () => saveProspectWithResult(synced.prospect).ok],
+        )
+      : { ok: saveClient(next) };
+    if (!saved.ok) return 'No se pudo guardar el contacto. Los datos existentes se conservaron.';
+    if (synced) {
+      setProspects(loadProspects().items);
+      window.dispatchEvent(new Event('ingenya:prospects-updated'));
+    }
     if (next.doNotContact) {
       loadOpportunities()
         .items.filter((item) => item.clientId === next.id && item.nextAction?.status === 'pending')

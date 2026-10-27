@@ -15,6 +15,7 @@ import { canCreateQuoteVersion } from '../utils/quoteVersioning';
 
 type DetailTab = 'summary' | 'activity' | 'quotes' | 'notes' | 'files';
 type OpportunityDataDraft = {
+  address: string;
   serviceOfInterest: string;
   estimatedValue: string;
   closingProbability: string;
@@ -82,6 +83,7 @@ export function OpportunityDetailView({
   const [editingOpportunityData, setEditingOpportunityData] = useState(false);
   const [editingClient, setEditingClient] = useState(false);
   const [dataDraft, setDataDraft] = useState<OpportunityDataDraft>(() => ({
+    address: opportunity.address,
     serviceOfInterest: opportunity.qualification?.serviceOfInterest ?? '',
     estimatedValue: opportunity.qualification?.estimatedValue?.toString() ?? '',
     closingProbability: opportunity.closingProbability?.toString() ?? '',
@@ -184,6 +186,7 @@ export function OpportunityDetailView({
       : undefined;
     const updated: Opportunity = {
       ...opportunity,
+      address: dataDraft.address.trim(),
       responsibleSeller: dataDraft.responsibleSeller.trim(),
       origin: dataDraft.origin.trim() || undefined,
       tag: dataDraft.tag.trim() || undefined,
@@ -485,6 +488,25 @@ export function OpportunityDetailView({
                 </button>
               </div>
               <dl>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
+                    <UiIcon name="map-pin" />
+                  </span>
+                  <dt>Dirección</dt>
+                  <dd>
+                    {editingOpportunityData ? (
+                      <input
+                        className="opportunity-data-input"
+                        value={dataDraft.address}
+                        onChange={(event) =>
+                          setDataDraft((draft) => ({ ...draft, address: event.target.value }))
+                        }
+                      />
+                    ) : (
+                      opportunity.address || 'Sin definir'
+                    )}
+                  </dd>
+                </div>
                 <div className="opportunity-data-row">
                   <span className="opportunity-data-icon" aria-hidden="true">
                     <UiIcon name="document" />
