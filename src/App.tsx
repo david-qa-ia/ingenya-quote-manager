@@ -282,6 +282,7 @@ function App() {
   const [catalogUnitPrice, setCatalogUnitPrice] = useState(
     String(initialCatalogLoad.jobs.find((job) => job.isActive)?.defaultPrice ?? ''),
   );
+  const [serviceEntryMode, setServiceEntryMode] = useState<'catalog' | 'manual'>('catalog');
   const [manualName, setManualName] = useState('');
   const [manualDescription, setManualDescription] = useState('');
   const [manualUnit, setManualUnit] = useState<WorkUnit>('squareMeter');
@@ -2607,16 +2608,37 @@ function App() {
           </section>
         )}
 
-        <section className="entry-grid" aria-label="Agregar mano de obra">
-          <form className="entry-card" onSubmit={handleCatalogSubmit}>
+        <section className="entry-grid service-entry-grid" aria-label="Agregar servicio">
+          <div className="entry-card service-entry-card">
             <div className="card-heading">
               <span className="step-number">1</span>
               <div>
-                <h2>Elegir del catálogo</h2>
-                <p>Usá un servicio existente y ajustá su precio para este presupuesto.</p>
+                <h2>{serviceEntryMode === 'catalog' ? 'Agregar servicio' : 'Agregar servicio manual'}</h2>
+                <p>
+                  {serviceEntryMode === 'catalog'
+                    ? 'Buscá un servicio del catálogo y ajustá su precio para este presupuesto.'
+                    : 'Completá el servicio que no está disponible en el catálogo.'}
+                </p>
+              </div>
+              <div className="service-entry-toggle" aria-label="Modo de carga">
+                <button
+                  className={`button button-line ${serviceEntryMode === 'catalog' ? 'is-selected' : ''}`}
+                  type="button"
+                  onClick={() => setServiceEntryMode('catalog')}
+                >
+                  Catálogo
+                </button>
+                <button
+                  className={`button button-line ${serviceEntryMode === 'manual' ? 'is-selected' : ''}`}
+                  type="button"
+                  onClick={() => setServiceEntryMode('manual')}
+                >
+                  Agregar manualmente
+                </button>
               </div>
             </div>
-
+            {serviceEntryMode === 'catalog' ? (
+            <form onSubmit={handleCatalogSubmit}>
             <label className="field">
               <span>Buscar servicio activo</span>
               <input
@@ -2688,17 +2710,9 @@ function App() {
             >
               Agregar servicio
             </button>
-          </form>
-
-          <form className="entry-card" onSubmit={handleManualSubmit}>
-            <div className="card-heading">
-              <span className="step-number">2</span>
-              <div>
-                <h2>Agregar servicio manual</h2>
-                <p>Creá una línea cuando el servicio no esté disponible en el catálogo.</p>
-              </div>
-            </div>
-
+            </form>
+            ) : (
+            <form onSubmit={handleManualSubmit}>
             <label className="field">
               <span>Nombre del servicio</span>
               <input
@@ -2773,9 +2787,11 @@ function App() {
 
             {manualError && <p className="form-error">{manualError}</p>}
             <button className="button button-secondary" type="submit">
-              Agregar servicio manual
+              Agregar servicio
             </button>
-          </form>
+            </form>
+            )}
+          </div>
         </section>
 
         <section className="quote-card" aria-labelledby="quote-lines-title">
