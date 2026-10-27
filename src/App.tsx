@@ -698,7 +698,7 @@ function App() {
     setProjectName(opportunity.name);
   }
 
-  function handleSavedQuoteOpen(savedQuote: SavedQuote) {
+  function loadSavedQuoteIntoState(savedQuote: SavedQuote) {
     setQuoteId(savedQuote.id);
     setQuoteStatus(savedQuote.status);
     setCommercialStatus(savedQuote.commercialStatus);
@@ -716,7 +716,16 @@ function App() {
     setDirectFollowUp(undefined);
     setIsLinkingOpen(false);
     resetTransientState();
+  }
+
+  function handleSavedQuoteOpen(savedQuote: SavedQuote) {
+    loadSavedQuoteIntoState(savedQuote);
     setCurrentView(savedQuote.status === 'draft' ? 'editor' : 'summary');
+  }
+
+  function handleSavedQuoteReview(savedQuote: SavedQuote) {
+    loadSavedQuoteIntoState(savedQuote);
+    setCurrentView('summary');
   }
 
   function handleQuoteDetailOpen(savedQuote: SavedQuote) {
@@ -1955,7 +1964,7 @@ function App() {
           }}
           onPdf={handleQuoteDetailPdfDownload}
           onStatus={(_quote, status, audit) => handleCommercialStatusChange(status, audit)}
-          onContinueEditing={handleSavedQuoteOpen}
+          onContinueEditing={handleSavedQuoteReview}
           onRegisterSend={setQuoteSendTarget}
           onRequestChange={handleQuoteChangeRequest}
           onConvertDirect={handleDirectQuoteConversion}

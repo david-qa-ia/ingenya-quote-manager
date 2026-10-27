@@ -171,7 +171,7 @@ export function QuoteDetailView({
                   type="button"
                   onClick={() => onContinueEditing(quote)}
                 >
-                  <UiIcon name="document" /> Completar y finalizar
+                  <UiIcon name="document" /> Revisar y finalizar
                 </button>
               )}
               <button
