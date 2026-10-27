@@ -5196,6 +5196,116 @@ button.opportunity-nav-item:hover {
 
 .metrics-section {
   margin: 1rem 0;
+  overflow: hidden;
+}
+
+.metrics-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1rem;
+}
+
+.metrics-section-heading h2 {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 1.1rem;
+}
+
+.metrics-section-heading p {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.metrics-trend-table table {
+  min-width: 640px;
+}
+
+.metrics-trend-table th,
+.metrics-trend-table td {
+  padding: 0.85rem 1.5rem;
+}
+
+.metrics-trend-table thead th {
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.metrics-trend-table tbody th {
+  color: var(--text-heading);
+  background: var(--surface);
+  font-size: 0.8rem;
+}
+
+.metrics-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+}
+
+.metrics-detail-panel {
+  min-width: 0;
+  padding: 1.25rem 1.5rem;
+}
+
+.metrics-detail-panel + .metrics-detail-panel {
+  border-left: 1px solid var(--border);
+}
+
+.metrics-detail-panel h3 {
+  margin: 0 0 0.85rem;
+  color: var(--text-heading);
+  font-size: 0.95rem;
+}
+
+.metrics-breakdown-list,
+.metrics-follow-up-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.metrics-breakdown-list {
+  list-style: none;
+}
+
+.metrics-breakdown-list li,
+.metrics-follow-up-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  border-top: 1px solid var(--border);
+}
+
+.metrics-breakdown-list li > span,
+.metrics-follow-up-list dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+
+.metrics-breakdown-list .ui-icon,
+.metrics-follow-up-list .ui-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+}
+
+.metrics-breakdown-list strong,
+.metrics-follow-up-list dd {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: 1rem;
+  font-weight: 800;
 }
 
 .metrics-focus-card {
@@ -5308,6 +5418,17 @@ button.opportunity-nav-item:hover {
 @media (max-width: 640px) {
   .metrics-focus-card {
     padding: 1rem;
+  }
+  .metrics-section-heading,
+  .metrics-detail-panel {
+    padding: 1rem;
+  }
+  .metrics-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .metrics-detail-panel + .metrics-detail-panel {
+    border-top: 1px solid var(--border);
+    border-left: 0;
   }
   .opportunity-quote-context {
     align-items: flex-start;

@@ -2,11 +2,16 @@ import type { CommercialMetrics } from '../types/commercialMetrics';
 export function MetricsTrend({ metrics }: { metrics: CommercialMetrics }) {
   return (
     <section className="quote-card metrics-section" aria-labelledby="metrics-trend">
-      <h2 id="metrics-trend">Tu actividad por día</h2>
+      <header className="metrics-section-heading">
+        <div>
+          <h2 id="metrics-trend">Actividad por día</h2>
+          <p>Lo que registraste en cada jornada del período seleccionado.</p>
+        </div>
+      </header>
       {metrics.trend.length === 0 ? (
         <p className="commercial-note">No hay eventos en el período.</p>
       ) : (
-        <div className="table-scroll">
+        <div className="table-scroll metrics-trend-table">
           <table>
             <caption className="visually-hidden">Actividad registrada por día</caption>
             <thead>

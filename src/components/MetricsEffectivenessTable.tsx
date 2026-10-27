@@ -1,41 +1,56 @@
 import type { CommercialMetrics } from '../types/commercialMetrics';
+import { UiIcon, type UiIconName } from './UiIcon';
+
+const breakdownIcons: Record<string, UiIconName> = {
+  Llamadas: 'phone',
+  WhatsApp: 'whatsapp',
+  Emails: 'email',
+  Notas: 'note',
+};
+
 export function MetricsEffectivenessTable({ metrics }: { metrics: CommercialMetrics }) {
   return (
     <section className="quote-card metrics-section" aria-labelledby="metrics-effectiveness">
-      <h2 id="metrics-effectiveness">Detalle de tu actividad</h2>
-      <div className="metrics-columns">
+      <header className="metrics-section-heading">
         <div>
-          <h3>Acciones registradas</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Tipo</th>
-                <th>Cantidad</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.activityBreakdown.map((item) => (
-                <tr key={item.label}>
-                  <th scope="row">{item.label}</th>
-                  <td>{item.count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h2 id="metrics-effectiveness">Detalle registrado</h2>
+          <p>Desglose de acciones y seguimientos que cargaste en este período.</p>
         </div>
-        <div>
-          <h3>Seguimientos trabajados</h3>
-          <dl className="metrics-reasons">
+      </header>
+      <div className="metrics-detail-grid">
+        <section className="metrics-detail-panel" aria-labelledby="metrics-activity-breakdown">
+          <h3 id="metrics-activity-breakdown">Acciones</h3>
+          <ul className="metrics-breakdown-list">
+            {metrics.activityBreakdown.map((item) => (
+              <li key={item.label}>
+                <span>
+                  <UiIcon name={breakdownIcons[item.label]} />
+                  {item.label}
+                </span>
+                <strong>{item.count}</strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="metrics-detail-panel" aria-labelledby="metrics-follow-up-breakdown">
+          <h3 id="metrics-follow-up-breakdown">Seguimientos</h3>
+          <dl className="metrics-follow-up-list">
             <div>
-              <dt>Completados</dt>
+              <dt>
+                <UiIcon name="check-circle" />
+                Completados
+              </dt>
               <dd>{metrics.followUpActions.completed}</dd>
             </div>
             <div>
-              <dt>Reprogramados</dt>
+              <dt>
+                <UiIcon name="calendar" />
+                Reprogramados
+              </dt>
               <dd>{metrics.followUpActions.rescheduled}</dd>
             </div>
           </dl>
-        </div>
+        </section>
       </div>
     </section>
   );
