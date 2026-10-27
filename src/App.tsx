@@ -1183,13 +1183,9 @@ function App() {
         );
         if (opportunity) {
           const isAccepted = nextStatus === 'accepted';
-          const closedOpportunity = (isAccepted
-            ? closeOpportunityForAcceptedQuote
-            : closeOpportunityForRejectedQuote)(
-            opportunity,
-            audit.changedBy,
-            audit.changedAt,
-          );
+          const closedOpportunity = (
+            isAccepted ? closeOpportunityForAcceptedQuote : closeOpportunityForRejectedQuote
+          )(opportunity, audit.changedBy, audit.changedAt);
           if (
             !saveOpportunity({
               ...closedOpportunity,
@@ -2634,7 +2630,9 @@ function App() {
             <div className="card-heading">
               <span className="step-number">1</span>
               <div>
-                <h2>{serviceEntryMode === 'catalog' ? 'Agregar servicio' : 'Agregar servicio manual'}</h2>
+                <h2>
+                  {serviceEntryMode === 'catalog' ? 'Agregar servicio' : 'Agregar servicio manual'}
+                </h2>
                 <p>
                   {serviceEntryMode === 'catalog'
                     ? 'Buscá un servicio del catálogo y ajustá su precio para este presupuesto.'
@@ -2659,183 +2657,187 @@ function App() {
               </div>
             </div>
             {serviceEntryMode === 'catalog' ? (
-            <form onSubmit={handleCatalogSubmit}>
-              <label className="field">
-                <span>Buscar servicio activo</span>
-                <div className="search-select">
-                  <input
-                    type="search"
-                    value={catalogSearch}
-                    onFocus={() => setIsCatalogMenuOpen(true)}
-                    onChange={(event) => handleCatalogSearchChange(event.target.value)}
-                    placeholder="Nombre o descripción"
-                    aria-expanded={isCatalogMenuOpen}
-                    aria-controls="catalog-service-results"
-                  />
-                  {isCatalogMenuOpen && (
-                    <div id="catalog-service-results" className="search-select-menu" role="listbox">
-                      {visibleActiveCatalogJobs.length > 0 ? (
-                        visibleActiveCatalogJobs.map((job) => (
-                          <button
-                            type="button"
-                            key={job.id}
-                            className="search-select-option"
-                            role="option"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => handleCatalogServiceSelection(job)}
-                          >
-                            <strong>{job.name}</strong>
-                            <span>
-                              {job.description || 'Sin descripción'} · {workUnitLabels[job.unit]} ·{' '}
-                              {currencyFormatter.format(job.defaultPrice)}
-                            </span>
-                          </button>
-                        ))
-                      ) : (
-                        <div className="search-select-empty">
-                          <p>No encontramos un servicio activo con esos datos.</p>
-                          <button
-                            type="button"
-                            className="button button-line"
-                            onClick={() => handleServiceEntryModeChange('manual')}
-                          >
-                            Agregar manualmente
-                          </button>
-                        </div>
-                      )}
+              <form onSubmit={handleCatalogSubmit}>
+                <label className="field">
+                  <span>Buscar servicio activo</span>
+                  <div className="search-select">
+                    <input
+                      type="search"
+                      value={catalogSearch}
+                      onFocus={() => setIsCatalogMenuOpen(true)}
+                      onChange={(event) => handleCatalogSearchChange(event.target.value)}
+                      placeholder="Nombre o descripción"
+                      aria-expanded={isCatalogMenuOpen}
+                      aria-controls="catalog-service-results"
+                    />
+                    {isCatalogMenuOpen && (
+                      <div
+                        id="catalog-service-results"
+                        className="search-select-menu"
+                        role="listbox"
+                      >
+                        {visibleActiveCatalogJobs.length > 0 ? (
+                          visibleActiveCatalogJobs.map((job) => (
+                            <button
+                              type="button"
+                              key={job.id}
+                              className="search-select-option"
+                              role="option"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => handleCatalogServiceSelection(job)}
+                            >
+                              <strong>{job.name}</strong>
+                              <span>
+                                {job.description || 'Sin descripción'} · {workUnitLabels[job.unit]}{' '}
+                                · {currencyFormatter.format(job.defaultPrice)}
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="search-select-empty">
+                            <p>No encontramos un servicio activo con esos datos.</p>
+                            <button
+                              type="button"
+                              className="button button-line"
+                              onClick={() => handleServiceEntryModeChange('manual')}
+                            >
+                              Agregar manualmente
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </label>
+                <p className="commercial-note">
+                  Escribí para filtrar y elegí un servicio de la lista. Podés borrar y buscar otro.
+                </p>
+
+                <div className="form-grid">
+                  <div className="field read-only-field">
+                    <span>Unidad</span>
+                    <strong>
+                      {selectedVisibleJob
+                        ? `${workUnitLabels[selectedVisibleJob.unit]} (${workUnitSymbols[selectedVisibleJob.unit]})`
+                        : 'Sin servicio seleccionado'}
+                    </strong>
+                  </div>
+                  <label className="field">
+                    <span>Cantidad</span>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={catalogQuantity}
+                      onChange={(event) => setCatalogQuantity(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Precio unitario</span>
+                    <div className="money-input">
+                      <span>$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={catalogUnitPrice}
+                        onChange={(event) => setCatalogUnitPrice(event.target.value)}
+                        required
+                      />
                     </div>
-                  )}
+                    <small>Precio sugerido, editable para este presupuesto.</small>
+                  </label>
                 </div>
-              </label>
-              <p className="commercial-note">
-                Escribí para filtrar y elegí un servicio de la lista. Podés borrar y buscar otro.
-              </p>
 
-            <div className="form-grid">
-              <div className="field read-only-field">
-                <span>Unidad</span>
-                <strong>
-                  {selectedVisibleJob
-                    ? `${workUnitLabels[selectedVisibleJob.unit]} (${workUnitSymbols[selectedVisibleJob.unit]})`
-                    : 'Sin servicio seleccionado'}
-                </strong>
-              </div>
-              <label className="field">
-                <span>Cantidad</span>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={catalogQuantity}
-                  onChange={(event) => setCatalogQuantity(event.target.value)}
-                  required
-                />
-              </label>
-              <label className="field">
-                <span>Precio unitario</span>
-                <div className="money-input">
-                  <span>$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={catalogUnitPrice}
-                    onChange={(event) => setCatalogUnitPrice(event.target.value)}
-                    required
-                  />
-                </div>
-                <small>Precio sugerido, editable para este presupuesto.</small>
-              </label>
-            </div>
-
-            {catalogError && <p className="form-error">{catalogError}</p>}
-            <button
-              className="button button-secondary"
-              type="submit"
-              disabled={!selectedVisibleJob}
-            >
-              Agregar servicio
-            </button>
-            </form>
-            ) : (
-            <form onSubmit={handleManualSubmit}>
-            <label className="field">
-              <span>Nombre del servicio</span>
-              <input
-                type="text"
-                value={manualName}
-                onChange={(event) => setManualName(event.target.value)}
-                placeholder="Ej.: Reparar revoque"
-                required
-              />
-            </label>
-
-            <label className="field quick-description">
-              <span>Descripción (opcional)</span>
-              <textarea
-                value={manualDescription}
-                onChange={(event) => setManualDescription(event.target.value)}
-                placeholder="Detalle breve del trabajo"
-                rows={3}
-              />
-            </label>
-
-            <div className="form-grid">
-              <label className="field">
-                <span>Unidad</span>
-                <select
-                  value={manualUnit}
-                  onChange={(event) => setManualUnit(event.target.value as WorkUnit)}
+                {catalogError && <p className="form-error">{catalogError}</p>}
+                <button
+                  className="button button-secondary"
+                  type="submit"
+                  disabled={!selectedVisibleJob}
                 >
-                  {availableWorkUnits.map((unit) => (
-                    <option key={unit} value={unit}>
-                      {workUnitLabels[unit]} ({workUnitSymbols[unit]})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Cantidad</span>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={manualQuantity}
-                  onChange={(event) => setManualQuantity(event.target.value)}
-                  required
-                />
-              </label>
-              <label className="field">
-                <span>Precio unitario</span>
-                <div className="money-input">
-                  <span>$</span>
+                  Agregar servicio
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleManualSubmit}>
+                <label className="field">
+                  <span>Nombre del servicio</span>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={manualUnitPrice}
-                    onChange={(event) => setManualUnitPrice(event.target.value)}
-                    placeholder="0"
+                    type="text"
+                    value={manualName}
+                    onChange={(event) => setManualName(event.target.value)}
+                    placeholder="Ej.: Reparar revoque"
                     required
                   />
+                </label>
+
+                <label className="field quick-description">
+                  <span>Descripción (opcional)</span>
+                  <textarea
+                    value={manualDescription}
+                    onChange={(event) => setManualDescription(event.target.value)}
+                    placeholder="Detalle breve del trabajo"
+                    rows={3}
+                  />
+                </label>
+
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Unidad</span>
+                    <select
+                      value={manualUnit}
+                      onChange={(event) => setManualUnit(event.target.value as WorkUnit)}
+                    >
+                      {availableWorkUnits.map((unit) => (
+                        <option key={unit} value={unit}>
+                          {workUnitLabels[unit]} ({workUnitSymbols[unit]})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Cantidad</span>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={manualQuantity}
+                      onChange={(event) => setManualQuantity(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Precio unitario</span>
+                    <div className="money-input">
+                      <span>$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={manualUnitPrice}
+                        onChange={(event) => setManualUnitPrice(event.target.value)}
+                        placeholder="0"
+                        required
+                      />
+                    </div>
+                  </label>
                 </div>
-              </label>
-            </div>
 
-            <label className="checkbox-field">
-              <input
-                type="checkbox"
-                checked={saveManualToCatalog}
-                onChange={(event) => setSaveManualToCatalog(event.target.checked)}
-              />
-              <span>Guardar también en el catálogo para reutilizarlo</span>
-            </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={saveManualToCatalog}
+                    onChange={(event) => setSaveManualToCatalog(event.target.checked)}
+                  />
+                  <span>Guardar también en el catálogo para reutilizarlo</span>
+                </label>
 
-            {manualError && <p className="form-error">{manualError}</p>}
-            <button className="button button-secondary" type="submit">
-              Agregar servicio
-            </button>
-            </form>
+                {manualError && <p className="form-error">{manualError}</p>}
+                <button className="button button-secondary" type="submit">
+                  Agregar servicio
+                </button>
+              </form>
             )}
           </div>
         </section>

@@ -180,7 +180,9 @@ export function DirectClientQuotePanel({
                       );
                     })
                   ) : (
-                    <p className="search-select-empty">No encontramos una oportunidad con esos datos.</p>
+                    <p className="search-select-empty">
+                      No encontramos una oportunidad con esos datos.
+                    </p>
                   )}
                 </div>
               )}
@@ -195,235 +197,242 @@ export function DirectClientQuotePanel({
             <section className="direct-linking-card" aria-labelledby="client-details-title">
               <h3 id="client-details-title">Datos del cliente</h3>
               <label className="field">
-            <span>Buscar cliente existente</span>
-            <div className="search-select">
-              <input
-                type="search"
-                value={clientQuery}
-                onFocus={() => setIsClientMenuOpen(true)}
-                onChange={(event) => {
-                  setClientQuery(event.target.value);
-                  setIsClientMenuOpen(true);
-                  if (input.existingClientId) updateInput({ ...input, existingClientId: undefined });
-                }}
-                placeholder="Nombre, empresa, teléfono o email"
-                aria-expanded={isClientMenuOpen}
-                aria-controls="client-search-results"
-              />
-              {isClientMenuOpen && (
-                <div id="client-search-results" className="search-select-menu" role="listbox">
-                  {matches.length > 0 ? (
-                    matches.map((client) => (
+                <span>Buscar cliente existente</span>
+                <div className="search-select">
+                  <input
+                    type="search"
+                    value={clientQuery}
+                    onFocus={() => setIsClientMenuOpen(true)}
+                    onChange={(event) => {
+                      setClientQuery(event.target.value);
+                      setIsClientMenuOpen(true);
+                      if (input.existingClientId)
+                        updateInput({ ...input, existingClientId: undefined });
+                    }}
+                    placeholder="Nombre, empresa, teléfono o email"
+                    aria-expanded={isClientMenuOpen}
+                    aria-controls="client-search-results"
+                  />
+                  {isClientMenuOpen && (
+                    <div id="client-search-results" className="search-select-menu" role="listbox">
+                      {matches.length > 0 ? (
+                        matches.map((client) => (
+                          <button
+                            type="button"
+                            key={client.id}
+                            className="search-select-option"
+                            role="option"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => selectExistingClient(client)}
+                          >
+                            <strong>{client.name}</strong>
+                            <span>{client.company || client.email}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <p className="search-select-empty">
+                          No encontramos un cliente con esos datos.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </label>
+              {input.existingClientId && (
+                <section className="selected-contact-summary" aria-label="Cliente seleccionado">
+                  <div>
+                    <span>Cliente seleccionado</span>
+                    <strong>{input.name}</strong>
+                    {input.company && <small>{input.company}</small>}
+                  </div>
+                  <div className="selected-contact-details">
+                    <span>{input.phone}</span>
+                    <span>{input.email}</span>
+                  </div>
+                  <p>Para cambiarlo, buscá y elegí otro contacto arriba.</p>
+                </section>
+              )}
+              {!input.existingClientId && (
+                <>
+                  <p className="commercial-note">O creá un contacto nuevo:</p>
+                  <div className="direct-contact-fields">
+                    <label className="field">
+                      <span>Nombre</span>
+                      <input
+                        value={input.name}
+                        onChange={(event) => updateNewClientField('name', event.target.value)}
+                        required
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Empresa</span>
+                      <input
+                        value={input.company}
+                        onChange={(event) => updateNewClientField('company', event.target.value)}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Teléfono</span>
+                      <input
+                        type="tel"
+                        value={input.phone}
+                        onChange={(event) => updateNewClientField('phone', event.target.value)}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Email</span>
+                      <input
+                        type="email"
+                        value={input.email}
+                        onChange={(event) => updateNewClientField('email', event.target.value)}
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+              {!input.existingClientId && duplicates.length > 0 && (
+                <aside className="commercial-warning" aria-live="polite">
+                  <strong>Encontramos posibles clientes duplicados.</strong>
+                  <div className="direct-client-matches">
+                    {duplicates.map((client) => (
                       <button
                         type="button"
                         key={client.id}
-                        className="search-select-option"
-                        role="option"
-                        onMouseDown={(event) => event.preventDefault()}
+                        className="button button-line"
                         onClick={() => selectExistingClient(client)}
                       >
-                        <strong>{client.name}</strong>
-                        <span>{client.company || client.email}</span>
+                        Usar {client.name}
                       </button>
-                    ))
-                  ) : (
-                    <p className="search-select-empty">No encontramos un cliente con esos datos.</p>
+                    ))}
+                  </div>
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(input.duplicateConfirmed)}
+                      onChange={(event) =>
+                        updateInput({ ...input, duplicateConfirmed: event.target.checked })
+                      }
+                    />
+                    <span>Crear igualmente</span>
+                  </label>
+                  {input.duplicateConfirmed && (
+                    <label className="field">
+                      <span>Motivo</span>
+                      <input
+                        value={input.duplicateReason ?? ''}
+                        onChange={(event) =>
+                          updateInput({ ...input, duplicateReason: event.target.value })
+                        }
+                        required
+                      />
+                    </label>
                   )}
-                </div>
+                </aside>
               )}
-            </div>
-              </label>
-          {input.existingClientId && (
-            <section className="selected-contact-summary" aria-label="Cliente seleccionado">
-              <div>
-                <span>Cliente seleccionado</span>
-                <strong>{input.name}</strong>
-                {input.company && <small>{input.company}</small>}
-              </div>
-              <div className="selected-contact-details">
-                <span>{input.phone}</span>
-                <span>{input.email}</span>
-              </div>
-              <p>Para cambiarlo, buscá y elegí otro contacto arriba.</p>
-            </section>
-          )}
-          {!input.existingClientId && (
-            <>
-              <p className="commercial-note">O creá un contacto nuevo:</p>
-              <div className="direct-contact-fields">
-                <label className="field">
-                  <span>Nombre</span>
-                  <input
-                    value={input.name}
-                    onChange={(event) => updateNewClientField('name', event.target.value)}
-                    required
-                  />
-                </label>
-                <label className="field">
-                  <span>Empresa</span>
-                  <input
-                    value={input.company}
-                    onChange={(event) => updateNewClientField('company', event.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  <span>Teléfono</span>
-                  <input
-                    type="tel"
-                    value={input.phone}
-                    onChange={(event) => updateNewClientField('phone', event.target.value)}
-                  />
-                </label>
-                <label className="field">
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    value={input.email}
-                    onChange={(event) => updateNewClientField('email', event.target.value)}
-                  />
-                </label>
-              </div>
-            </>
-          )}
-          {!input.existingClientId && duplicates.length > 0 && (
-            <aside className="commercial-warning" aria-live="polite">
-              <strong>Encontramos posibles clientes duplicados.</strong>
-              <div className="direct-client-matches">
-                {duplicates.map((client) => (
-                  <button
-                    type="button"
-                    key={client.id}
-                    className="button button-line"
-                    onClick={() => selectExistingClient(client)}
-                  >
-                    Usar {client.name}
-                  </button>
-                ))}
-              </div>
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={Boolean(input.duplicateConfirmed)}
-                  onChange={(event) =>
-                    updateInput({ ...input, duplicateConfirmed: event.target.checked })
-                  }
-                />
-                <span>Crear igualmente</span>
-              </label>
-              {input.duplicateConfirmed && (
-                <label className="field">
-                  <span>Motivo</span>
-                  <input
-                    value={input.duplicateReason ?? ''}
-                    onChange={(event) =>
-                      updateInput({ ...input, duplicateReason: event.target.value })
-                    }
-                    required
-                  />
-                </label>
-              )}
-            </aside>
-          )}
             </section>
             <section className="direct-linking-card" aria-labelledby="opportunity-details-title">
               <h3 id="opportunity-details-title">Datos de la oportunidad</h3>
-          <div className="form-grid">
-            <label className="field">
-              <span>Obra o trabajo</span>
-              <input
-                value={input.projectName}
-                onChange={(event) => updateInput({ ...input, projectName: event.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Servicio potencial</span>
-              <input
-                value={input.serviceOfInterest ?? ''}
-                onChange={(event) => updateInput({ ...input, serviceOfInterest: event.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Origen</span>
-              <input
-                value={input.origin ?? ''}
-                onChange={(event) => updateInput({ ...input, origin: event.target.value })}
-              />
-            </label>
-            <label className="field field-wide">
-              <span>Observaciones</span>
-              <textarea
-                value={input.observations ?? ''}
-                onChange={(event) => updateInput({ ...input, observations: event.target.value })}
-              />
-            </label>
-          </div>
-          <p className="commercial-note">
-            El cliente se guardará junto con el presupuesto. No se creará nada hasta guardar el
-            borrador o continuar.
-          </p>
-          <section className="direct-follow-up" aria-label="Seguimiento opcional">
-            <label className="checkbox-field">
-              <input
-                type="checkbox"
-                checked={schedule}
-                onChange={(event) => {
-                  const next = event.target.checked;
-                  setSchedule(next);
-                  onDirectChange(input, next ? followUp : undefined);
-                }}
-              />
-              <span>Crear oportunidad y agendar próximo paso</span>
-            </label>
-            {schedule && (
               <div className="form-grid">
                 <label className="field">
-                  <span>Fecha y hora</span>
+                  <span>Obra o trabajo</span>
                   <input
-                    type="datetime-local"
-                    value={followUp.dueAt}
-                    onChange={(event) => {
-                      const next = { ...followUp, dueAt: event.target.value };
-                      setFollowUp(next);
-                      onDirectChange(input, next);
-                    }}
-                    required
+                    value={input.projectName}
+                    onChange={(event) => updateInput({ ...input, projectName: event.target.value })}
                   />
                 </label>
                 <label className="field">
-                  <span>Canal</span>
-                  <select
-                    value={followUp.channel}
-                    onChange={(event) => {
-                      const next = {
-                        ...followUp,
-                        channel: event.target.value as DirectQuoteFollowUpInput['channel'],
-                      };
-                      setFollowUp(next);
-                      onDirectChange(input, next);
-                    }}
-                  >
-                    <option value="call">Llamada</option>
-                    <option value="whatsapp">WhatsApp</option>
-                    <option value="email">Email</option>
-                    <option value="meeting">Reunión</option>
-                    <option value="other">Otro</option>
-                  </select>
+                  <span>Servicio potencial</span>
+                  <input
+                    value={input.serviceOfInterest ?? ''}
+                    onChange={(event) =>
+                      updateInput({ ...input, serviceOfInterest: event.target.value })
+                    }
+                  />
                 </label>
                 <label className="field">
-                  <span>Responsable</span>
+                  <span>Origen</span>
                   <input
-                    value={followUp.responsible}
-                    onChange={(event) => {
-                      const next = { ...followUp, responsible: event.target.value };
-                      setFollowUp(next);
-                      onDirectChange(input, next);
-                    }}
-                    required
+                    value={input.origin ?? ''}
+                    onChange={(event) => updateInput({ ...input, origin: event.target.value })}
+                  />
+                </label>
+                <label className="field field-wide">
+                  <span>Observaciones</span>
+                  <textarea
+                    value={input.observations ?? ''}
+                    onChange={(event) =>
+                      updateInput({ ...input, observations: event.target.value })
+                    }
                   />
                 </label>
               </div>
-            )}
-          </section>
+              <p className="commercial-note">
+                El cliente se guardará junto con el presupuesto. No se creará nada hasta guardar el
+                borrador o continuar.
+              </p>
+              <section className="direct-follow-up" aria-label="Seguimiento opcional">
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={schedule}
+                    onChange={(event) => {
+                      const next = event.target.checked;
+                      setSchedule(next);
+                      onDirectChange(input, next ? followUp : undefined);
+                    }}
+                  />
+                  <span>Crear oportunidad y agendar próximo paso</span>
+                </label>
+                {schedule && (
+                  <div className="form-grid">
+                    <label className="field">
+                      <span>Fecha y hora</span>
+                      <input
+                        type="datetime-local"
+                        value={followUp.dueAt}
+                        onChange={(event) => {
+                          const next = { ...followUp, dueAt: event.target.value };
+                          setFollowUp(next);
+                          onDirectChange(input, next);
+                        }}
+                        required
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Canal</span>
+                      <select
+                        value={followUp.channel}
+                        onChange={(event) => {
+                          const next = {
+                            ...followUp,
+                            channel: event.target.value as DirectQuoteFollowUpInput['channel'],
+                          };
+                          setFollowUp(next);
+                          onDirectChange(input, next);
+                        }}
+                      >
+                        <option value="call">Llamada</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="email">Email</option>
+                        <option value="meeting">Reunión</option>
+                        <option value="other">Otro</option>
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Responsable</span>
+                      <input
+                        value={followUp.responsible}
+                        onChange={(event) => {
+                          const next = { ...followUp, responsible: event.target.value };
+                          setFollowUp(next);
+                          onDirectChange(input, next);
+                        }}
+                        required
+                      />
+                    </label>
+                  </div>
+                )}
+              </section>
             </section>
           </div>
         </div>

@@ -30,7 +30,8 @@ export interface DirectQuoteFollowUpInput {
 }
 
 export type DirectClientQuoteResult =
-  { ok: true; client: Client; opportunity?: Opportunity } | { ok: false; message: string; recoveryRequired?: boolean };
+  | { ok: true; client: Client; opportunity?: Opportunity }
+  | { ok: false; message: string; recoveryRequired?: boolean };
 
 /** Creates the contact and its first quote as one local operation. */
 export function saveDirectClientQuote(
@@ -44,7 +45,10 @@ export function saveDirectClientQuote(
     ? loadClients().items.find((item) => item.id === input.existingClientId)
     : undefined;
   if (input.existingClientId && !existingClient)
-    return { ok: false, message: 'El cliente seleccionado ya no está disponible. Elegilo nuevamente.' };
+    return {
+      ok: false,
+      message: 'El cliente seleccionado ya no está disponible. Elegilo nuevamente.',
+    };
   if (!existingClient && !name && !company)
     return { ok: false, message: 'Ingresá el nombre o la empresa del cliente.' };
   if (followUp && (!followUp.dueAt || !followUp.responsible.trim()))
@@ -54,19 +58,21 @@ export function saveDirectClientQuote(
     };
   const normalizedPhone = input.phone.replace(/\D/g, '');
   const normalizedEmail = input.email.trim().toLowerCase();
-  const hasDuplicate = !existingClient && loadClients().items.some((item) => {
-    const samePhone =
-      normalizedPhone.length >= 7 && item.phone.replace(/\D/g, '') === normalizedPhone;
-    const sameEmail =
-      normalizedEmail.length > 0 && item.email.trim().toLowerCase() === normalizedEmail;
-    const sameNameCompany = Boolean(
-      name &&
-      company &&
-      item.name.trim().toLowerCase() === name.toLowerCase() &&
-      item.company?.trim().toLowerCase() === company.toLowerCase(),
-    );
-    return samePhone || sameEmail || sameNameCompany;
-  });
+  const hasDuplicate =
+    !existingClient &&
+    loadClients().items.some((item) => {
+      const samePhone =
+        normalizedPhone.length >= 7 && item.phone.replace(/\D/g, '') === normalizedPhone;
+      const sameEmail =
+        normalizedEmail.length > 0 && item.email.trim().toLowerCase() === normalizedEmail;
+      const sameNameCompany = Boolean(
+        name &&
+        company &&
+        item.name.trim().toLowerCase() === name.toLowerCase() &&
+        item.company?.trim().toLowerCase() === company.toLowerCase(),
+      );
+      return samePhone || sameEmail || sameNameCompany;
+    });
   if (hasDuplicate && (!input.duplicateConfirmed || !input.duplicateReason?.trim()))
     return {
       ok: false,
