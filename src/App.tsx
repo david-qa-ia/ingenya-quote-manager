@@ -2199,7 +2199,11 @@ function App() {
               </span>
             </div>
 
-            <div className="saved-quote-filters" aria-label="Filtrar presupuestos por estado">
+            <div
+              className="saved-quote-filters saved-quote-lifecycle-filters"
+              aria-label="Filtrar presupuestos por estado"
+            >
+              <span className="saved-quote-filter-label">Documento</span>
               {(
                 [
                   ['all', 'Todos'],
@@ -2220,9 +2224,10 @@ function App() {
             </div>
 
             <div
-              className="saved-quote-filters"
+              className="saved-quote-filters saved-quote-commercial-filters"
               aria-label="Filtrar presupuestos por estado comercial"
             >
+              <span className="saved-quote-filter-label">Seguimiento comercial</span>
               {(
                 [
                   'all',
@@ -2651,8 +2656,8 @@ function App() {
   return (
     <>
       {appHeader}
-      <main className="app-shell">
-        <header className="page-header">
+      <main className="app-shell quote-editor-shell">
+        <header className="page-header quote-editor-header">
           <div>
             <p className="eyebrow">INGENYA · PRESUPUESTOS</p>
             <h1>
