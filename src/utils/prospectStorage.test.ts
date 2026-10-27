@@ -41,7 +41,7 @@ describe('prospect storage', () => {
   afterEach(() => vi.unstubAllGlobals());
   it('persists an independent prospect collection and treats pending values as unavailable', () => {
     expect(saveProspect(prospect)).toBe(true);
-    expect(loadProspects().items).toEqual([{ ...prospect, instagram: '' }]);
+    expect(loadProspects().items).toEqual([{ ...prospect, instagram: '', address: '' }]);
     expect(isProspectContactAvailable(prospect, 'phone')).toBe(false);
     expect(isProspectContactAvailable(prospect, 'email')).toBe(false);
     expect(isProspectContactAvailable({ ...prospect, instagram: '@ingenya' }, 'instagram')).toBe(

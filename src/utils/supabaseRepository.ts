@@ -312,6 +312,7 @@ export interface SupabaseProspectRow {
   phone: string;
   email: string;
   instagram?: string;
+  address?: string;
   source: string;
   potential_service: string;
   notes: string;
@@ -407,6 +408,7 @@ export async function updateRemoteProspectProfile(input: {
           phone: prospect.phone,
           email: prospect.email,
           instagram: prospect.instagram ?? '',
+          address: prospect.address ?? '',
           source: prospect.source,
           potentialService: prospect.potentialService,
           notes: prospect.notes,
@@ -444,6 +446,7 @@ export async function createRemoteProspect(workspaceId: string, prospect: Prospe
         phone: prospect.phone,
         email: prospect.email,
         instagram: prospect.instagram,
+        address: prospect.address ?? '',
         source: prospect.source,
         potentialService: prospect.potentialService,
         notes: prospect.notes,
@@ -478,6 +481,7 @@ export async function importRemoteProspects(
           phone: prospect.phone,
           email: prospect.email,
           instagram: prospect.instagram,
+          address: prospect.address ?? '',
           source: prospect.source,
           potentialService: prospect.potentialService,
           notes: prospect.notes,

@@ -15,6 +15,7 @@ import { canCreateQuoteVersion } from '../utils/quoteVersioning';
 
 type DetailTab = 'summary' | 'activity' | 'quotes' | 'notes' | 'files';
 type OpportunityDataDraft = {
+  address: string;
   serviceOfInterest: string;
   estimatedValue: string;
   closingProbability: string;
@@ -47,6 +48,13 @@ const tabLabels: Record<DetailTab, string> = {
   files: 'Archivos',
 };
 const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
+const preferredChannelLabels = {
+  phone: 'Teléfono',
+  whatsapp: 'WhatsApp',
+  email: 'Email',
+  instagram: 'Instagram',
+  '': 'Sin preferencia',
+} as const;
 
 const fullDateTime = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'full',
@@ -82,6 +90,7 @@ export function OpportunityDetailView({
   const [editingOpportunityData, setEditingOpportunityData] = useState(false);
   const [editingClient, setEditingClient] = useState(false);
   const [dataDraft, setDataDraft] = useState<OpportunityDataDraft>(() => ({
+    address: opportunity.address,
     serviceOfInterest: opportunity.qualification?.serviceOfInterest ?? '',
     estimatedValue: opportunity.qualification?.estimatedValue?.toString() ?? '',
     closingProbability: opportunity.closingProbability?.toString() ?? '',
@@ -100,6 +109,9 @@ export function OpportunityDetailView({
   const action = opportunity.nextAction?.status === 'pending' ? opportunity.nextAction : undefined;
   const qualification = opportunity.qualification;
   const isMissingClient = !client;
+  const sourceProspect = loadProspects().items.find(
+    (item) => item.conversion?.draft.opportunityId === opportunity.id,
+  );
   const currentQuote = relatedQuotes[0];
   const canCreateVersion = Boolean(
     currentQuote && canCreateQuoteVersion(currentQuote, opportunity),
@@ -184,6 +196,7 @@ export function OpportunityDetailView({
       : undefined;
     const updated: Opportunity = {
       ...opportunity,
+      address: dataDraft.address.trim(),
       responsibleSeller: dataDraft.responsibleSeller.trim(),
       origin: dataDraft.origin.trim() || undefined,
       tag: dataDraft.tag.trim() || undefined,
@@ -487,6 +500,25 @@ export function OpportunityDetailView({
               <dl>
                 <div className="opportunity-data-row">
                   <span className="opportunity-data-icon" aria-hidden="true">
+                    <UiIcon name="map-pin" />
+                  </span>
+                  <dt>Dirección</dt>
+                  <dd>
+                    {editingOpportunityData ? (
+                      <input
+                        className="opportunity-data-input"
+                        value={dataDraft.address}
+                        onChange={(event) =>
+                          setDataDraft((draft) => ({ ...draft, address: event.target.value }))
+                        }
+                      />
+                    ) : (
+                      opportunity.address || 'Sin definir'
+                    )}
+                  </dd>
+                </div>
+                <div className="opportunity-data-row">
+                  <span className="opportunity-data-icon" aria-hidden="true">
                     <UiIcon name="document" />
                   </span>
                   <dt>Servicio / Tipo</dt>
@@ -722,6 +754,62 @@ export function OpportunityDetailView({
                   </button>
                 </p>
               )}
+              {sourceProspect && (
+                <section className="opportunity-prospect-context" aria-label="Datos del prospecto">
+                  <p className="eyebrow">Datos del prospecto</p>
+                  <ul>
+                    <li>
+                      <UiIcon name="instagram" />
+                      <div>
+                        <span>Instagram</span>
+                        <strong>{sourceProspect.instagram || 'Sin definir'}</strong>
+                      </div>
+                    </li>
+                    <li>
+                      <UiIcon name="map-pin" />
+                      <div>
+                        <span>Dirección</span>
+                        <strong>
+                          {opportunity.address || sourceProspect.address || 'Sin definir'}
+                        </strong>
+                      </div>
+                    </li>
+                    <li>
+                      <UiIcon name="send" />
+                      <div>
+                        <span>Origen</span>
+                        <strong>{sourceProspect.source || 'Sin definir'}</strong>
+                      </div>
+                    </li>
+                    <li>
+                      <UiIcon name="document" />
+                      <div>
+                        <span>Servicio potencial</span>
+                        <strong>{sourceProspect.potentialService || 'Sin definir'}</strong>
+                      </div>
+                    </li>
+                    <li>
+                      <UiIcon
+                        name={
+                          sourceProspect.preferredChannel === 'whatsapp'
+                            ? 'whatsapp'
+                            : sourceProspect.preferredChannel === 'email'
+                              ? 'email'
+                              : sourceProspect.preferredChannel === 'instagram'
+                                ? 'instagram'
+                                : sourceProspect.preferredChannel === 'phone'
+                                  ? 'phone'
+                                  : 'help'
+                        }
+                      />
+                      <div>
+                        <span>Canal preferido</span>
+                        <strong>{preferredChannelLabels[sourceProspect.preferredChannel]}</strong>
+                      </div>
+                    </li>
+                  </ul>
+                </section>
+              )}
               {copied && (
                 <small className="commercial-note" role="status">
                   {copied}
@@ -785,6 +873,7 @@ export function OpportunityDetailView({
           <h2>Actividad</h2>
           <ActivityTimeline
             entrySubject={{ kind: 'opportunity', opportunityId: opportunity.id }}
+            nextAction={action}
             subjects={[
               {
                 subject: { kind: 'opportunity', opportunityId: opportunity.id },
@@ -808,6 +897,7 @@ export function OpportunityDetailView({
             ]}
             initialFilter="note"
             hideFilters
+            noteOnly
             emptyMessage="Todavía no hay notas para esta oportunidad."
             registerLabel="Registrar nota"
           />

@@ -74,6 +74,7 @@ export function createPendingProspectConversion(
     clientPhone: prospect.phone.trim() || '1111111111',
     clientEmail: prospect.email.trim() || 'none',
     clientPreferredChannel: prospect.preferredChannel,
+    address: prospect.address?.trim() ?? '',
     opportunityId: crypto.randomUUID(),
     opportunityName: input.opportunityName.trim(),
     serviceOfInterest: input.serviceOfInterest.trim(),
@@ -108,7 +109,7 @@ function buildOpportunity(draft: ProspectConversionDraft, now: string): Opportun
     id: draft.opportunityId,
     clientId: draft.clientId,
     name: draft.opportunityName,
-    address: '',
+    address: draft.address ?? '',
     estimatedStartDate: '',
     responsibleSeller: draft.responsible,
     qualification: {

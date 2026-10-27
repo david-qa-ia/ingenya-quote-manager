@@ -5,7 +5,7 @@ import { ContactAssistant } from './components/ContactAssistant';
 import type { Client, ClientInput } from './types/client';
 import type { FollowUpInboxItem } from './types/followUpInbox';
 import type { Opportunity } from './types/opportunity';
-import { loadClients, saveClient } from './utils/clientStorage';
+import { CLIENTS_STORAGE_KEY, loadClients, saveClient } from './utils/clientStorage';
 import { associateQuote } from './utils/quoteAssociations';
 import {
   loadOpportunities,
@@ -61,6 +61,7 @@ import {
   recordAutomaticActivity,
   recordCadenceActivity,
   recordNextActionActivity,
+  saveActivity,
 } from './utils/activityStorage';
 import {
   OpportunityNextActionsInbox,
@@ -82,7 +83,11 @@ import {
   registerProspectAction,
   type ProspectFilters,
 } from './utils/prospectWorkflow';
-import { PROSPECT_FILTERS_STORAGE_KEY, saveProspectWithResult } from './utils/prospectStorage';
+import {
+  PROSPECT_FILTERS_STORAGE_KEY,
+  PROSPECTS_STORAGE_KEY,
+  saveProspectWithResult,
+} from './utils/prospectStorage';
 import {
   CADENCE_EXECUTIONS_STORAGE_KEY,
   cancelCadencesForCommercialClose,
@@ -95,6 +100,7 @@ import {
   closeOpportunityForRejectedQuote,
 } from './utils/opportunityQuoteSettlement';
 import { canCreateQuoteVersion } from './utils/quoteVersioning';
+import { mirrorProspectActivitiesToOpportunity } from './utils/prospectConversion';
 import { completeCadenceAction } from './utils/cadenceTransitions';
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
 import { deriveFollowUpInbox } from './utils/followUpInbox';
@@ -115,6 +121,7 @@ import {
   registerRemoteProspectResult,
   registerRemoteQuoteSend,
   syncAndRegisterRemoteLocalQuoteSend,
+  updateRemoteProspectProfile,
   SupabaseRepositoryError,
   type SupabaseProspectRow,
 } from './utils/supabaseRepository';
@@ -125,6 +132,10 @@ import {
   type DirectQuoteFollowUpInput,
 } from './utils/directClientQuote';
 import { convertDirectQuoteToOpportunity } from './utils/directQuoteConversion';
+import {
+  syncConvertedProspectContact,
+  syncConvertedProspectOpportunity,
+} from './utils/prospectContextSync';
 import {
   clearProspectResultRecovery,
   loadProspectResultRecovery,
@@ -145,6 +156,7 @@ function mapRemoteProspectForInbox(row: SupabaseProspectRow): Prospect {
     phone: row.phone,
     email: row.email,
     instagram: row.instagram ?? '',
+    address: row.address ?? '',
     source: row.source,
     potentialService: row.potential_service,
     notes: row.notes,
@@ -856,7 +868,26 @@ function App() {
   }
 
   function saveOpportunityFromDetail(next: Opportunity, event: string): boolean {
-    if (!saveOpportunity(next)) return false;
+    const sourceProspect = loadProspects().items.find(
+      (prospect) => prospect.conversion?.draft.opportunityId === next.id,
+    );
+    const synced =
+      event === 'edited' && sourceProspect
+        ? syncConvertedProspectOpportunity(sourceProspect, next, next.responsibleSeller)
+        : null;
+    const saved = synced
+      ? commitLocalFollowUpResult(
+          [OPPORTUNITIES_STORAGE_KEY, PROSPECTS_STORAGE_KEY],
+          [() => saveOpportunity(next), () => saveProspectWithResult(synced.prospect).ok],
+        )
+      : { ok: saveOpportunity(next) };
+    if (!saved.ok) return false;
+    if (synced) {
+      mirrorProspectActivitiesToOpportunity(synced.prospect, synced.prospect.conversion!.draft);
+      setProspects(loadProspects().items);
+      window.dispatchEvent(new Event('ingenya:prospects-updated'));
+      void syncProspectContextRemotely(synced.prospect);
+    }
     if (event === 'edited') setOpportunities(loadOpportunities().items);
     return true;
   }
@@ -869,8 +900,25 @@ function App() {
       createdAt: client.createdAt,
       updatedAt: now,
     };
-    if (!saveClient(next))
-      return 'No se pudo guardar el contacto. Los datos existentes se conservaron.';
+    const sourceProspect = loadProspects().items.find(
+      (prospect) => prospect.conversion?.draft.clientId === client.id,
+    );
+    const synced = sourceProspect
+      ? syncConvertedProspectContact(sourceProspect, input, sourceProspect.responsible, now)
+      : null;
+    const saved = synced
+      ? commitLocalFollowUpResult(
+          [CLIENTS_STORAGE_KEY, PROSPECTS_STORAGE_KEY],
+          [() => saveClient(next), () => saveProspectWithResult(synced.prospect).ok],
+        )
+      : { ok: saveClient(next) };
+    if (!saved.ok) return 'No se pudo guardar el contacto. Los datos existentes se conservaron.';
+    if (synced) {
+      mirrorProspectActivitiesToOpportunity(synced.prospect, synced.prospect.conversion!.draft);
+      setProspects(loadProspects().items);
+      window.dispatchEvent(new Event('ingenya:prospects-updated'));
+      void syncProspectContextRemotely(synced.prospect);
+    }
     if (next.doNotContact) {
       loadOpportunities()
         .items.filter((item) => item.clientId === next.id && item.nextAction?.status === 'pending')
@@ -895,11 +943,42 @@ function App() {
     return null;
   }
 
+  async function syncProspectContextRemotely(prospect: Prospect) {
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    if (!isAuthConfigured() || !isWorkspaceUuid(workspaceId)) return;
+    try {
+      const remote = await updateRemoteProspectProfile({
+        workspaceId,
+        prospect,
+        idempotencyKey: `context-prospect:${prospect.id}:${prospect.version ?? 1}:${prospect.updatedAt}`,
+      });
+      if (!remote.ok) {
+        setSaveFeedback({ type: 'error', message: remote.message });
+        return;
+      }
+      const current = loadProspects().items.find((item) => item.id === prospect.id);
+      if (current?.updatedAt !== prospect.updatedAt) return;
+      if (saveProspectWithResult({ ...current, version: remote.version }).ok) {
+        setProspects(loadProspects().items);
+        window.dispatchEvent(new Event('ingenya:prospects-updated'));
+      }
+    } catch (error) {
+      setSaveFeedback({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? `No se pudo sincronizar el prospecto: ${error.message}`
+            : 'No se pudo sincronizar el prospecto en Supabase.',
+      });
+    }
+  }
+
   async function handleFollowUpAction(
     item: FollowUpInboxItem,
     input: InboxActionInput,
   ): Promise<RegisterResultSubmitResult> {
     const now = new Date().toISOString();
+    const manualNote = input.note?.trim() ?? '';
     const event = 'completed' as const;
     try {
       if (item.prospectId) {
@@ -1018,7 +1097,35 @@ function App() {
           updatedAt: now,
           history: [],
         };
-        if (!saveOpportunity({ ...current, nextAction, updatedAt: now })) return { ok: false };
+        const saved = commitLocalFollowUpResult(
+          [OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
+          [
+            () => saveOpportunity({ ...current, nextAction, updatedAt: now }),
+            ...(manualNote
+              ? [
+                  () =>
+                    saveActivity({
+                      id: crypto.randomUUID(),
+                      type: 'note',
+                      occurredAt: now,
+                      author: input.actor.trim(),
+                      result: 'Nota registrada',
+                      note: manualNote,
+                      subject: { kind: 'opportunity', opportunityId: current.id },
+                      source: 'manual',
+                      noteRevisions: [],
+                    }),
+                ]
+              : []),
+            () =>
+              recordAutomaticActivity(
+                { kind: 'opportunity', opportunityId: current.id },
+                'nextActionChanged',
+                `Próximo paso agendado: ${nextAction.description} para ${dateFormatter.format(new Date(nextAction.dueAt))}, responsable ${nextAction.responsible}.`,
+              ),
+          ],
+        );
+        if (!saved.ok) return saved;
         setOpportunities(loadOpportunities().items);
         return { ok: true };
       }
@@ -1061,16 +1168,33 @@ function App() {
           : next.nextAction;
       const persisted = { ...next, nextAction };
       if (!persisted.nextAction) return { ok: false };
+      const scheduledAction = persisted.nextAction;
       const saved = commitLocalFollowUpResult(
         [OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
         [
           () => saveOpportunity(persisted),
+          ...(manualNote
+            ? [
+                () =>
+                  saveActivity({
+                    id: crypto.randomUUID(),
+                    type: 'note',
+                    occurredAt: now,
+                    author: input.actor.trim(),
+                    result: 'Nota registrada',
+                    note: manualNote,
+                    subject: { kind: 'opportunity', opportunityId: current.id },
+                    source: 'manual',
+                    noteRevisions: [],
+                  }),
+              ]
+            : []),
           () =>
             recordNextActionActivity(
               current.id,
               currentAction.id,
               event,
-              `Próxima acción actualizada desde la bandeja.`,
+              `Completó: ${currentAction.description}. Próximo paso agendado: ${scheduledAction.description} para ${dateFormatter.format(new Date(scheduledAction.dueAt))}, responsable ${scheduledAction.responsible}.`,
             ),
         ],
       );
@@ -1699,6 +1823,7 @@ function App() {
         handleFollowUpAction(drawerItem, {
           actor: input.actor,
           reason: input.reason,
+          note: input.note,
           result: input.result,
           dueAt: input.dueAt,
           channel: input.channel,

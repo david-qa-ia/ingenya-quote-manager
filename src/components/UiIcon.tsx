@@ -21,6 +21,7 @@ export type UiIconName =
   | 'edit'
   | 'email'
   | 'help'
+  | 'instagram'
   | 'map-pin'
   | 'menu'
   | 'more'
@@ -99,6 +100,13 @@ const paths: Record<UiIconName, ReactNode> = {
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="m4 7 8 6 8-6" />
+    </>
+  ),
+  instagram: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="4" />
+      <circle cx="12" cy="12" r="3.5" />
+      <circle cx="17" cy="7" r="0.8" fill="currentColor" stroke="none" />
     </>
   ),
   note: (

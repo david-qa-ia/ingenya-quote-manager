@@ -9,6 +9,7 @@ export type ResultNextStep =
 export interface RegisterResultInput {
   actor: string;
   reason: string;
+  note: string;
   result: string;
   dueAt: string;
   channel: ResultChannel;
@@ -221,6 +222,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
     const input: RegisterResultInput = {
       actor: actor.trim(),
       reason: note.trim() || result,
+      note: note.trim(),
       result,
       dueAt: dueAt ? new Date(`${dueAt}:00-03:00`).toISOString() : '',
       channel,

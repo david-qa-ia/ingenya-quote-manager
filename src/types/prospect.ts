@@ -18,6 +18,7 @@ export interface ProspectConversionDraft {
   clientPhone: string;
   clientEmail: string;
   clientPreferredChannel: ProspectChannel | '';
+  address?: string;
   opportunityId: string;
   opportunityName: string;
   serviceOfInterest: string;
@@ -59,6 +60,8 @@ export interface Prospect {
   phone: string;
   email: string;
   instagram?: string;
+  /** Dirección de la obra o referencia comercial del prospecto. */
+  address?: string;
   source: string;
   potentialService: string;
   notes: string;
