@@ -873,6 +873,7 @@ export function OpportunityDetailView({
           <h2>Actividad</h2>
           <ActivityTimeline
             entrySubject={{ kind: 'opportunity', opportunityId: opportunity.id }}
+            nextAction={action}
             subjects={[
               {
                 subject: { kind: 'opportunity', opportunityId: opportunity.id },

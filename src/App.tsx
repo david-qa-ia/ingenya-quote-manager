@@ -100,6 +100,7 @@ import {
   closeOpportunityForRejectedQuote,
 } from './utils/opportunityQuoteSettlement';
 import { canCreateQuoteVersion } from './utils/quoteVersioning';
+import { mirrorProspectActivitiesToOpportunity } from './utils/prospectConversion';
 import { completeCadenceAction } from './utils/cadenceTransitions';
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
 import { deriveFollowUpInbox } from './utils/followUpInbox';
@@ -882,6 +883,7 @@ function App() {
       : { ok: saveOpportunity(next) };
     if (!saved.ok) return false;
     if (synced) {
+      mirrorProspectActivitiesToOpportunity(synced.prospect, synced.prospect.conversion!.draft);
       setProspects(loadProspects().items);
       window.dispatchEvent(new Event('ingenya:prospects-updated'));
       void syncProspectContextRemotely(synced.prospect);
@@ -912,6 +914,7 @@ function App() {
       : { ok: saveClient(next) };
     if (!saved.ok) return 'No se pudo guardar el contacto. Los datos existentes se conservaron.';
     if (synced) {
+      mirrorProspectActivitiesToOpportunity(synced.prospect, synced.prospect.conversion!.draft);
       setProspects(loadProspects().items);
       window.dispatchEvent(new Event('ingenya:prospects-updated'));
       void syncProspectContextRemotely(synced.prospect);
@@ -1114,6 +1117,12 @@ function App() {
                     }),
                 ]
               : []),
+            () =>
+              recordAutomaticActivity(
+                { kind: 'opportunity', opportunityId: current.id },
+                'nextActionChanged',
+                `Próximo paso agendado: ${nextAction.description} para ${dateFormatter.format(new Date(nextAction.dueAt))}, responsable ${nextAction.responsible}.`,
+              ),
           ],
         );
         if (!saved.ok) return saved;
@@ -1159,6 +1168,7 @@ function App() {
           : next.nextAction;
       const persisted = { ...next, nextAction };
       if (!persisted.nextAction) return { ok: false };
+      const scheduledAction = persisted.nextAction;
       const saved = commitLocalFollowUpResult(
         [OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
         [
@@ -1184,7 +1194,7 @@ function App() {
               current.id,
               currentAction.id,
               event,
-              `Próxima acción actualizada desde la bandeja.`,
+              `Completó: ${currentAction.description}. Próximo paso agendado: ${scheduledAction.description} para ${dateFormatter.format(new Date(scheduledAction.dueAt))}, responsable ${scheduledAction.responsible}.`,
             ),
         ],
       );

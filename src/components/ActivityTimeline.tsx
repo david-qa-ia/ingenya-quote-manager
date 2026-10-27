@@ -6,6 +6,8 @@ import type {
   ActivityType,
   CallResult,
 } from '../types/activity';
+import type { NextAction } from '../types/opportunity';
+import { UiIcon, type UiIconName } from './UiIcon';
 import {
   appendActivityNoteRevision,
   loadActivities,
@@ -44,6 +46,35 @@ interface Props {
   noteOnly?: boolean;
   emptyMessage?: string;
   registerLabel?: string;
+  nextAction?: NextAction;
+}
+
+function activitySummary(activity: Activity): string {
+  if (activity.type === 'note') return 'Dejó una nota';
+  if (activity.note.startsWith('Datos actualizados desde el contexto:'))
+    return 'Modificó datos del prospecto';
+  if (activity.event === 'nextActionChanged') return 'Actualizó el seguimiento';
+  if (activity.event === 'commercialStatusChanged') return 'Actualizó el estado comercial';
+  if (activity.type === 'call')
+    return `Registró una llamada: ${callResultLabels[activity.result as CallResult]}`;
+  if (activity.type === 'whatsapp') return 'Registró una conversación por WhatsApp';
+  if (activity.type === 'email') return 'Registró un email';
+  return activity.result || typeLabels[activity.type];
+}
+
+function activityIcon(activity: Activity): UiIconName {
+  if (activity.type === 'note') return 'note';
+  if (activity.type === 'call') return 'phone';
+  if (activity.type === 'whatsapp') return 'whatsapp';
+  if (activity.type === 'email') return 'email';
+  if (activity.note.startsWith('Datos actualizados desde el contexto:')) return 'edit';
+  return 'activity';
+}
+
+function activityDetailLabel(activity: Activity): string {
+  if (activity.type === 'note') return 'Nota';
+  if (activity.note.startsWith('Datos actualizados desde el contexto:')) return 'Qué se modificó';
+  return 'Detalle';
 }
 
 function toLocalDateTime(isoDate: string): string {
@@ -60,6 +91,7 @@ export function ActivityTimeline({
   noteOnly = false,
   emptyMessage = 'Todavía no hay actividades para este presupuesto.',
   registerLabel = 'Registrar actividad',
+  nextAction,
 }: Props) {
   const [activities, setActivities] = useState(() => loadActivities().items);
   const [filter, setFilter] = useState<ActivityFilter>(initialFilter);
@@ -281,18 +313,35 @@ export function ActivityTimeline({
           {feedback}
         </p>
       )}
+      {nextAction?.status === 'pending' && (
+        <section className="activity-next-action" aria-label="Próximo paso agendado">
+          <UiIcon name="calendar" />
+          <div>
+            <span>Próximo paso agendado</span>
+            <strong>{nextAction.description}</strong>
+            <small>
+              {new Date(nextAction.dueAt).toLocaleString('es-AR')} · Responsable:{' '}
+              {nextAction.responsible}
+            </small>
+          </div>
+        </section>
+      )}
       <ol className="activity-list">
         {visibleActivities.map((activity) => (
-          <li key={activity.id}>
-            <strong>{typeLabels[activity.type]}</strong> ·{' '}
-            {new Date(activity.occurredAt).toLocaleString('es-AR')}
-            <small>
-              <span className="activity-source">{getTimelineSubjectLabel(activity, subjects)}</span>{' '}
-              {activity.source === 'automatic' ? 'Sistema local' : activity.author} ·{' '}
-              {activity.type === 'call'
-                ? callResultLabels[activity.result as CallResult]
-                : activity.result}
-            </small>
+          <li className="activity-entry" key={activity.id}>
+            <header>
+              <span className="activity-entry-icon" aria-hidden="true">
+                <UiIcon name={activityIcon(activity)} />
+              </span>
+              <div>
+                <strong>{activitySummary(activity)}</strong>
+                <small>
+                  {activity.source === 'automatic' ? 'Sistema local' : activity.author} ·{' '}
+                  {new Date(activity.occurredAt).toLocaleString('es-AR')}
+                </small>
+              </div>
+              <span className="activity-source">{getTimelineSubjectLabel(activity, subjects)}</span>
+            </header>
             {editingId === activity.id ? (
               <div className="commercial-form">
                 <textarea
@@ -308,7 +357,12 @@ export function ActivityTimeline({
                 </button>
               </div>
             ) : (
-              <p>{activity.note}</p>
+              activity.note && (
+                <div className="activity-entry-detail">
+                  <span>{activityDetailLabel(activity)}</span>
+                  <p>{activity.note}</p>
+                </div>
+              )
             )}
             {activity.source === 'manual' &&
               activity.author === author.trim() &&
@@ -324,13 +378,16 @@ export function ActivityTimeline({
                   Editar mi nota
                 </button>
               )}
-            {activity.noteRevisions.length > 0 && (
-              <small>
-                {activity.noteRevisions.length} edición
-                {activity.noteRevisions.length === 1 ? '' : 'es'} conservada
-                {activity.noteRevisions.length === 1 ? '' : 's'}.
-              </small>
-            )}
+            {activity.noteRevisions.length > 0 &&
+              (() => {
+                const revision = activity.noteRevisions.at(-1)!;
+                return (
+                  <small className="activity-entry-edited">
+                    Nota editada el {new Date(revision.editedAt).toLocaleString('es-AR')} por{' '}
+                    {revision.editedBy}.
+                  </small>
+                );
+              })()}
           </li>
         ))}
       </ol>
