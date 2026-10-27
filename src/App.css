@@ -2626,6 +2626,17 @@ td small {
   background: #e4d8ff;
   box-shadow: inset 0 0 0 2px #8c6be8;
 }
+.opportunity-pipeline-step.lost-stage.active {
+  color: #b42318;
+}
+.opportunity-pipeline-step.lost-stage.active .opportunity-pipeline-icon {
+  color: #b42318;
+  background: #fee4e2;
+  box-shadow: inset 0 0 0 2px #f97066;
+}
+.opportunity-pipeline-step.lost-stage.reached i {
+  background: #f97066;
+}
 .opportunity-current-proposal {
   display: flex;
   flex-wrap: wrap;

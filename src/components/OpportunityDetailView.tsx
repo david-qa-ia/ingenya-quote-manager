@@ -3,7 +3,7 @@ import { ActivityTimeline } from './ActivityTimeline';
 import { ClientForm } from './ClientForm';
 import { UiIcon } from './UiIcon';
 import type { Client, ClientInput } from '../types/client';
-import type { Opportunity } from '../types/opportunity';
+import type { Opportunity, OpportunityPipelineStage } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
 import type { Activity } from '../types/activity';
 import { businessTimeZone } from '../utils/opportunityNextAction';
@@ -108,14 +108,14 @@ export function OpportunityDetailView({
   const isSendQuoteAction =
     action?.kind === 'sendQuote' ||
     action?.description.trim().toLowerCase() === 'enviar presupuesto';
-  const pipeline = [
+  const currentStage = opportunity.pipelineStage ?? 'opportunity';
+  const pipeline: readonly (readonly [OpportunityPipelineStage, string])[] = [
     ['prospect', 'Prospecto'],
     ['contacted', 'Contactado'],
     ['opportunity', 'Oportunidad'],
     ['proposal', 'Propuesta'],
-    ['won', 'Ganada'],
-  ] as const;
-  const currentStage = opportunity.pipelineStage ?? 'opportunity';
+    currentStage === 'lost' ? ['lost', 'Perdida'] : ['won', 'Ganada'],
+  ];
 
   function runQuoteAction() {
     if (quoteAction.type === 'create') {
@@ -249,7 +249,7 @@ export function OpportunityDetailView({
             const reached = pipeline.findIndex(([value]) => value === currentStage) >= index;
             return (
               <div
-                className={`opportunity-pipeline-step ${active ? 'active' : ''} ${reached ? 'reached' : ''}`}
+                className={`opportunity-pipeline-step ${active ? 'active' : ''} ${reached ? 'reached' : ''} ${stage === 'lost' ? 'lost-stage' : ''}`}
                 key={stage}
               >
                 <span className="opportunity-pipeline-icon">
@@ -261,7 +261,9 @@ export function OpportunityDetailView({
                           ? 'phone'
                           : stage === 'opportunity' || stage === 'proposal'
                             ? 'document'
-                            : 'trophy'
+                            : stage === 'lost'
+                              ? 'x-circle'
+                              : 'trophy'
                     }
                   />
                 </span>
@@ -320,7 +322,7 @@ export function OpportunityDetailView({
                   const reached = pipeline.findIndex(([value]) => value === currentStage) >= index;
                   return (
                     <div
-                      className={`opportunity-pipeline-step ${active ? 'active' : ''} ${reached ? 'reached' : ''} ${reached && !active ? 'completed' : ''}`}
+                      className={`opportunity-pipeline-step ${active ? 'active' : ''} ${reached ? 'reached' : ''} ${reached && !active ? 'completed' : ''} ${stage === 'lost' ? 'lost-stage' : ''}`}
                       key={stage}
                     >
                       <span className="opportunity-pipeline-icon">
@@ -332,7 +334,9 @@ export function OpportunityDetailView({
                                 ? 'phone'
                                 : stage === 'opportunity' || stage === 'proposal'
                                   ? 'document'
-                                  : 'trophy'
+                                  : stage === 'lost'
+                                    ? 'x-circle'
+                                    : 'trophy'
                           }
                         />
                         {reached && !active && (
