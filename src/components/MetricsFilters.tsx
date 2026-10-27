@@ -1,4 +1,5 @@
 import type { CommercialMetricsFilters } from '../types/commercialMetrics';
+import { UiIcon } from './UiIcon';
 
 interface Props {
   filters: CommercialMetricsFilters;
@@ -24,7 +25,17 @@ export function MetricsFilters({
     value: CommercialMetricsFilters[K],
   ) => onChange({ ...filters, [key]: value });
   return (
-    <section className="quote-card metrics-filters" aria-label="Filtros de métricas">
+    <section className="quote-card metrics-filters" aria-labelledby="metrics-filters-title">
+      <header className="metrics-filters-heading">
+        <span className="metrics-filters-icon">
+          <UiIcon name="calendar" />
+        </span>
+        <div>
+          <p className="eyebrow">Filtros</p>
+          <h2 id="metrics-filters-title">Elegí la actividad que querés revisar</h2>
+          <p>Ajustá el período, responsable o canal para enfocar la vista.</p>
+        </div>
+      </header>
       <div className="metrics-filter-core">
         <label className="field">
           <span>Desde</span>
@@ -65,7 +76,7 @@ export function MetricsFilters({
         </label>
       </div>
       <details className="metrics-context-filters">
-        <summary>Filtrar por cliente, obra o presupuesto</summary>
+        <summary>Más filtros: cliente, obra o presupuesto</summary>
         <div className="metrics-context-filter-grid">
           <label className="field">
             <span>Cliente</span>
