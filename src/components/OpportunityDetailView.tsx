@@ -757,28 +757,57 @@ export function OpportunityDetailView({
               {sourceProspect && (
                 <section className="opportunity-prospect-context" aria-label="Datos del prospecto">
                   <p className="eyebrow">Datos del prospecto</p>
-                  <dl>
-                    <div>
-                      <dt>Instagram</dt>
-                      <dd>{sourceProspect.instagram || 'Sin definir'}</dd>
-                    </div>
-                    <div>
-                      <dt>Dirección</dt>
-                      <dd>{opportunity.address || sourceProspect.address || 'Sin definir'}</dd>
-                    </div>
-                    <div>
-                      <dt>Origen</dt>
-                      <dd>{sourceProspect.source || 'Sin definir'}</dd>
-                    </div>
-                    <div>
-                      <dt>Servicio potencial</dt>
-                      <dd>{sourceProspect.potentialService || 'Sin definir'}</dd>
-                    </div>
-                    <div>
-                      <dt>Canal preferido</dt>
-                      <dd>{preferredChannelLabels[sourceProspect.preferredChannel]}</dd>
-                    </div>
-                  </dl>
+                  <ul>
+                    <li>
+                      <UiIcon name="instagram" />
+                      <div>
+                        <span>Instagram</span>
+                        <strong>{sourceProspect.instagram || 'Sin definir'}</strong>
+                      </div>
+                    </li>
+                    <li>
+                      <UiIcon name="map-pin" />
+                      <div>
+                        <span>Dirección</span>
+                        <strong>
+                          {opportunity.address || sourceProspect.address || 'Sin definir'}
+                        </strong>
+                      </div>
+                    </li>
+                    <li>
+                      <UiIcon name="send" />
+                      <div>
+                        <span>Origen</span>
+                        <strong>{sourceProspect.source || 'Sin definir'}</strong>
+                      </div>
+                    </li>
+                    <li>
+                      <UiIcon name="document" />
+                      <div>
+                        <span>Servicio potencial</span>
+                        <strong>{sourceProspect.potentialService || 'Sin definir'}</strong>
+                      </div>
+                    </li>
+                    <li>
+                      <UiIcon
+                        name={
+                          sourceProspect.preferredChannel === 'whatsapp'
+                            ? 'whatsapp'
+                            : sourceProspect.preferredChannel === 'email'
+                              ? 'email'
+                              : sourceProspect.preferredChannel === 'instagram'
+                                ? 'instagram'
+                                : sourceProspect.preferredChannel === 'phone'
+                                  ? 'phone'
+                                  : 'help'
+                        }
+                      />
+                      <div>
+                        <span>Canal preferido</span>
+                        <strong>{preferredChannelLabels[sourceProspect.preferredChannel]}</strong>
+                      </div>
+                    </li>
+                  </ul>
                 </section>
               )}
               {copied && (
