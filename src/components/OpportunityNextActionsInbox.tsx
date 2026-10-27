@@ -15,6 +15,7 @@ interface Props {
 export interface InboxActionInput {
   actor: string;
   reason: string;
+  note?: string;
   result: string;
   dueAt: string;
   channel?: RegisterResultInput['channel'];

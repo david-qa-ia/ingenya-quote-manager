@@ -61,6 +61,7 @@ import {
   recordAutomaticActivity,
   recordCadenceActivity,
   recordNextActionActivity,
+  saveActivity,
 } from './utils/activityStorage';
 import {
   OpportunityNextActionsInbox,
@@ -900,6 +901,7 @@ function App() {
     input: InboxActionInput,
   ): Promise<RegisterResultSubmitResult> {
     const now = new Date().toISOString();
+    const manualNote = input.note?.trim() ?? '';
     const event = 'completed' as const;
     try {
       if (item.prospectId) {
@@ -1018,7 +1020,29 @@ function App() {
           updatedAt: now,
           history: [],
         };
-        if (!saveOpportunity({ ...current, nextAction, updatedAt: now })) return { ok: false };
+        const saved = commitLocalFollowUpResult(
+          [OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
+          [
+            () => saveOpportunity({ ...current, nextAction, updatedAt: now }),
+            ...(manualNote
+              ? [
+                  () =>
+                    saveActivity({
+                      id: crypto.randomUUID(),
+                      type: 'note',
+                      occurredAt: now,
+                      author: input.actor.trim(),
+                      result: 'Nota registrada',
+                      note: manualNote,
+                      subject: { kind: 'opportunity', opportunityId: current.id },
+                      source: 'manual',
+                      noteRevisions: [],
+                    }),
+                ]
+              : []),
+          ],
+        );
+        if (!saved.ok) return saved;
         setOpportunities(loadOpportunities().items);
         return { ok: true };
       }
@@ -1065,6 +1089,22 @@ function App() {
         [OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
         [
           () => saveOpportunity(persisted),
+          ...(manualNote
+            ? [
+                () =>
+                  saveActivity({
+                    id: crypto.randomUUID(),
+                    type: 'note',
+                    occurredAt: now,
+                    author: input.actor.trim(),
+                    result: 'Nota registrada',
+                    note: manualNote,
+                    subject: { kind: 'opportunity', opportunityId: current.id },
+                    source: 'manual',
+                    noteRevisions: [],
+                  }),
+              ]
+            : []),
           () =>
             recordNextActionActivity(
               current.id,
@@ -1699,6 +1739,7 @@ function App() {
         handleFollowUpAction(drawerItem, {
           actor: input.actor,
           reason: input.reason,
+          note: input.note,
           result: input.result,
           dueAt: input.dueAt,
           channel: input.channel,
