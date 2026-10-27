@@ -278,6 +278,7 @@ function App() {
     initialCatalogLoad.jobs.find((job) => job.isActive)?.id ?? '',
   );
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [isCatalogMenuOpen, setIsCatalogMenuOpen] = useState(false);
   const [catalogQuantity, setCatalogQuantity] = useState('1');
   const [catalogUnitPrice, setCatalogUnitPrice] = useState(
     String(initialCatalogLoad.jobs.find((job) => job.isActive)?.defaultPrice ?? ''),
@@ -307,7 +308,6 @@ function App() {
       .toLocaleLowerCase('es')
       .includes(catalogSearch.trim().toLocaleLowerCase('es')),
   );
-  const selectedJob = activeCatalogJobs.find((job) => job.id === selectedJobId);
   const selectedVisibleJob = visibleActiveCatalogJobs.find((job) => job.id === selectedJobId);
   const associatedClient = clientId
     ? loadClients().items.find((item) => item.id === clientId)
@@ -481,18 +481,24 @@ function App() {
 
   function handleCatalogSearchChange(value: string) {
     setCatalogSearch(value);
-    const normalized = value.trim().toLocaleLowerCase('es');
-    const firstMatch = activeCatalogJobs.find((job) =>
-      `${job.name} ${job.description ?? ''}`.toLocaleLowerCase('es').includes(normalized),
-    );
-    if (
-      firstMatch &&
-      !`${selectedJob?.name ?? ''} ${selectedJob?.description ?? ''}`
-        .toLocaleLowerCase('es')
-        .includes(normalized)
-    ) {
-      handleCatalogJobChange(firstMatch.id);
+    setIsCatalogMenuOpen(true);
+    if (selectedJobId) {
+      setSelectedJobId('');
+      setCatalogUnitPrice('');
     }
+    setCatalogError('');
+  }
+
+  function handleCatalogServiceSelection(job: CatalogJob) {
+    setCatalogSearch(job.name);
+    handleCatalogJobChange(job.id);
+    setIsCatalogMenuOpen(false);
+  }
+
+  function handleServiceEntryModeChange(mode: 'catalog' | 'manual') {
+    setServiceEntryMode(mode);
+    setCatalogError('');
+    setManualError('');
   }
 
   function handleCatalogSubmit(event: FormEvent<HTMLFormElement>) {
@@ -2624,14 +2630,14 @@ function App() {
                 <button
                   className={`button button-line ${serviceEntryMode === 'catalog' ? 'is-selected' : ''}`}
                   type="button"
-                  onClick={() => setServiceEntryMode('catalog')}
+                  onClick={() => handleServiceEntryModeChange('catalog')}
                 >
                   Catálogo
                 </button>
                 <button
                   className={`button button-line ${serviceEntryMode === 'manual' ? 'is-selected' : ''}`}
                   type="button"
-                  onClick={() => setServiceEntryMode('manual')}
+                  onClick={() => handleServiceEntryModeChange('manual')}
                 >
                   Agregar manualmente
                 </button>
@@ -2639,31 +2645,56 @@ function App() {
             </div>
             {serviceEntryMode === 'catalog' ? (
             <form onSubmit={handleCatalogSubmit}>
-            <label className="field">
-              <span>Buscar servicio activo</span>
-              <input
-                type="search"
-                value={catalogSearch}
-                onChange={(event) => handleCatalogSearchChange(event.target.value)}
-                placeholder="Nombre o descripción"
-              />
-            </label>
-
-            <label className="field catalog-quote-select">
-              <span>Servicio</span>
-              <select
-                value={selectedJobId}
-                onChange={(event) => handleCatalogJobChange(event.target.value)}
-                disabled={visibleActiveCatalogJobs.length === 0}
-              >
-                {visibleActiveCatalogJobs.length === 0 && <option value="">Sin resultados</option>}
-                {visibleActiveCatalogJobs.map((job) => (
-                  <option key={job.id} value={job.id}>
-                    {job.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <label className="field">
+                <span>Buscar servicio activo</span>
+                <div className="search-select">
+                  <input
+                    type="search"
+                    value={catalogSearch}
+                    onFocus={() => setIsCatalogMenuOpen(true)}
+                    onChange={(event) => handleCatalogSearchChange(event.target.value)}
+                    placeholder="Nombre o descripción"
+                    aria-expanded={isCatalogMenuOpen}
+                    aria-controls="catalog-service-results"
+                  />
+                  {isCatalogMenuOpen && (
+                    <div id="catalog-service-results" className="search-select-menu" role="listbox">
+                      {visibleActiveCatalogJobs.length > 0 ? (
+                        visibleActiveCatalogJobs.map((job) => (
+                          <button
+                            type="button"
+                            key={job.id}
+                            className="search-select-option"
+                            role="option"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => handleCatalogServiceSelection(job)}
+                          >
+                            <strong>{job.name}</strong>
+                            <span>
+                              {job.description || 'Sin descripción'} · {workUnitLabels[job.unit]} ·{' '}
+                              {currencyFormatter.format(job.defaultPrice)}
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="search-select-empty">
+                          <p>No encontramos un servicio activo con esos datos.</p>
+                          <button
+                            type="button"
+                            className="button button-line"
+                            onClick={() => handleServiceEntryModeChange('manual')}
+                          >
+                            Agregar manualmente
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </label>
+              <p className="commercial-note">
+                Escribí para filtrar y elegí un servicio de la lista. Podés borrar y buscar otro.
+              </p>
 
             <div className="form-grid">
               <div className="field read-only-field">
