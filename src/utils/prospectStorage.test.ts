@@ -4,6 +4,7 @@ import {
   createNewProspect,
   isProspectContactAvailable,
   loadProspects,
+  mergeRemoteProspectsWithLocal,
   saveProspect,
   saveProspectWithResult,
   PROSPECTS_STORAGE_KEY,
@@ -89,5 +90,15 @@ describe('prospect storage', () => {
       ok: false,
       reason: 'storage_write_failed',
     });
+  });
+
+  it('keeps local-only prospects visible when a remote snapshot is incomplete', () => {
+    const remoteProspect: Prospect = { ...prospect, name: 'Ana remota', version: 2 };
+    const localOnly: Prospect = { ...prospect, id: 'local-only', name: 'Camila QA' };
+
+    expect(mergeRemoteProspectsWithLocal([remoteProspect], [prospect, localOnly])).toEqual([
+      remoteProspect,
+      localOnly,
+    ]);
   });
 });
