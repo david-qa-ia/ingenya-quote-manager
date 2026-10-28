@@ -11,6 +11,7 @@ import {
   createNewProspect,
   isProspectContactAvailable,
   loadProspects,
+  mergeRemoteProspectsWithLocal,
   saveProspectWithResult,
 } from '../utils/prospectStorage';
 import {
@@ -228,9 +229,17 @@ export function ProspectingView({
           }
           return remote;
         });
-        next.forEach((prospect) => saveProspectWithResult(prospect));
-        setProspects(next);
-        onProspectsChanged?.(next);
+        const merged = mergeRemoteProspectsWithLocal(next, localProspects);
+        merged.forEach((prospect) => saveProspectWithResult(prospect));
+        setProspects(merged);
+        onProspectsChanged?.(merged);
+        const missingFromRemote = localProspects.filter(
+          (prospect) => !next.some((remote) => remote.id === prospect.id),
+        ).length;
+        if (missingFromRemote > 0)
+          setFeedback(
+            `La sincronización no devolvió ${missingFromRemote} prospecto(s) conocido(s). Se conservaron localmente y no se ocultaron.`,
+          );
       })
       .catch(() => setFeedback('No se pudieron cargar los prospectos del espacio activo.'));
   }, [workspaceContext.session?.activeWorkspaceId, onProspectsChanged]);
@@ -440,9 +449,10 @@ export function ProspectingView({
       setPreparedImport(null);
       if (isAuthConfigured() && workspaceId) {
         const remoteRows = await loadRemoteProspects(workspaceId);
-        const next = remoteRows.map((row) => mapRemoteProspect(row));
-        setProspects(next);
-        onProspectsChanged?.(next);
+        const remoteProspects = remoteRows.map((row) => mapRemoteProspect(row));
+        const merged = mergeRemoteProspectsWithLocal(remoteProspects, loadProspects().items);
+        setProspects(merged);
+        onProspectsChanged?.(merged);
       } else refresh();
       const omitted = rows.length - prepared.prospects.length;
       setFeedback(

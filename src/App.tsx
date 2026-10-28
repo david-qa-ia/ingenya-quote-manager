@@ -86,6 +86,7 @@ import {
 import {
   PROSPECT_FILTERS_STORAGE_KEY,
   PROSPECTS_STORAGE_KEY,
+  mergeRemoteProspectsWithLocal,
   saveProspectWithResult,
 } from './utils/prospectStorage';
 import {
@@ -410,8 +411,9 @@ function App() {
           }
           return { ...remote, activities: local?.activities ?? [] };
         });
-        next.forEach((prospect) => saveProspectWithResult(prospect));
-        setProspects(next);
+        const merged = mergeRemoteProspectsWithLocal(next, localProspects);
+        merged.forEach((prospect) => saveProspectWithResult(prospect));
+        setProspects(merged);
       })
       .catch(() => {
         // The local mirror remains available when the remote read is temporarily unavailable.
