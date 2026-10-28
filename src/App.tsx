@@ -266,6 +266,7 @@ function App() {
   const [directClientInput, setDirectClientInput] = useState<DirectClientInput | null>(null);
   const [directFollowUp, setDirectFollowUp] = useState<DirectQuoteFollowUpInput | undefined>();
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
+  const [shouldRefreshDocumentSnapshots, setShouldRefreshDocumentSnapshots] = useState(false);
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
   const [quoteSendTarget, setQuoteSendTarget] = useState<SavedQuote | null>(null);
@@ -483,7 +484,7 @@ function App() {
       getCurrentQuote(),
       client,
       opportunity,
-      savedQuotes.some((quote) => quote.id === quoteId),
+      savedQuotes.some((quote) => quote.id === quoteId) && !shouldRefreshDocumentSnapshots,
     );
     setClientId(next.clientId);
     setOpportunityId(next.opportunityId);
@@ -493,6 +494,7 @@ function App() {
     if (client) setDirectClientInput(null);
     if (client) setDirectFollowUp(undefined);
     if (opportunity) setIsLinkingOpen(false);
+    setShouldRefreshDocumentSnapshots(false);
   }
 
   function handleCatalogJobChange(jobId: string) {
@@ -715,6 +717,7 @@ function App() {
     setQuoteChangeRequest(undefined);
     setClientId(undefined);
     setOpportunityId(undefined);
+    setShouldRefreshDocumentSnapshots(false);
     setDirectClientInput(null);
     setDirectFollowUp(undefined);
     setIsLinkingOpen(false);
@@ -740,6 +743,7 @@ function App() {
     setQuoteLines(savedQuote.lines);
     setClientId(savedQuote.clientId);
     setOpportunityId(savedQuote.opportunityId);
+    setShouldRefreshDocumentSnapshots(false);
     setClientName(savedQuote.clientName);
     setProjectName(savedQuote.projectName);
     setQuoteVersion(savedQuote.version ?? 1);
@@ -770,6 +774,7 @@ function App() {
     setQuoteLines(savedQuote.lines);
     setClientId(savedQuote.clientId);
     setOpportunityId(savedQuote.opportunityId);
+    setShouldRefreshDocumentSnapshots(false);
     setClientName(savedQuote.clientName);
     setProjectName(savedQuote.projectName);
     setQuoteVersion(savedQuote.version ?? 1);
@@ -794,6 +799,7 @@ function App() {
     setQuoteLines(source.lines.map((line) => ({ ...line, id: crypto.randomUUID() })));
     setClientId(source.clientId);
     setOpportunityId(source.opportunityId);
+    setShouldRefreshDocumentSnapshots(false);
     setClientName(source.clientName);
     setProjectName(source.projectName);
     setQuoteVersion((source.version ?? 1) + 1);
@@ -1229,6 +1235,7 @@ function App() {
       setClientId(result.client.id);
       setClientName(result.client.name);
       setOpportunityId(result.opportunity?.id);
+      setOpportunities(loadOpportunities().items);
       setDirectClientInput(null);
       setSavedQuotes(loadSavedQuotes());
       setSaveFeedback({
@@ -1878,6 +1885,7 @@ function App() {
           openProspectId={requestedProspectId}
           onOpenProspectHandled={() => setRequestedProspectId(null)}
           onProspectsChanged={setProspects}
+          onOpportunitiesChanged={() => setOpportunities(loadOpportunities().items)}
           onDirtyChange={setProspectHasUnsavedChanges}
         />
         {resultDrawer}
@@ -2706,6 +2714,7 @@ function App() {
               onClick={() => {
                 setClientId(undefined);
                 setOpportunityId(undefined);
+                setShouldRefreshDocumentSnapshots(true);
                 setIsLinkingOpen(true);
               }}
             >

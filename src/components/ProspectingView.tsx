@@ -142,6 +142,7 @@ interface Props {
   openProspectId?: string | null;
   onOpenProspectHandled?: () => void;
   onProspectsChanged?: (prospects: Prospect[]) => void;
+  onOpportunitiesChanged?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -153,6 +154,7 @@ export function ProspectingView({
   openProspectId,
   onOpenProspectHandled,
   onProspectsChanged,
+  onOpportunitiesChanged,
   onDirtyChange,
 }: Props) {
   const workspaceContext = useWorkspace();
@@ -346,6 +348,7 @@ export function ProspectingView({
       return setFeedback(result.error);
     }
     refresh();
+    onOpportunitiesChanged?.();
     setConversionTarget(null);
     setFeedback('Oportunidad creada. Revisá el próximo paso en Seguimiento.');
   }
@@ -569,6 +572,7 @@ export function ProspectingView({
         onReload={refresh}
         feedback={feedback}
         onOpenOpportunity={onOpenOpportunity}
+        onOpportunitiesChanged={onOpportunitiesChanged}
         onDirtyChange={onDirtyChange}
       />
     );
@@ -586,6 +590,7 @@ export function ProspectingView({
           onReload={refresh}
           feedback={feedback}
           onOpenOpportunity={onOpenOpportunity}
+          onOpportunitiesChanged={onOpportunitiesChanged}
           onDirtyChange={onDirtyChange}
           onRegisterResult={() => onOpenResult(prospectToInboxItem(selected))}
         />
@@ -1379,6 +1384,7 @@ function ProspectDetail({
   feedback,
   onOpenOpportunity,
   onReload,
+  onOpportunitiesChanged,
   onDirtyChange,
   onRegisterResult,
 }: {
@@ -1390,6 +1396,7 @@ function ProspectDetail({
   feedback: string;
   onOpenOpportunity: (id: string) => void;
   onReload: () => void;
+  onOpportunitiesChanged?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onRegisterResult?: () => void;
 }) {
@@ -1450,6 +1457,7 @@ function ProspectDetail({
         return;
       }
       onReload();
+      onOpportunitiesChanged?.();
       setPendingConversion(null);
       setIsConversionOpen(false);
       setConversionFeedback(
@@ -1465,6 +1473,7 @@ function ProspectDetail({
     const result = resumeProspectConversion(pendingConversion ?? prospect);
     if (!result.ok) return setConversionFeedback(result.error);
     onReload();
+    onOpportunitiesChanged?.();
     setPendingConversion(null);
     setConversionFeedback('Oportunidad creada. Revisá su contexto y próximo paso en Seguimiento.');
   }
