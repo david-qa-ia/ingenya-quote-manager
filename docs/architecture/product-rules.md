@@ -99,10 +99,12 @@ are optional. The seller is text, initially empty; there are no users or permiss
 
 `clientName` and `projectName` remain document snapshots. Initial selection in a new quote
 copies the names. Manual association of an already saved draft preserves its existing texts;
-the user may explicitly edit those document texts while it remains a draft. Editing a client
-or opportunity never updates saved quote snapshots. Finalized quotes cannot be edited or
-associated retrospectively. The current responsible seller is resolved from the opportunity,
-not copied into the quote or PDF.
+the user may explicitly edit those document texts while it remains a draft. The explicit
+"Cambiar oportunidad" action on a saved draft is an exception: it refreshes both document
+snapshots from the newly selected client and opportunity, because the user has explicitly
+replaced the commercial context. Editing a client or opportunity never updates saved quote
+snapshots automatically. Finalized quotes cannot be edited or associated retrospectively. The
+current responsible seller is resolved from the opportunity, not copied into the quote or PDF.
 
 Commercial statuses, follow-up, messaging, backend persistence and synchronization remain
 outside this increment. `draft` and `finalized`, service lines, calculations and PDF behavior

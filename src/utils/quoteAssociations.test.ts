@@ -63,6 +63,16 @@ describe('quote associations', () => {
     expect(unlinked.opportunityId).toBeUndefined();
     expect(unlinked.clientName).toBe(quote.clientName);
   });
+  it('refreshes document snapshots when the user explicitly replaces the opportunity', () => {
+    const replaced = associateQuote(quote, client, opportunity, false);
+
+    expect(replaced).toMatchObject({
+      clientId: client.id,
+      opportunityId: opportunity.id,
+      clientName: client.name,
+      projectName: opportunity.name,
+    });
+  });
   it('allows client-only drafts and clears an opportunity when changing client', () => {
     expect(associateQuote(quote, client, undefined, false).opportunityId).toBeUndefined();
     expect(

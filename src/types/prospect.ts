@@ -19,6 +19,7 @@ export interface ProspectConversionDraft {
   clientEmail: string;
   clientPreferredChannel: ProspectChannel | '';
   address?: string;
+  origin?: string;
   opportunityId: string;
   opportunityName: string;
   serviceOfInterest: string;

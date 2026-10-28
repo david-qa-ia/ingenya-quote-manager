@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Prospect } from '../types/prospect';
-import { loadClients } from './clientStorage';
+import { loadClients, saveClient } from './clientStorage';
 import { loadActivities } from './activityStorage';
 import { loadOpportunities, OPPORTUNITIES_STORAGE_KEY } from './opportunityStorage';
 import { deriveFollowUpInbox } from './followUpInbox';
@@ -119,6 +119,30 @@ describe('prospect conversion', () => {
         occurredAt: prospect.activities[0].occurredAt,
       }),
     );
+  });
+  it('reuses a matching contact and carries the prospect source into the opportunity', () => {
+    expect(
+      saveClient({
+        id: 'existing-client',
+        name: 'Ana existente',
+        company: 'Sur existente',
+        phone: '+54 341 555 0101',
+        email: 'ana@sur.com',
+        preferredChannel: 'whatsapp',
+        contactConsent: false,
+        createdAt: '2026-10-14T00:00:00.000Z',
+        updatedAt: '2026-10-14T00:00:00.000Z',
+      }),
+    ).toBe(true);
+    const pending = createPendingProspectConversion({ ...prospect, source: 'Referido' }, input);
+
+    expect(pending.conversion?.draft.clientId).toBe('existing-client');
+    expect(resumeProspectConversion(pending).ok).toBe(true);
+    expect(loadClients().items).toHaveLength(1);
+    expect(loadOpportunities().items[0]).toMatchObject({
+      clientId: 'existing-client',
+      origin: 'Referido',
+    });
   });
   it('requires explicit retry after reload and reuses target ids without duplicates', () => {
     const pending = createPendingProspectConversion(prospect, input);

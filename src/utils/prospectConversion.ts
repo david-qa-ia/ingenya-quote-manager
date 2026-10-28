@@ -2,7 +2,7 @@ import type { Client } from '../types/client';
 import type { Activity, ActivityType } from '../types/activity';
 import type { NextActionType, Opportunity } from '../types/opportunity';
 import type { Prospect, ProspectConversionDraft } from '../types/prospect';
-import { saveClient } from './clientStorage';
+import { loadClients, saveClient } from './clientStorage';
 import { localDateTimeToIso } from './prospectFollowUp';
 import { saveOpportunity } from './opportunityStorage';
 import { saveProspectWithResult } from './prospectStorage';
@@ -55,6 +55,22 @@ export function getProspectConversionValidationError(
   return null;
 }
 
+function findReusableClient(prospect: Prospect): Client | undefined {
+  const normalizedEmail = prospect.email.trim().toLowerCase();
+  const normalizedPhone = prospect.phone.replace(/\D/g, '');
+  return loadClients().items.find((client) => {
+    const sameEmail =
+      normalizedEmail.length > 0 &&
+      normalizedEmail !== 'none' &&
+      client.email.trim().toLowerCase() === normalizedEmail;
+    const samePhone =
+      normalizedPhone.length >= 7 &&
+      normalizedPhone !== '1111111111' &&
+      client.phone.replace(/\D/g, '') === normalizedPhone;
+    return sameEmail || samePhone;
+  });
+}
+
 export function createPendingProspectConversion(
   prospect: Prospect,
   input: ProspectConversionInput,
@@ -67,14 +83,18 @@ export function createPendingProspectConversion(
   const dueAt = localDateTimeToIso(input.nextStepAt);
   if (!dueAt.ok) throw new Error(dueAt.error);
   const estimatedValue = input.estimatedValue.trim() ? Number(input.estimatedValue) : undefined;
+  const existingClient = findReusableClient(prospect);
   const draft: ProspectConversionDraft = {
-    clientId: crypto.randomUUID(),
-    clientName: prospect.name.trim(),
-    clientCompany: prospect.company.trim(),
-    clientPhone: prospect.phone.trim() || '1111111111',
-    clientEmail: prospect.email.trim() || 'none',
-    clientPreferredChannel: prospect.preferredChannel,
+    clientId: existingClient?.id ?? crypto.randomUUID(),
+    clientName: existingClient?.name ?? prospect.name.trim(),
+    clientCompany: existingClient?.company ?? prospect.company.trim(),
+    clientPhone: existingClient?.phone ?? (prospect.phone.trim() || '1111111111'),
+    clientEmail: existingClient?.email ?? (prospect.email.trim() || 'none'),
+    clientPreferredChannel:
+      existingClient?.preferredChannel ??
+      (prospect.preferredChannel === 'instagram' ? '' : prospect.preferredChannel),
     address: prospect.address?.trim() ?? '',
+    origin: prospect.source.trim(),
     opportunityId: crypto.randomUUID(),
     opportunityName: input.opportunityName.trim(),
     serviceOfInterest: input.serviceOfInterest.trim(),
@@ -112,6 +132,7 @@ function buildOpportunity(draft: ProspectConversionDraft, now: string): Opportun
     address: draft.address ?? '',
     estimatedStartDate: '',
     responsibleSeller: draft.responsible,
+    ...(draft.origin ? { origin: draft.origin } : {}),
     qualification: {
       serviceOfInterest: draft.serviceOfInterest,
       interestLevel: draft.interestLevel,
@@ -244,7 +265,8 @@ export function resumeProspectConversion(
   if (prospect.conversion?.state !== 'pending')
     return { ok: false, error: 'No hay una conversión pendiente para reintentar.' };
   const { draft } = prospect.conversion;
-  if (!saveClient(buildClient(draft, now)))
+  const existingClient = loadClients().items.find((client) => client.id === draft.clientId);
+  if (!existingClient && !saveClient(buildClient(draft, now)))
     return {
       ok: false,
       error: 'No se pudo guardar el cliente. La conversión quedó pendiente para reintentar.',
