@@ -8,6 +8,12 @@ Ingenya Quote Manager helps Daniel create clear construction service quotes for 
 
 The first version focuses on charging labor/services, not managing workers.
 
+> **Current scope (2026-10-29, SCRUM-108).** The product now also covers prospecting,
+> clients and opportunities, follow-up, cadences, registered quote sends, commercial outcomes,
+> metrics and workspaces backed by Supabase. `AGENTS.md` lists the current boundaries. Sections
+> below that say a capability is "outside this increment" describe the scope of that specific
+> ticket at the time; they are kept as history and do not forbid features delivered later.
+
 ## Meaning Of Labor
 
 In this project, "labor" means a service item charged to the final client.
@@ -107,7 +113,8 @@ snapshots automatically. Finalized quotes cannot be edited or associated retrosp
 current responsible seller is resolved from the opportunity, not copied into the quote or PDF.
 
 Commercial statuses, follow-up, messaging, backend persistence and synchronization remain
-outside this increment. `draft` and `finalized`, service lines, calculations and PDF behavior
+outside this increment. _(Historical, SCRUM-46. Later delivered by SCRUM-47 and later tickets,
+SCRUM-79/80 for Supabase persistence and workspaces. Automatic messaging is still out of scope.)_ `draft` and `finalized`, service lines, calculations and PDF behavior
 are unchanged.
 
 ## Commercial Statuses (SCRUM-47)
@@ -119,4 +126,6 @@ contact destinations.
 
 Finalized documents remain immutable. Later commercial changes may update only commercial
 metadata through the approved storage operation. Contact history, next actions, reminders,
-cadences, metrics and AI remain outside this increment.
+cadences, metrics and AI remain outside this increment. _(Historical, SCRUM-47. Contact history,
+next actions, cadences and metrics were delivered later, for example SCRUM-48, SCRUM-53 and
+SCRUM-54. AI remains out of scope.)_

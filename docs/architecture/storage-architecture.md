@@ -1,12 +1,20 @@
 # Storage Architecture
 
-This document defines how Ingenya Quote Manager stores quote data in the browser.
+This document defines how Ingenya Quote Manager stores data in the browser.
 
 ## Storage Scope
 
-The app currently uses browser localStorage as temporary frontend-only persistence.
+> **Updated 2026-10-29 (SCRUM-108).** Supabase is the source of truth when it is configured
+> (`VITE_SUPABASE_URL` and the anon key): Auth, RLS, transactional RPCs and the migrations in
+> `supabase/migrations`, as defined in [`persistence-architecture.md`](./persistence-architecture.md).
+> localStorage keeps a local mirror namespaced by workspace (`<workspaceId>::<key>`), used for
+> fast reads and as a fallback when Supabase is temporarily unavailable. Without Supabase
+> variables the app runs in local-only mode, where localStorage is the only storage.
 
-This is not a backend, database, login system, user system, or multi-device sync mechanism.
+Historical (MVP): the app originally used browser localStorage as temporary frontend-only
+persistence, without a backend, database, login system, user system or multi-device sync.
+The rules below about validating and never silently overwriting stored data still apply to the
+local mirror.
 
 ## Storage Keys
 
@@ -103,18 +111,18 @@ Opening a saved quote loads it into the editor.
 
 ## Current Limitations
 
-The app does not support:
+Updated 2026-10-29 (SCRUM-108). Backend persistence, database storage, user accounts (Supabase
+Auth), multi-device access through Supabase, quote history and quote versioning were delivered by
+later tickets and are no longer limitations.
 
-- Backend persistence.
-- Database storage.
-- User accounts.
-- Multi-device sync.
-- Quote history.
-- Quote versioning.
-- WhatsApp/email delivery.
+The app still does not support:
+
+- Sending WhatsApp or email messages by itself; sends are registered after the user shares the
+  quote.
 - Deleting saved quotes.
-- Duplicating saved quotes.
-- Advanced search or filters beyond the local status filters approved by SCRUM-38.
+- Duplicating saved quotes outside the versioning flow.
+- Loading clients, opportunities and quotes from Supabase on a new browser; today only prospects
+  are reloaded from Supabase, the rest is read from the local mirror.
 
 Each of these requires its own Jira ticket.
 

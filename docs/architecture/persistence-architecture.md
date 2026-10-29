@@ -14,7 +14,9 @@ verdad: PostgreSQL, Auth, Row Level Security, Storage privado y migraciones vers
   matriz futura de permisos.
 - El frontend no conoce ni usa una clave administrativa.
 - La identidad es única; las empresas se representan como membresías en espacios.
-- El login inicial es por enlace mágico al email.
+- El login es con email y contraseña (Supabase Auth, `grant_type=password`), con refresco de
+  sesión. _(Actualizado 2026-10-29, SCRUM-108: el contrato inicial preveía enlace mágico al
+  email; la implementación vigente usa contraseña.)_
 
 ## Modelo relacional
 
