@@ -76,7 +76,7 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
           })),
           // Converted prospects are measured through their client and opportunity.
           ...prospects
-            .filter((item) => item.conversion?.state !== 'completed')
+            .filter((item) => item.conversion?.state !== 'completed' && !item.archivedAt)
             .map((item) => ({
               id: `${PROSPECT_FILTER_PREFIX}${item.id}`,
               name: `${item.name} · Prospecto`,

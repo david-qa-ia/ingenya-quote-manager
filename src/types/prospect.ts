@@ -81,6 +81,8 @@ export interface Prospect {
   updatedAt: string;
   /** Optimistic concurrency token supplied by the backend. */
   version?: number;
+  /** Set while the prospect is archived (SCRUM-111); archived prospects are read-only. */
+  archivedAt?: string;
 }
 
 export type ProspectInput = Omit<Prospect, 'id' | 'activities' | 'createdAt' | 'updatedAt'>;

@@ -7,6 +7,7 @@ import {
   mapRemoteProspect,
   registerRemoteProspectResult,
   registerRemoteQuoteSend,
+  setRemoteProspectArchived,
   toSupabaseProspectChannel,
   updateRemoteProspectProfile,
 } from './supabaseRepository';
@@ -471,5 +472,92 @@ describe('remote prospect history and profile', () => {
     expect(profile.p_payload.preferredChannel).toBe('call');
     expect(creation.p_payload.preferredChannel).toBe('call');
     expect(imported.p_prospects[0].preferredChannel).toBe('call');
+  });
+});
+
+describe('remote prospect archive (SCRUM-111)', () => {
+  const workspaceId = '5d6c1a4e-5f7a-4b94-b9f7-6c6b2c7a61c3';
+  const prospect = mapRemoteProspect({
+    id: '9a4e167e-8f7b-4a6d-b87c-6a671d9b7612',
+    workspace_id: workspaceId,
+    name: 'QA-P06 Archivo',
+    company: '',
+    phone: '3415550106',
+    email: '',
+    instagram: null,
+    address: null,
+    source: 'Referido',
+    potential_service: '',
+    notes: '',
+    status: 'notInterested',
+    priority: 'low',
+    priority_reason: '',
+    next_action: '',
+    next_action_at: null,
+    responsible: 'QA Tester',
+    preferred_channel: 'call',
+    archived_at: '2026-10-29T12:00:00.000Z',
+    version: 2,
+    created_at: '2026-10-28T13:00:00.000Z',
+    updated_at: '2026-10-29T12:00:00.000Z',
+  });
+
+  it('maps archived_at into a valid local mirror record', () => {
+    expect(prospect.archivedAt).toBe('2026-10-29T12:00:00.000Z');
+    expect(isProspect(prospect)).toBe(true);
+  });
+
+  it('sends the archive with version, reason and an idempotency key', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ code: 'OK', version: 3, archivedAt: '2026-10-29T13:00:00.000Z' }),
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      setRemoteProspectArchived({
+        workspaceId,
+        prospect,
+        archived: true,
+        reason: 'Duplicado',
+        author: 'qa@example.test',
+      }),
+    ).resolves.toEqual({ ok: true, version: 3, archivedAt: '2026-10-29T13:00:00.000Z' });
+    const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/rest/v1/rpc/set_prospect_archived');
+    expect(JSON.parse(request.body as string)).toMatchObject({
+      p_prospect_id: prospect.id,
+      p_expected_version: 2,
+      p_archived: true,
+      p_reason: 'Duplicado',
+      p_idempotency_key: `archive-prospect:${prospect.id}:2`,
+    });
+  });
+
+  it('reports a conflict and a missing prospect without throwing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ code: 'CONFLICT', version: 5 }), { status: 200 }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ code: 'NOT_FOUND' }), { status: 200 }),
+        ),
+    );
+    const input = { workspaceId, prospect, archived: false, reason: '', author: '' };
+    await expect(setRemoteProspectArchived(input)).resolves.toMatchObject({
+      ok: false,
+      reason: 'conflict',
+      version: 5,
+    });
+    await expect(setRemoteProspectArchived(input)).resolves.toMatchObject({
+      ok: false,
+      reason: 'notFound',
+    });
   });
 });

@@ -326,6 +326,7 @@ export interface SupabaseProspectRow {
   responsible: string;
   preferred_channel: SupabaseProspectChannel | null;
   conversion?: SupabaseProspectConversion | null;
+  archived_at?: string | null;
   version: number;
   created_at: string;
   updated_at: string;
@@ -409,6 +410,7 @@ export function mapRemoteProspect(
     responsible: row.responsible,
     preferredChannel: fromSupabaseProspectChannel(row.preferred_channel),
     ...(conversion ? { conversion } : {}),
+    ...(row.archived_at ? { archivedAt: row.archived_at } : {}),
     activities,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -420,7 +422,7 @@ export async function loadRemoteProspects(workspaceId: string): Promise<Supabase
   const query = new URLSearchParams({
     select: '*',
     workspace_id: `eq.${workspaceId}`,
-    archived_at: 'is.null',
+    // Archived prospects are loaded too, for the "Archivados" view (SCRUM-111).
     order: 'updated_at.desc',
   });
   return request<SupabaseProspectRow[]>(`/rest/v1/prospects?${query.toString()}`);
@@ -528,6 +530,64 @@ export async function updateRemoteProspectProfile(input: {
   if (result.code !== 'OK' || !Number.isInteger(result.version))
     throw new SupabaseRepositoryError('server', 'Supabase no confirmó los datos del prospecto.');
   return { ok: true, version: result.version as number, idempotent: Boolean(result.idempotent) };
+}
+
+export type RemoteProspectArchiveResult =
+  | { ok: true; version: number; archivedAt?: string }
+  | { ok: false; reason: 'conflict' | 'notFound'; message: string; version?: number };
+
+/** Archives or restores a prospect (SCRUM-111); the RPC also writes the history entry. */
+export async function setRemoteProspectArchived(input: {
+  workspaceId: string;
+  prospect: Prospect;
+  archived: boolean;
+  reason: string;
+  author: string;
+}): Promise<RemoteProspectArchiveResult> {
+  const { workspaceId, prospect, archived, reason, author } = input;
+  const version = prospect.version ?? 1;
+  const result = await request<{
+    code?: string;
+    version?: number;
+    archivedAt?: string | null;
+  }>('/rest/v1/rpc/set_prospect_archived', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_workspace_id: workspaceId,
+      p_prospect_id: prospect.id,
+      p_expected_version: version,
+      p_archived: archived,
+      p_reason: reason,
+      p_author: author,
+      p_idempotency_key: `${archived ? 'archive' : 'restore'}-prospect:${prospect.id}:${version}`,
+      p_request_id: crypto.randomUUID(),
+    }),
+  });
+  if (result.code === 'CONFLICT')
+    return {
+      ok: false,
+      reason: 'conflict',
+      version: result.version,
+      message: 'El prospecto cambió en otro lugar. Recargá y volvé a intentar.',
+    };
+  if (result.code === 'NOT_FOUND')
+    return {
+      ok: false,
+      reason: 'notFound',
+      message: archived
+        ? 'El prospecto ya estaba archivado o no existe. Recargá la lista.'
+        : 'El prospecto ya estaba activo o no existe. Recargá la lista.',
+    };
+  if (result.code !== 'OK' || !Number.isInteger(result.version))
+    throw new SupabaseRepositoryError(
+      'server',
+      archived ? 'Supabase no confirmó el archivado.' : 'Supabase no confirmó la restauración.',
+    );
+  return {
+    ok: true,
+    version: result.version as number,
+    ...(result.archivedAt ? { archivedAt: result.archivedAt } : {}),
+  };
 }
 
 export async function createRemoteProspect(workspaceId: string, prospect: Prospect): Promise<void> {

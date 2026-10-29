@@ -7,7 +7,7 @@ import type {
 } from '../types/commercialMetrics';
 import { businessTimeZone } from './opportunityNextAction';
 import type { Prospect } from '../types/prospect';
-import { PROFILE_CHANGE_PREFIX } from './prospectWorkflow';
+import { isProspectSystemNote } from './prospectWorkflow';
 
 /** Prefix used in the client filter to select a prospect instead of a client. */
 export const PROSPECT_FILTER_PREFIX = 'prospect:';
@@ -94,10 +94,7 @@ function getProspectMetricEvents(
             actor: author,
             type,
           });
-      } else if (
-        activity.type === 'note' &&
-        !activity.description.startsWith(PROFILE_CHANGE_PREFIX)
-      ) {
+      } else if (activity.type === 'note' && !isProspectSystemNote(activity.description)) {
         events.push({
           type: 'note',
           occurredAt: activity.occurredAt,

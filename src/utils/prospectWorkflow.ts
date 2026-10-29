@@ -61,6 +61,69 @@ export interface ProspectActivityDisplay {
 
 /** Prefix used by profile edit entries; stored as a regular note so older clients can read it. */
 export const PROFILE_CHANGE_PREFIX = 'Datos actualizados:';
+/** History entries written when a prospect is archived or restored (SCRUM-111). */
+export const ARCHIVE_PREFIX = 'Archivado:';
+export const RESTORE_DESCRIPTION = 'Restaurado desde archivados.';
+
+/** Notes the app writes by itself (profile edits, archive); they are traceability, not contacts. */
+export function isProspectSystemNote(description: string): boolean {
+  return (
+    description.startsWith(PROFILE_CHANGE_PREFIX) ||
+    description.startsWith(ARCHIVE_PREFIX) ||
+    description === RESTORE_DESCRIPTION
+  );
+}
+
+export const prospectArchiveReasons = [
+  'No interesado',
+  'Duplicado',
+  'Datos incorrectos',
+  'Ya es cliente',
+  'Otro',
+] as const;
+
+export function isProspectArchived(prospect: Pick<Prospect, 'archivedAt'>): boolean {
+  return Boolean(prospect.archivedAt);
+}
+
+/** Prospects the bulk cleanup archives: converted or not interested, and still active. */
+export function getBulkArchiveCandidates(prospects: readonly Prospect[]): Prospect[] {
+  return prospects.filter(
+    (item) =>
+      !isProspectArchived(item) && (item.status === 'converted' || item.status === 'notInterested'),
+  );
+}
+
+/** Applies an archive or restore to the local copy, with its history entry (SCRUM-111). */
+export function withProspectArchived(
+  prospect: Prospect,
+  input: { archived: boolean; reason?: string; author?: string; at?: string; version?: number },
+): Prospect {
+  const at = input.at ?? new Date().toISOString();
+  const description = input.archived
+    ? `${ARCHIVE_PREFIX} ${input.reason?.trim() || 'Sin motivo'}.`
+    : RESTORE_DESCRIPTION;
+  const { archivedAt: _previous, ...rest } = prospect;
+  void _previous;
+  return {
+    ...rest,
+    ...(input.archived ? { archivedAt: at } : {}),
+    ...(input.version !== undefined ? { version: input.version } : {}),
+    updatedAt: at,
+    activities: [
+      ...prospect.activities,
+      {
+        id: crypto.randomUUID(),
+        prospectId: prospect.id,
+        occurredAt: at,
+        createdAt: at,
+        type: 'note',
+        description,
+        ...(input.author?.trim() ? { author: input.author.trim() } : {}),
+      },
+    ],
+  };
+}
 
 /**
  * Builds the history entry from the structured activity fields so channel, result, note and
@@ -75,6 +138,8 @@ export function getProspectActivityDisplay(activity: ProspectActivity): Prospect
       : activity.description;
   const display: ProspectActivityDisplay = { title };
   if (activity.description.startsWith(PROFILE_CHANGE_PREFIX)) display.kindLabel = 'Cambio de datos';
+  if (activity.description.startsWith(ARCHIVE_PREFIX)) display.kindLabel = 'Archivado';
+  if (activity.description === RESTORE_DESCRIPTION) display.kindLabel = 'Restaurado';
   const note = activity.note?.trim();
   if (note && note !== title && !internalResultCodes.has(note)) display.note = note;
   if (activity.followUpAt) {
@@ -192,12 +257,16 @@ export function isDuplicateProspect(
         nameCompany === `${normalizeIdentity(item.company)}|${normalizeIdentity(item.name)}`),
   );
 }
+export type ProspectListView = 'active' | 'archived';
+
 export function filterProspects(
   prospects: readonly Prospect[],
   filters: ProspectFilters,
+  view: ProspectListView = 'active',
 ): Prospect[] {
   return prospects.filter(
     (item) =>
+      isProspectArchived(item) === (view === 'archived') &&
       (filters.status === 'all' || item.status === filters.status) &&
       (filters.priority === 'all' || item.priority === filters.priority) &&
       (filters.channel === 'all' || item.preferredChannel === filters.channel) &&
