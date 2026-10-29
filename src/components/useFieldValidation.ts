@@ -4,7 +4,8 @@ type FieldElement = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
 /**
  * Shared behavior for field-level validation (SCRUM-107):
- * - an error is shown once the user leaves the field or tries to save, never before;
+ * - an error is shown once the user leaves the field (to another field) or tries to save,
+ *   never before;
  * - errors are derived from the current values, so a message disappears as soon as the
  *   value is corrected;
  * - a failed save attempt moves the focus to the first invalid field.
@@ -28,7 +29,12 @@ export function useFieldValidation<F extends string>(
       ref: (element: FieldElement | null) => {
         elements.current[field] = element;
       },
-      onBlur: () => setTouched((current) => ({ ...current, [field]: true })),
+      onBlur: (event: { relatedTarget: EventTarget | null }) => {
+        // Moving to a button (save, cancel) must not shift the layout under the pointer:
+        // saving shows every error anyway, and cancelling does not need one.
+        if (event.relatedTarget instanceof HTMLButtonElement) return;
+        setTouched((current) => ({ ...current, [field]: true }));
+      },
       'aria-invalid': message ? true : undefined,
       'aria-describedby': message ? errorId(field) : undefined,
     };
