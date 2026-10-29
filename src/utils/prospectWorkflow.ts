@@ -175,10 +175,9 @@ export function registerProspectAction(prospect: Prospect, input: ProspectAction
     if (!normalizedFollowUp.ok) throw new Error(normalizedFollowUp.error);
     followUpAt = normalizedFollowUp.value;
   }
-  const status =
-    followUpAt && ['uncontacted', 'contactToday'].includes(prospect.status)
-      ? prospect.status
-      : contactStatus;
+  // The status describes what happened in this contact; the next step is tracked separately.
+  // Only an explicit reschedule (no contact happened) keeps the current status.
+  const status = input.result === 'reschedule' ? prospect.status : contactStatus;
   return {
     ...prospect,
     status,
