@@ -60,6 +60,7 @@ import {
   getProspectConversionValidationError,
   resumeProspectConversion,
   startProspectConversion,
+  withRemoteConversionIds,
   type ProspectConversionInput,
 } from '../utils/prospectConversion';
 import { isAuthConfigured, loadAuthSession } from '../utils/authService';
@@ -1408,7 +1409,7 @@ function ProspectDetail({
   }
   async function beginConversion(input: ProspectConversionInput) {
     try {
-      const pending = createPendingProspectConversion(prospect, input);
+      let pending = createPendingProspectConversion(prospect, input);
       const workspaceId = workspaceContext.session?.activeWorkspaceId;
       if (isAuthConfigured()) {
         if (!isWorkspaceUuid(workspaceId)) {
@@ -1427,7 +1428,7 @@ function ProspectDetail({
           setConversionFeedback(remote.message);
           return;
         }
-        pending.version = remote.version;
+        pending = { ...withRemoteConversionIds(pending, remote), version: remote.version };
       }
       setPendingConversion(pending);
       const pendingSave = saveProspectWithResult(pending);

@@ -9,6 +9,7 @@ import {
   createPendingProspectConversion,
   getProspectConversionValidationError,
   resumeProspectConversion,
+  withRemoteConversionIds,
 } from './prospectConversion';
 import { loadProspects, PROSPECTS_STORAGE_KEY, saveProspectWithResult } from './prospectStorage';
 import { localDateTimeToIso } from './prospectFollowUp';
@@ -143,6 +144,31 @@ describe('prospect conversion', () => {
       clientId: 'existing-client',
       origin: 'Referido',
     });
+  });
+  it('creates the local client and opportunity with the ids Supabase assigned', () => {
+    const remote = {
+      opportunityId: '9a4e167e-8f7b-4a6d-b87c-6a671d9b7613',
+      contactId: '0b8f3f3e-2f8a-4d5c-9e1a-3c2b1a0f9e8d',
+    };
+    const pending = withRemoteConversionIds(
+      createPendingProspectConversion(prospect, input),
+      remote,
+    );
+    expect(saveProspectWithResult(pending).ok).toBe(true);
+    const result = resumeProspectConversion(pending);
+    expect(result.ok).toBe(true);
+    expect(loadOpportunities().items.map((item) => item.id)).toEqual([remote.opportunityId]);
+    expect(loadOpportunities().items[0].clientId).toBe(remote.contactId);
+    expect(loadClients().items.map((item) => item.id)).toEqual([remote.contactId]);
+    expect(loadProspects().items[0].conversion?.draft.opportunityId).toBe(remote.opportunityId);
+  });
+  it('keeps the local client id when Supabase does not return a contact id', () => {
+    const pending = createPendingProspectConversion(prospect, input);
+    const aligned = withRemoteConversionIds(pending, {
+      opportunityId: '9a4e167e-8f7b-4a6d-b87c-6a671d9b7613',
+    });
+    expect(aligned.conversion?.draft.clientId).toBe(pending.conversion?.draft.clientId);
+    expect(aligned.conversion?.draft.opportunityId).toBe('9a4e167e-8f7b-4a6d-b87c-6a671d9b7613');
   });
   it('requires explicit retry after reload and reuses target ids without duplicates', () => {
     const pending = createPendingProspectConversion(prospect, input);

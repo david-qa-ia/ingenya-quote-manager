@@ -2003,7 +2003,8 @@ function App() {
         ) : (
           <main className="app-shell">
             <p className="commercial-warning" role="alert">
-              No se encontró la oportunidad solicitada.
+              No encontramos esta oportunidad en este navegador. Si se creó en otro navegador o
+              dispositivo, revisala desde Seguimiento en el equipo donde se creó.
             </p>
             <button
               className="button button-line"

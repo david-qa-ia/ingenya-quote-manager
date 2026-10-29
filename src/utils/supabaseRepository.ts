@@ -194,7 +194,7 @@ export async function registerRemoteProspectResult(input: {
 }
 
 export type RemoteProspectConversionResult =
-  | { ok: true; idempotent: boolean; version: number; opportunityId: string }
+  | { ok: true; idempotent: boolean; version: number; opportunityId: string; contactId?: string }
   | { ok: false; reason: 'conflict'; message: string; version?: number };
 
 export async function convertRemoteProspectToOpportunity(input: {
@@ -207,6 +207,7 @@ export async function convertRemoteProspectToOpportunity(input: {
     code?: string;
     version?: number;
     opportunityId?: string;
+    contactId?: string;
     idempotent?: boolean;
     currentVersion?: number;
   }>('/rest/v1/rpc/convert_prospect_to_opportunity', {
@@ -238,6 +239,7 @@ export async function convertRemoteProspectToOpportunity(input: {
     idempotent: Boolean(result.idempotent),
     version: result.version as number,
     opportunityId: result.opportunityId,
+    ...(result.contactId ? { contactId: result.contactId } : {}),
   };
 }
 

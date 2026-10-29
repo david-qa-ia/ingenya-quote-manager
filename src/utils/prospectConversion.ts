@@ -109,6 +109,28 @@ export function createPendingProspectConversion(
   return { ...prospect, conversion: { state: 'pending', startedAt: now, draft }, updatedAt: now };
 }
 
+/**
+ * Uses the ids Supabase assigned during the remote conversion, so the local client and
+ * opportunity match the prospect's remote conversion once the prospect is reloaded.
+ */
+export function withRemoteConversionIds(
+  prospect: Prospect,
+  remote: { opportunityId: string; contactId?: string },
+): Prospect {
+  if (prospect.conversion?.state !== 'pending') return prospect;
+  return {
+    ...prospect,
+    conversion: {
+      ...prospect.conversion,
+      draft: {
+        ...prospect.conversion.draft,
+        opportunityId: remote.opportunityId,
+        ...(remote.contactId ? { clientId: remote.contactId } : {}),
+      },
+    },
+  };
+}
+
 function buildClient(draft: ProspectConversionDraft, now: string): Client {
   return {
     id: draft.clientId,
