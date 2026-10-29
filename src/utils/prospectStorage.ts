@@ -179,19 +179,6 @@ export function isProspect(value: unknown): value is Prospect {
 
 export const loadProspects = () => loadCollection(PROSPECTS_STORAGE_KEY, isProspect);
 
-/**
- * A remote list is a synchronization snapshot, not a deletion instruction.
- * Prospect deletion is not a supported product action, so records omitted by
- * an incomplete remote response remain visible from the local mirror.
- */
-export function mergeRemoteProspectsWithLocal(
-  remoteProspects: Prospect[],
-  localProspects: Prospect[],
-): Prospect[] {
-  const remoteIds = new Set(remoteProspects.map((prospect) => prospect.id));
-  return [...remoteProspects, ...localProspects.filter((prospect) => !remoteIds.has(prospect.id))];
-}
-
 export type SaveResult =
   | { ok: true }
   | {
