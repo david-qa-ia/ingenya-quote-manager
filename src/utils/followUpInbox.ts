@@ -203,7 +203,11 @@ export function deriveFollowUpInbox(
     items.push({ ...base, priority: calculateFollowUpPriority(base, null, now) });
   }
   for (const prospect of prospects) {
-    if (!prospect.nextActionAt || ['converted', 'notInterested'].includes(prospect.status))
+    if (
+      !prospect.nextActionAt ||
+      prospect.archivedAt ||
+      ['converted', 'notInterested'].includes(prospect.status)
+    )
       continue;
     const dueAt = prospect.nextActionAt;
     const actionDay = localDay(new Date(dueAt));

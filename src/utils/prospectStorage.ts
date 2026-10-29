@@ -166,6 +166,7 @@ export function isProspect(value: unknown): value is Prospect {
     !!item.id &&
     getProspectValidationError(input) === null &&
     (item.conversion === undefined || isConversion(item.conversion)) &&
+    (item.archivedAt === undefined || iso(item.archivedAt)) &&
     (item.status !== 'converted' ||
       (isConversion(item.conversion) && item.conversion.state === 'completed')) &&
     item.activities.every((activity) => {

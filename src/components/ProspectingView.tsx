@@ -24,6 +24,7 @@ import {
   loadProspects,
   saveProspectWithResult,
 } from '../utils/prospectStorage';
+import { ArchiveProspectDialog } from './ArchiveProspectDialog';
 import { FieldError } from './FieldError';
 import { useFieldValidation } from './useFieldValidation';
 import {
@@ -45,7 +46,11 @@ import {
 import { isoToLocalDateTime } from '../utils/prospectFollowUp';
 import {
   filterProspects,
+  getBulkArchiveCandidates,
   getProspectActivityDisplay,
+  isProspectArchived,
+  withProspectArchived,
+  type ProspectListView,
   withProspectProfileChangeActivity,
   createProspectInstagramUrl,
   createProspectWhatsAppUrl,
@@ -73,6 +78,7 @@ import { getActiveWorkspaceId, isWorkspaceUuid } from '../utils/workspaceStorage
 import {
   createRemoteProspect,
   convertRemoteProspectToOpportunity,
+  setRemoteProspectArchived,
   importRemoteProspects,
   updateRemoteProspectProfile,
   loadRemoteProspectActivities,
@@ -100,6 +106,7 @@ const activityTypeLabels = {
 } as const;
 type DueGroup = 'overdue' | 'today' | 'upcoming';
 type FeedbackTone = 'status' | 'error';
+type ArchiveActionResult = { ok: true } | { ok: false; error: string };
 
 /** Prospect fields edited in the form; other validation errors are shown as a general message. */
 const prospectFormFields = ['name', 'phone', 'email'] as const;
@@ -193,7 +200,15 @@ export function ProspectingView({
   const csvInputRef = useRef<HTMLInputElement>(null);
   const importSubmissionRef = useRef(false);
   const selected = prospects.find((item) => item.id === (selectedId ?? openProspectId));
-  const visible = useMemo(() => filterProspects(prospects, filters), [prospects, filters]);
+  const [listView, setListView] = useState<ProspectListView>('active');
+  const [isBulkArchiveOpen, setIsBulkArchiveOpen] = useState(false);
+  const [isBulkArchiving, setIsBulkArchiving] = useState(false);
+  const visible = useMemo(
+    () => filterProspects(prospects, filters, listView),
+    [prospects, filters, listView],
+  );
+  const archivedCount = useMemo(() => prospects.filter(isProspectArchived).length, [prospects]);
+  const bulkArchiveCandidates = useMemo(() => getBulkArchiveCandidates(prospects), [prospects]);
   const csvPreview = useMemo(() => analyzeProspectCsv(csv, prospects), [csv, prospects]);
   const rows = csvPreview.rows;
   const validRows = rows.filter((row) => !row.reason && !row.duplicate);
@@ -365,6 +380,96 @@ export function ProspectingView({
     onOpportunitiesChanged?.();
     setConversionTarget(null);
     setFeedback('Oportunidad creada. Revisá el próximo paso en Seguimiento.');
+  }
+  /**
+   * Archives or restores one prospect (SCRUM-111). With Supabase the RPC writes the history
+   * entry; the local copy is updated right away and the list is reloaded.
+   */
+  async function setArchived(
+    prospect: Prospect,
+    archived: boolean,
+    reason = '',
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
+    const author = loadAuthSession()?.email ?? '';
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    let next: Prospect;
+    if (isAuthConfigured()) {
+      if (!isWorkspaceUuid(workspaceId))
+        return {
+          ok: false,
+          error:
+            'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
+        };
+      try {
+        const remote = await setRemoteProspectArchived({
+          workspaceId,
+          prospect,
+          archived,
+          reason,
+          author,
+        });
+        if (!remote.ok) return { ok: false, error: remote.message };
+        next = withProspectArchived(prospect, {
+          archived,
+          reason,
+          author,
+          version: remote.version,
+          ...(remote.archivedAt ? { at: remote.archivedAt } : {}),
+        });
+      } catch (error) {
+        return {
+          ok: false,
+          error:
+            error instanceof Error
+              ? `No se pudo guardar en Supabase: ${error.message}`
+              : 'No se pudo guardar en Supabase.',
+        };
+      }
+    } else {
+      next = withProspectArchived(prospect, { archived, reason, author });
+    }
+    const saved = saveProspectWithResult(next);
+    if (!saved.ok) return { ok: false, error: getProspectSaveErrorMessage(saved) };
+    setProspects((current) => current.map((item) => (item.id === next.id ? next : item)));
+    return { ok: true };
+  }
+  async function archiveFromDetail(prospect: Prospect, reason: string) {
+    const result = await setArchived(prospect, true, reason);
+    if (!result.ok) return result;
+    setSelectedId(null);
+    onOpenProspectHandled?.();
+    setFeedback(`${prospect.name} quedó archivado. Lo encontrás en Archivados.`);
+    await refresh();
+    return result;
+  }
+  async function restoreFromDetail(prospect: Prospect) {
+    const result = await setArchived(prospect, false);
+    if (!result.ok) return result;
+    setFeedback(`${prospect.name} volvió a Prospectos activos.`);
+    await refresh();
+    return result;
+  }
+  async function archiveInBulk() {
+    setIsBulkArchiving(true);
+    const failed: string[] = [];
+    for (const prospect of bulkArchiveCandidates) {
+      const result = await setArchived(
+        prospect,
+        true,
+        prospect.status === 'converted' ? 'Ya es cliente' : 'No interesado',
+      );
+      if (!result.ok) failed.push(prospect.name);
+    }
+    const archived = bulkArchiveCandidates.length - failed.length;
+    setIsBulkArchiving(false);
+    setIsBulkArchiveOpen(false);
+    setFeedback(
+      failed.length
+        ? `Se archivaron ${archived} de ${bulkArchiveCandidates.length} prospectos. No se pudieron archivar: ${failed.slice(0, 3).join(', ')}${failed.length > 3 ? '…' : ''}.`
+        : `Se archivaron ${archived} prospecto(s) convertidos o no interesados.`,
+      failed.length ? 'error' : 'status',
+    );
+    await refresh();
   }
   function buildImportConfig(): FirstContactImportConfig | null {
     if (!scheduleFirstContact)
@@ -596,6 +701,8 @@ export function ProspectingView({
             onOpenProspectHandled?.();
           }}
           onSave={save}
+          onArchive={archiveFromDetail}
+          onRestore={restoreFromDetail}
           onReload={refresh}
           feedback={feedback}
           feedbackTone={feedbackState.tone}
@@ -891,9 +998,42 @@ export function ProspectingView({
         <div className="quote-heading">
           <div>
             <p className="eyebrow">Administración</p>
-            <h2>Todos los prospectos</h2>
+            <h2>{listView === 'archived' ? 'Prospectos archivados' : 'Todos los prospectos'}</h2>
           </div>
           <span className="line-count">{visible.length}</span>
+        </div>
+        <div className="prospect-list-toolbar">
+          <div
+            className="service-entry-toggle prospect-view-toggle"
+            role="group"
+            aria-label="Prospectos activos o archivados"
+          >
+            <button
+              className={`button button-line ${listView === 'active' ? 'is-selected' : ''}`}
+              type="button"
+              aria-pressed={listView === 'active'}
+              onClick={() => setListView('active')}
+            >
+              Activos
+            </button>
+            <button
+              className={`button button-line ${listView === 'archived' ? 'is-selected' : ''}`}
+              type="button"
+              aria-pressed={listView === 'archived'}
+              onClick={() => setListView('archived')}
+            >
+              Archivados ({archivedCount})
+            </button>
+          </div>
+          {listView === 'active' && bulkArchiveCandidates.length > 0 && (
+            <button
+              className="button button-line"
+              type="button"
+              onClick={() => setIsBulkArchiveOpen(true)}
+            >
+              Archivar convertidos y no interesados ({bulkArchiveCandidates.length})
+            </button>
+          )}
         </div>
         <div className="prospect-filters">
           <label className="field">
@@ -977,8 +1117,17 @@ export function ProspectingView({
           </div>
         ) : (
           <div className="empty-state">
-            <h3>No hay prospectos con estos filtros</h3>
-            <p>Importá una lista o creá un prospecto para comenzar.</p>
+            {listView === 'archived' ? (
+              <>
+                <h3>No hay prospectos archivados con estos filtros</h3>
+                <p>Los prospectos que archives van a aparecer acá, con su historial.</p>
+              </>
+            ) : (
+              <>
+                <h3>No hay prospectos con estos filtros</h3>
+                <p>Importá una lista o creá un prospecto para comenzar.</p>
+              </>
+            )}
           </div>
         )}
       </section>
@@ -988,6 +1137,42 @@ export function ProspectingView({
           onClose={() => setConversionTarget(null)}
           onSave={convertFromPanel}
         />
+      )}
+      {isBulkArchiveOpen && (
+        <div className="modal-backdrop">
+          <section
+            className="confirmation-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="bulk-archive-title"
+            aria-describedby="bulk-archive-description"
+          >
+            <h2 id="bulk-archive-title">¿Archivar {bulkArchiveCandidates.length} prospecto(s)?</h2>
+            <p id="bulk-archive-description">
+              Se archivan los convertidos y los no interesados. Conservan su historial y los podés
+              restaurar desde Archivados.
+            </p>
+            <div className="confirmation-actions">
+              <button
+                className="button button-line"
+                type="button"
+                autoFocus
+                disabled={isBulkArchiving}
+                onClick={() => setIsBulkArchiveOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="button button-primary"
+                type="button"
+                disabled={isBulkArchiving}
+                onClick={() => void archiveInBulk()}
+              >
+                {isBulkArchiving ? 'Archivando…' : 'Sí, archivar'}
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </main>
   );
@@ -1048,6 +1233,7 @@ function ProspectRow({
             <span className="prospect-priority">
               Prioridad {prospectPriorityLabels[prospect.priority]}
             </span>
+            {isProspectArchived(prospect) && <span className="status-badge">Archivado</span>}
           </div>
         </div>
       </div>
@@ -1081,46 +1267,48 @@ function ProspectRow({
           )}
         </span>
       </div>
-      <div className="prospect-row-actions">
-        {whatsappUrl ? (
-          <a
-            className="button button-primary prospect-whatsapp"
-            href={whatsappUrl}
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => onToast('WhatsApp abierto.')}
-          >
-            <span aria-hidden="true">◔</span> WhatsApp
-          </a>
-        ) : (
-          <button className="button button-primary prospect-whatsapp" type="button" disabled>
-            <span aria-hidden="true">◔</span> WhatsApp
+      {!isProspectArchived(prospect) && (
+        <div className="prospect-row-actions">
+          {whatsappUrl ? (
+            <a
+              className="button button-primary prospect-whatsapp"
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => onToast('WhatsApp abierto.')}
+            >
+              <span aria-hidden="true">◔</span> WhatsApp
+            </a>
+          ) : (
+            <button className="button button-primary prospect-whatsapp" type="button" disabled>
+              <span aria-hidden="true">◔</span> WhatsApp
+            </button>
+          )}
+          {instagramUrl ? (
+            <a
+              className="button button-line"
+              href={instagramUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => onToast('Instagram abierto.')}
+            >
+              Abrir Instagram
+            </a>
+          ) : (
+            <button
+              className="button button-line"
+              type="button"
+              disabled
+              title="Falta un usuario o URL de Instagram"
+            >
+              Abrir Instagram
+            </button>
+          )}
+          <button className="button button-line" type="button" onClick={onRegister}>
+            <span aria-hidden="true">✓</span> Registrar acción
           </button>
-        )}
-        {instagramUrl ? (
-          <a
-            className="button button-line"
-            href={instagramUrl}
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => onToast('Instagram abierto.')}
-          >
-            Abrir Instagram
-          </a>
-        ) : (
-          <button
-            className="button button-line"
-            type="button"
-            disabled
-            title="Falta un usuario o URL de Instagram"
-          >
-            Abrir Instagram
-          </button>
-        )}
-        <button className="button button-line" type="button" onClick={onRegister}>
-          <span aria-hidden="true">✓</span> Registrar acción
-        </button>
-      </div>
+        </div>
+      )}
       <button className="button button-link prospect-detail-link" type="button" onClick={onOpen}>
         Ver ficha <span aria-hidden="true">→</span>
       </button>
@@ -1400,12 +1588,16 @@ function ProspectDetail({
   onOpportunitiesChanged,
   onDirtyChange,
   onRegisterResult,
+  onArchive,
+  onRestore,
 }: {
   prospect: Prospect;
   initialContactChannel: ProspectChannel;
   isNew?: boolean;
   onBack: () => void;
   onSave: (prospect: Prospect) => boolean | Promise<boolean>;
+  onArchive?: (prospect: Prospect, reason: string) => Promise<ArchiveActionResult>;
+  onRestore?: (prospect: Prospect) => Promise<ArchiveActionResult>;
   feedback: string;
   feedbackTone?: FeedbackTone;
   onOpenOpportunity: (id: string) => void;
@@ -1423,6 +1615,25 @@ function ProspectDetail({
   const [conversionFeedback, setConversionFeedback] = useState('');
   const [conversionError, setConversionError] = useState('');
   const [pendingConversion, setPendingConversion] = useState<Prospect | null>(null);
+  const isArchived = isProspectArchived(prospect);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [archiveError, setArchiveError] = useState('');
+  const [isArchiving, setIsArchiving] = useState(false);
+  async function confirmArchive(reason: string) {
+    if (!onArchive) return;
+    setIsArchiving(true);
+    const result = await onArchive(prospect, reason);
+    setIsArchiving(false);
+    if (result.ok) setIsArchiveOpen(false);
+    else setArchiveError(result.error);
+  }
+  async function restore() {
+    if (!onRestore) return;
+    setIsArchiving(true);
+    const result = await onRestore(prospect);
+    setIsArchiving(false);
+    setArchiveError(result.ok ? '' : result.error);
+  }
   const allFieldErrors = getProspectFieldErrors(draft);
   const formFieldErrors: Partial<Record<ProspectFormField, string>> = {
     name: allFieldErrors.name,
@@ -1579,7 +1790,7 @@ function ProspectDetail({
             </>
           )}
         </div>
-        {!isNew && onRegisterResult && (
+        {!isNew && !isArchived && onRegisterResult && (
           <button className="button button-primary" type="button" onClick={onRegisterResult}>
             Registrar resultado
           </button>
@@ -1595,6 +1806,27 @@ function ProspectDetail({
             {feedback}
           </p>
         ))}
+      {isArchived && (
+        <div className="commercial-warning prospect-archived-notice" role="status">
+          <p>
+            <strong>Prospecto archivado</strong> el {formatActivityDateTime(prospect.archivedAt!)}.
+            Está en solo lectura: restauralo para editarlo o registrar contactos.
+          </p>
+          <button
+            className="button button-primary"
+            type="button"
+            disabled={isArchiving}
+            onClick={() => void restore()}
+          >
+            {isArchiving ? 'Restaurando…' : 'Restaurar prospecto'}
+          </button>
+        </div>
+      )}
+      {archiveError && !isArchiveOpen && (
+        <p className="form-error" role="alert">
+          {archiveError}
+        </p>
+      )}
       <div className="prospect-detail-grid">
         <section className="quote-card prospect-form">
           <h2>Datos del prospecto</h2>
@@ -1660,17 +1892,31 @@ function ProspectDetail({
                   Cancelar
                 </button>
               </>
-            ) : (
-              <button
-                className="button button-line"
-                type="button"
-                onClick={() => setIsEditing(true)}
-              >
-                Editar datos
-              </button>
+            ) : isArchived ? null : (
+              <>
+                <button
+                  className="button button-line"
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                >
+                  Editar datos
+                </button>
+                {!isNew && onArchive && (
+                  <button
+                    className="button button-line"
+                    type="button"
+                    onClick={() => {
+                      setArchiveError('');
+                      setIsArchiveOpen(true);
+                    }}
+                  >
+                    Archivar prospecto
+                  </button>
+                )}
+              </>
             )}
           </div>
-          {!isNew && canQualifyProspect(prospect) && (
+          {!isNew && !isArchived && canQualifyProspect(prospect) && (
             <button
               className="button button-primary"
               type="button"
@@ -1744,7 +1990,7 @@ function ProspectDetail({
             </p>
           )}
         </section>
-        {!isNew && (
+        {!isNew && !isArchived && (
           <section className="quote-card prospect-contact-card">
             <h2>Preparar primer contacto</h2>
             <p>
@@ -1826,6 +2072,18 @@ function ProspectDetail({
           )}
         </section>
       </div>
+      {isArchiveOpen && (
+        <ArchiveProspectDialog
+          prospectName={prospect.name}
+          isSaving={isArchiving}
+          saveError={archiveError}
+          onConfirm={(reason) => void confirmArchive(reason)}
+          onCancel={() => {
+            setIsArchiveOpen(false);
+            setArchiveError('');
+          }}
+        />
+      )}
       {isConversionOpen && (
         <ProspectConversionModal
           prospect={prospect}

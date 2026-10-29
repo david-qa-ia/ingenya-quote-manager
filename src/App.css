@@ -1880,9 +1880,10 @@
   margin-left: auto;
 }
 .service-entry-toggle .is-selected {
-  border-color: var(--primary);
+  /* --primary is not defined in the design tokens; it left the selected option transparent. */
+  border-color: var(--accent);
   color: white;
-  background: var(--primary);
+  background: var(--accent);
 }
 .entry-card,
 .quote-card {
@@ -5968,10 +5969,10 @@ body,
   font-weight: 700;
 }
 .quote-send-channels button.selected {
-  border-color: var(--primary);
+  border-color: var(--accent);
   background: var(--accent-soft);
-  color: var(--primary);
-  box-shadow: inset 0 0 0 1px var(--primary);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 .quote-send-channels svg {
   width: 27px;
@@ -6054,7 +6055,7 @@ body,
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--primary);
+  background: var(--accent);
   color: white;
 }
 .quote-version-row.sent > strong {
@@ -6159,7 +6160,7 @@ body,
   white-space: nowrap;
 }
 .system-health-badge.good {
-  color: var(--primary);
+  color: var(--accent);
   background: var(--accent-soft);
 }
 .system-health-recovery {
@@ -6225,9 +6226,9 @@ body,
   font-size: 0.9rem;
 }
 .direct-client-option-active {
-  border-color: var(--primary);
+  border-color: var(--accent);
   background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px var(--primary);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 .direct-client-fields {
   display: grid;
@@ -6240,8 +6241,8 @@ body,
   gap: 8px;
 }
 .direct-client-matches .is-selected {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .direct-contact-fields {
   display: grid;
@@ -8013,4 +8014,32 @@ tr:last-child td {
 
 .result-option-group[aria-describedby] .result-option-card {
   border-color: var(--danger);
+}
+
+/* SCRUM-111: active / archived prospects. */
+.prospect-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.prospect-view-toggle {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.prospect-archived-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.prospect-archived-notice p {
+  margin: 0;
 }
