@@ -4,11 +4,11 @@ import {
   createNewProspect,
   isProspectContactAvailable,
   loadProspects,
-  mergeRemoteProspectsWithLocal,
   saveProspect,
   saveProspectWithResult,
   PROSPECTS_STORAGE_KEY,
 } from './prospectStorage';
+import { mapRemoteProspect } from './supabaseRepository';
 
 const prospect: Prospect = {
   id: 'prospect',
@@ -92,13 +92,40 @@ describe('prospect storage', () => {
     });
   });
 
-  it('keeps local-only prospects visible when a remote snapshot is incomplete', () => {
-    const remoteProspect: Prospect = { ...prospect, name: 'Ana remota', version: 2 };
-    const localOnly: Prospect = { ...prospect, id: 'local-only', name: 'Camila QA' };
+  it('keeps every valid remote prospect in the local mirror after a refresh', () => {
+    const remoteConverted = {
+      id: 'converted-remote',
+      workspace_id: 'workspace',
+      name: 'Camila QA',
+      company: '',
+      phone: '3415550101',
+      email: 'camila@example.com',
+      source: '',
+      potential_service: 'Pintura',
+      notes: '',
+      status: 'converted',
+      priority: 'medium',
+      priority_reason: '',
+      next_action: '',
+      next_action_at: null,
+      responsible: '',
+      preferred_channel: 'call',
+      conversion: { contactId: 'contact-remote', opportunityId: 'opportunity-remote' },
+      version: 2,
+      created_at: '2026-10-28T13:00:00.000Z',
+      updated_at: '2026-10-28T13:00:00.000Z',
+    } as const;
+    const converted = mapRemoteProspect(remoteConverted);
+    const invalid = mapRemoteProspect({
+      ...remoteConverted,
+      id: 'invalid-remote',
+      conversion: undefined,
+    });
 
-    expect(mergeRemoteProspectsWithLocal([remoteProspect], [prospect, localOnly])).toEqual([
-      remoteProspect,
-      localOnly,
+    expect(saveProspectWithResult(converted)).toEqual({ ok: true });
+    expect(saveProspectWithResult(invalid)).toMatchObject({ ok: false, reason: 'validation' });
+    expect(loadProspects().items).toMatchObject([
+      { id: 'converted-remote', status: 'converted', preferredChannel: 'phone' },
     ]);
   });
 });

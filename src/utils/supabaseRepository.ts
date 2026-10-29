@@ -1,4 +1,4 @@
-import type { Prospect, ProspectActivity } from '../types/prospect';
+import type { Prospect, ProspectActivity, ProspectChannel } from '../types/prospect';
 import type { Client } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
@@ -169,7 +169,7 @@ export async function registerRemoteProspectResult(input: {
         p_prospect_id: input.prospectId,
         p_expected_version: input.expectedVersion,
         p_result: input.result,
-        p_channel: input.channel === 'phone' ? 'call' : input.channel,
+        p_channel: toSupabaseProspectChannel(input.channel),
         p_note: input.note,
         p_follow_up_at: input.followUpAt || null,
         p_responsible: input.responsible,
@@ -311,8 +311,8 @@ export interface SupabaseProspectRow {
   company: string;
   phone: string;
   email: string;
-  instagram?: string;
-  address?: string;
+  instagram?: string | null;
+  address?: string | null;
   source: string;
   potential_service: string;
   notes: string;
@@ -322,10 +322,96 @@ export interface SupabaseProspectRow {
   next_action: string;
   next_action_at: string | null;
   responsible: string;
-  preferred_channel: Prospect['preferredChannel'] | null;
+  preferred_channel: SupabaseProspectChannel | null;
+  conversion?: SupabaseProspectConversion | null;
   version: number;
   created_at: string;
   updated_at: string;
+}
+
+export type SupabaseProspectChannel = 'call' | 'phone' | 'whatsapp' | 'email' | 'instagram';
+
+export interface SupabaseProspectConversion {
+  contactId?: string;
+  opportunityId?: string;
+}
+
+/** Keeps the database's call label at the remote boundary only. */
+export function fromSupabaseProspectChannel(value: unknown): ProspectChannel | '' {
+  if (value === 'call' || value === 'phone') return 'phone';
+  if (value === 'whatsapp' || value === 'email' || value === 'instagram') return value;
+  return '';
+}
+
+export function toSupabaseProspectChannel(
+  channel: ProspectChannel | '',
+): 'call' | 'whatsapp' | 'email' | 'instagram' | '' {
+  return channel === 'phone' ? 'call' : channel;
+}
+
+function mapRemoteConversion(row: SupabaseProspectRow): Prospect['conversion'] | undefined {
+  const contactId = row.conversion?.contactId;
+  const opportunityId = row.conversion?.opportunityId;
+  if (!contactId || !opportunityId) return undefined;
+
+  const completedAt = row.updated_at;
+  const service = row.potential_service.trim() || 'Oportunidad convertida';
+  return {
+    state: 'completed',
+    startedAt: completedAt,
+    completedAt,
+    draft: {
+      clientId: contactId,
+      clientName: row.name,
+      clientCompany: row.company.trim() || 'Sin empresa registrada',
+      clientPhone: row.phone.trim() || '1111111111',
+      clientEmail: row.email.trim() || 'none',
+      clientPreferredChannel: fromSupabaseProspectChannel(row.preferred_channel),
+      address: row.address ?? '',
+      opportunityId,
+      opportunityName: service,
+      serviceOfInterest: service,
+      detectedNeed: row.notes.trim() || service,
+      nextStep: row.next_action.trim() || 'Seguimiento de oportunidad convertida',
+      nextStepAt: row.next_action_at ?? completedAt,
+      nextStepChannel:
+        toSupabaseProspectChannel(fromSupabaseProspectChannel(row.preferred_channel)) || 'other',
+      responsible: row.responsible.trim() || 'Sin asignar',
+      interestLevel: row.priority,
+    },
+  };
+}
+
+/** Maps a persisted Supabase row into the strict local mirror shape. */
+export function mapRemoteProspect(
+  row: SupabaseProspectRow,
+  activities: Prospect['activities'] = [],
+): Prospect {
+  const conversion = mapRemoteConversion(row);
+  return {
+    id: row.id,
+    name: row.name,
+    company: row.company,
+    phone: row.phone,
+    email: row.email,
+    instagram: row.instagram ?? '',
+    address: row.address ?? '',
+    source: row.source,
+    potentialService: row.potential_service,
+    notes: row.notes,
+    status: row.status,
+    priority: row.priority,
+    priorityReason: row.priority_reason,
+    nextAction: row.next_action,
+    nextActionAt: row.next_action_at ?? '',
+    responsible: row.responsible,
+    preferredChannel: fromSupabaseProspectChannel(row.preferred_channel),
+    ...(conversion ? { conversion } : {}),
+    activities,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    version: row.version,
+  };
 }
 
 export async function loadRemoteProspects(workspaceId: string): Promise<SupabaseProspectRow[]> {
@@ -348,7 +434,7 @@ export interface SupabaseProspectActivityRow {
   result: ProspectActivity['result'] | '';
   note: string;
   communication: {
-    channel?: ProspectActivity['channel'];
+    channel?: SupabaseProspectChannel;
     followUpAt?: string;
     responsible?: string;
   } | null;
@@ -367,7 +453,7 @@ export async function loadRemoteProspectActivities(
 }
 
 export function mapRemoteProspectActivity(row: SupabaseProspectActivityRow): ProspectActivity {
-  const channel = row.communication?.channel;
+  const channel = fromSupabaseProspectChannel(row.communication?.channel);
   const result = row.result || undefined;
   return {
     id: row.id,
@@ -415,7 +501,7 @@ export async function updateRemoteProspectProfile(input: {
           priority: prospect.priority,
           priorityReason: prospect.priorityReason,
           responsible: prospect.responsible,
-          preferredChannel: prospect.preferredChannel,
+          preferredChannel: toSupabaseProspectChannel(prospect.preferredChannel),
         },
         p_idempotency_key: idempotencyKey,
         p_request_id: crypto.randomUUID(),
@@ -456,7 +542,7 @@ export async function createRemoteProspect(workspaceId: string, prospect: Prospe
         nextAction: prospect.nextAction,
         nextActionAt: prospect.nextActionAt,
         responsible: prospect.responsible,
-        preferredChannel: prospect.preferredChannel,
+        preferredChannel: toSupabaseProspectChannel(prospect.preferredChannel),
       },
       p_idempotency_key: `create-prospect:${prospect.id}`,
       p_request_id: crypto.randomUUID(),
@@ -491,14 +577,14 @@ export async function importRemoteProspects(
           nextAction: prospect.nextAction,
           nextActionAt: prospect.nextActionAt,
           responsible: prospect.responsible,
-          preferredChannel: prospect.preferredChannel,
+          preferredChannel: toSupabaseProspectChannel(prospect.preferredChannel),
           activities: prospect.activities.map((activity) => ({
             id: activity.id,
             occurredAt: activity.occurredAt,
             type: activity.type,
             description: activity.description,
             note: activity.note,
-            channel: activity.channel,
+            channel: activity.channel ? toSupabaseProspectChannel(activity.channel) : undefined,
           })),
         })),
         p_idempotency_key: `import-prospects:${prepared.importKey}`,

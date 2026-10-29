@@ -1,11 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  createRemoteProspect,
   importRemoteProspects,
   convertRemoteProspectToOpportunity,
+  fromSupabaseProspectChannel,
+  mapRemoteProspect,
   registerRemoteProspectResult,
   registerRemoteQuoteSend,
+  toSupabaseProspectChannel,
+  updateRemoteProspectProfile,
 } from './supabaseRepository';
 import { prepareProspectImport } from './prospectImportTransaction';
+import { isProspect } from './prospectStorage';
+import type { Prospect } from '../types/prospect';
 
 const session = new Map<string, string>();
 beforeEach(() => {
@@ -187,6 +194,31 @@ describe('remote prospect result', () => {
     });
   });
 
+  it('writes a phone result as call and maps it back when loading history', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ code: 'OK', version: 3 }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await registerRemoteProspectResult({ ...input, channel: 'phone' });
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(request.body as string).p_channel).toBe('call');
+
+    const { mapRemoteProspectActivity } = await import('./supabaseRepository');
+    expect(
+      mapRemoteProspectActivity({
+        id: 'activity-call',
+        workspace_id: 'workspace',
+        prospect_id: 'prospect-1',
+        type: 'contactResult',
+        occurred_at: '2026-10-22T22:30:00.000Z',
+        created_at: '2026-10-22T22:30:00.000Z',
+        result: 'contacted',
+        note: '',
+        communication: { channel: 'call' },
+      }).channel,
+    ).toBe('phone');
+  });
+
   it('returns a typed version conflict and supports idempotent retry', async () => {
     vi.stubGlobal(
       'fetch',
@@ -301,5 +333,116 @@ describe('remote prospect history and profile', () => {
       followUpAt: '2026-10-23T22:30:00.000Z',
       author: 'David',
     });
+  });
+
+  it('translates every prospect channel at the Supabase boundary', () => {
+    expect(toSupabaseProspectChannel('phone')).toBe('call');
+    expect(toSupabaseProspectChannel('whatsapp')).toBe('whatsapp');
+    expect(toSupabaseProspectChannel('email')).toBe('email');
+    expect(toSupabaseProspectChannel('instagram')).toBe('instagram');
+    expect(toSupabaseProspectChannel('')).toBe('');
+    expect(fromSupabaseProspectChannel('call')).toBe('phone');
+    expect(fromSupabaseProspectChannel('phone')).toBe('phone');
+    expect(fromSupabaseProspectChannel('whatsapp')).toBe('whatsapp');
+    expect(fromSupabaseProspectChannel('email')).toBe('email');
+    expect(fromSupabaseProspectChannel('instagram')).toBe('instagram');
+    expect(fromSupabaseProspectChannel(null)).toBe('');
+  });
+
+  it('maps converted remote prospects into valid local mirror records', () => {
+    const mapped = mapRemoteProspect({
+      id: 'prospect-1',
+      workspace_id: 'workspace',
+      name: 'Ana',
+      company: 'Obras Sur',
+      phone: '3415550101',
+      email: 'ana@example.com',
+      instagram: null,
+      address: null,
+      source: 'Referido',
+      potential_service: 'Pintura',
+      notes: '',
+      status: 'converted',
+      priority: 'medium',
+      priority_reason: '',
+      next_action: '',
+      next_action_at: null,
+      responsible: '',
+      preferred_channel: 'call',
+      conversion: { contactId: 'contact-1', opportunityId: 'opportunity-1' },
+      version: 4,
+      created_at: '2026-10-28T13:00:00.000Z',
+      updated_at: '2026-10-28T14:00:00.000Z',
+    });
+
+    expect(isProspect(mapped)).toBe(true);
+    expect(mapped).toMatchObject({
+      preferredChannel: 'phone',
+      conversion: {
+        state: 'completed',
+        draft: { clientId: 'contact-1', opportunityId: 'opportunity-1' },
+      },
+    });
+  });
+
+  it('writes phone as call for profile, creation and import requests', async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ code: 'OK', version: 2, importedCount: 1 }), {
+          status: 200,
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const prospect: Prospect = {
+      id: 'prospect-1',
+      name: 'Ana',
+      company: '',
+      phone: '3415550101',
+      email: 'ana@example.com',
+      source: '',
+      potentialService: '',
+      notes: '',
+      status: 'uncontacted',
+      priority: 'medium',
+      priorityReason: '',
+      nextAction: '',
+      nextActionAt: '',
+      responsible: '',
+      preferredChannel: 'phone',
+      activities: [],
+      createdAt: '2026-10-28T13:00:00.000Z',
+      updatedAt: '2026-10-28T13:00:00.000Z',
+      version: 1,
+    };
+
+    await updateRemoteProspectProfile({
+      workspaceId: 'workspace',
+      prospect,
+      idempotencyKey: 'update-prospect-1',
+    });
+    await createRemoteProspect('workspace', prospect);
+    await importRemoteProspects(
+      'workspace',
+      prepareProspectImport(
+        [{ line: 2, input: prospect, duplicate: false }],
+        {
+          schedule: true,
+          channel: 'phone',
+          dueAt: '2026-10-29T13:00:00.000Z',
+          responsible: 'David',
+          note: '',
+        },
+        'phone-channel',
+        '2026-10-28T13:00:00.000Z',
+      ),
+    );
+
+    const profile = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const creation = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const imported = JSON.parse(fetchMock.mock.calls[2][1].body as string);
+    expect(profile.p_payload.preferredChannel).toBe('call');
+    expect(creation.p_payload.preferredChannel).toBe('call');
+    expect(imported.p_prospects[0].preferredChannel).toBe('call');
   });
 });
