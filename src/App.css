@@ -8043,3 +8043,22 @@ tr:last-child td {
 .prospect-archived-notice p {
   margin: 0;
 }
+
+/* SCRUM-110: active filters summary. */
+.prospect-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0 0 12px;
+}
+
+.prospect-active-filters .button-link {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+}
+
+.prospect-list-toolbar .prospect-view-toggle {
+  margin-left: 0;
+}
