@@ -6,6 +6,111 @@ import type {
   MetricValue,
 } from '../types/commercialMetrics';
 import { businessTimeZone } from './opportunityNextAction';
+import type { Prospect } from '../types/prospect';
+import { PROFILE_CHANGE_PREFIX } from './prospectWorkflow';
+
+/** Prefix used in the client filter to select a prospect instead of a client. */
+export const PROSPECT_FILTER_PREFIX = 'prospect:';
+
+/** Spanish labels for the channel filter; values stay as stored internally. */
+export const commercialChannelLabels: Record<string, string> = {
+  call: 'Llamada',
+  whatsapp: 'WhatsApp',
+  email: 'Email',
+  instagram: 'Instagram',
+  meeting: 'Reunión',
+  note: 'Nota',
+  relevantChange: 'Cambio relevante',
+  waitForResponse: 'Esperar respuesta',
+  other: 'Otro',
+};
+
+export function getCommercialChannelLabel(channel: string): string {
+  return commercialChannelLabels[channel] ?? channel;
+}
+
+interface MetricEvent {
+  type: string;
+  occurredAt: string;
+  author: string;
+  isContact: boolean;
+  isEffective: boolean;
+  isNote: boolean;
+}
+
+interface ProspectFollowUpEvent {
+  event: 'completed' | 'rescheduled';
+  occurredAt: string;
+  actor: string;
+  type: string;
+}
+
+const prospectChannelToMetricType = {
+  phone: 'call',
+  whatsapp: 'whatsapp',
+  email: 'email',
+  instagram: 'instagram',
+} as const;
+
+function prospectInScope(prospect: Prospect, filters: CommercialMetricsFilters): boolean {
+  if (filters.quoteId !== 'all') return false;
+  const draft = prospect.conversion?.state === 'completed' ? prospect.conversion.draft : undefined;
+  if (filters.clientId.startsWith(PROSPECT_FILTER_PREFIX))
+    return (
+      filters.clientId === `${PROSPECT_FILTER_PREFIX}${prospect.id}` &&
+      filters.opportunityId === 'all'
+    );
+  if (filters.clientId !== 'all' && draft?.clientId !== filters.clientId) return false;
+  if (filters.opportunityId !== 'all' && draft?.opportunityId !== filters.opportunityId)
+    return false;
+  return true;
+}
+
+/** Manual prospect activity as metric events; profile edits are traceability, not contacts. */
+function getProspectMetricEvents(
+  prospects: readonly Prospect[],
+  filters: CommercialMetricsFilters,
+): { events: MetricEvent[]; followUps: ProspectFollowUpEvent[] } {
+  const events: MetricEvent[] = [];
+  const followUps: ProspectFollowUpEvent[] = [];
+  for (const prospect of prospects) {
+    if (!prospectInScope(prospect, filters)) continue;
+    for (const activity of prospect.activities) {
+      const author = activity.author ?? '';
+      if (activity.type === 'contactResult' && activity.channel) {
+        const type = prospectChannelToMetricType[activity.channel];
+        events.push({
+          type,
+          occurredAt: activity.occurredAt,
+          author,
+          isContact: true,
+          isEffective: activity.result === 'contacted',
+          isNote: false,
+        });
+        if (activity.previousFollowUpAt)
+          followUps.push({
+            event: activity.followUpAt ? 'rescheduled' : 'completed',
+            occurredAt: activity.occurredAt,
+            actor: author,
+            type,
+          });
+      } else if (
+        activity.type === 'note' &&
+        !activity.description.startsWith(PROFILE_CHANGE_PREFIX)
+      ) {
+        events.push({
+          type: 'note',
+          occurredAt: activity.occurredAt,
+          author,
+          isContact: false,
+          isEffective: false,
+          isNote: true,
+        });
+      }
+    }
+  }
+  return { events, followUps };
+}
 
 const dayFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: businessTimeZone,
@@ -87,13 +192,38 @@ export function calculateCommercialMetrics(
   }
   const scopedOpportunityIds = new Set(opportunities.map((item) => item.id));
   const quoteIds = new Set(quotes.map((item) => item.id));
-  const activities = sources.activities.filter(
-    (item) =>
-      activityBelongs(item, clientIds, scopedOpportunityIds, quoteIds) &&
-      item.source === 'manual' &&
-      (filters.channel === 'all' || item.type === filters.channel) &&
-      (filters.responsible === 'all' || item.author === filters.responsible),
-  );
+  const channelMatches = (type: string) => filters.channel === 'all' || type === filters.channel;
+  const responsibleMatches = (author: string) =>
+    filters.responsible === 'all' || author === filters.responsible;
+  // A quote send is recorded as an activity with result "sent": it counts as activity and as
+  // "Presupuestos enviados", but not as a contact or a note (SCRUM-105).
+  const activityEvents: MetricEvent[] = sources.activities
+    .filter(
+      (item) =>
+        activityBelongs(item, clientIds, scopedOpportunityIds, quoteIds) &&
+        item.source === 'manual' &&
+        channelMatches(item.type) &&
+        responsibleMatches(item.author),
+    )
+    .map((item) => {
+      const isSend = item.result === 'sent';
+      const isContact = !isSend && ['call', 'whatsapp', 'email'].includes(item.type);
+      return {
+        type: item.type,
+        occurredAt: item.occurredAt,
+        author: item.author,
+        isContact,
+        isEffective: isContact && ['effectiveContact', 'responseReceived'].includes(item.result),
+        isNote: !isSend && item.type === 'note',
+      };
+    });
+  const prospectMetrics = getProspectMetricEvents(sources.prospects ?? [], filters);
+  const activities = [
+    ...activityEvents,
+    ...prospectMetrics.events.filter(
+      (item) => channelMatches(item.type) && responsibleMatches(item.author),
+    ),
+  ];
   const previous = previousRange(filters);
   const prior = (date: string) =>
     previous !== null &&
@@ -141,6 +271,13 @@ export function calculateCommercialMetrics(
         if (entry.event === 'rescheduled' && prior(entry.occurredAt)) rescheduledPrevious++;
       });
     }
+  for (const entry of prospectMetrics.followUps) {
+    if (!channelMatches(entry.type) || !responsibleMatches(entry.actor)) continue;
+    if (entry.event === 'completed' && current(entry.occurredAt)) completed++;
+    if (entry.event === 'completed' && prior(entry.occurredAt)) completedPrevious++;
+    if (entry.event === 'rescheduled' && current(entry.occurredAt)) rescheduled++;
+    if (entry.event === 'rescheduled' && prior(entry.occurredAt)) rescheduledPrevious++;
+  }
   const days = new Map<string, TrendEntry>();
   const add = (
     value: string,
@@ -166,23 +303,23 @@ export function calculateCommercialMetrics(
     row.sent += values.sent ?? 0;
     days.set(keyDay, row);
   };
-  const contacts = activities.filter((item) => ['call', 'whatsapp', 'email'].includes(item.type));
-  const effectiveContacts = contacts.filter((item) =>
-    ['effectiveContact', 'responseReceived'].includes(item.result),
-  );
-  const notes = activities.filter((item) => item.type === 'note');
+  const contacts = activities.filter((item) => item.isContact);
+  const effectiveContacts = contacts.filter((item) => item.isEffective);
+  const notes = activities.filter((item) => item.isNote);
   activities.forEach((item) => {
     add(item.occurredAt, {
       activities: 1,
-      contacts: contacts.includes(item) ? 1 : 0,
-      effectiveContacts: effectiveContacts.includes(item) ? 1 : 0,
-      notes: item.type === 'note' ? 1 : 0,
+      contacts: item.isContact ? 1 : 0,
+      effectiveContacts: item.isEffective ? 1 : 0,
+      notes: item.isNote ? 1 : 0,
     });
   });
+  // Sends without a channel were registered as a note.
   const quoteSends = quotes.filter(
     (item) =>
       item.sentAudit &&
-      (filters.responsible === 'all' || item.sentAudit.changedBy === filters.responsible),
+      channelMatches(item.sentAudit.channel ?? 'note') &&
+      responsibleMatches(item.sentAudit.changedBy),
   );
   quoteSends.forEach((item) => item.sentAudit && add(item.sentAudit.changedAt, { sent: 1 }));
   const kpis = {
@@ -229,20 +366,20 @@ export function calculateCommercialMetrics(
     kpis,
     trend: [...days.values()].sort((a, b) => a.day.localeCompare(b.day)),
     activityBreakdown: [
-      {
-        label: 'Llamadas',
-        count: activities.filter((item) => item.type === 'call' && current(item.occurredAt)).length,
-      },
-      {
-        label: 'WhatsApp',
-        count: activities.filter((item) => item.type === 'whatsapp' && current(item.occurredAt))
-          .length,
-      },
-      {
-        label: 'Emails',
-        count: activities.filter((item) => item.type === 'email' && current(item.occurredAt))
-          .length,
-      },
+      ...(
+        [
+          ['Llamadas', 'call'],
+          ['WhatsApp', 'whatsapp'],
+          ['Emails', 'email'],
+          ['Instagram', 'instagram'],
+        ] as const
+      )
+        .map(([label, type]) => ({
+          label,
+          count: contacts.filter((item) => item.type === type && current(item.occurredAt)).length,
+        }))
+        // Instagram only exists for prospects; show it only when it has activity.
+        .filter((item) => item.label !== 'Instagram' || item.count > 0),
       { label: 'Notas', count: notes.filter((item) => current(item.occurredAt)).length },
     ],
     followUpActions: { completed, rescheduled },

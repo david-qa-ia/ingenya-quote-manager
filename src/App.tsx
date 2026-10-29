@@ -2127,6 +2127,7 @@ function App() {
             activities: activityLoad.items,
             executions: executionLoad.items,
             outcomes: outcomeLoad.items,
+            prospects,
             issues: [
               clientLoad.issue,
               opportunityLoad.issue,

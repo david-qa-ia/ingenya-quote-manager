@@ -4,8 +4,10 @@ import { defaultCommercialMetricsFilters } from '../types/commercialMetrics';
 import {
   calculateCommercialMetrics,
   getArgentinaToday,
+  getCommercialChannelLabel,
   getPreviousPeriod,
 } from './commercialMetrics';
+import type { Prospect } from '../types/prospect';
 
 const base: CommercialMetricsSources = {
   clients: [
@@ -188,5 +190,122 @@ describe('commercial metrics', () => {
       filters,
     );
     expect(metrics.focus).toBe('followUpContacts');
+  });
+
+  describe('prospect activity and channel filter (SCRUM-105)', () => {
+    const prospect: Prospect = {
+      id: 'prospect',
+      name: 'QA-P01 Prospecto',
+      company: '',
+      phone: '3410000000',
+      email: '',
+      source: 'Referencia',
+      potentialService: '',
+      notes: '',
+      status: 'contacted',
+      priority: 'medium',
+      priorityReason: '',
+      nextAction: 'Retomar contacto',
+      nextActionAt: '2026-10-14T12:00:00.000Z',
+      responsible: 'QA Tester',
+      preferredChannel: 'phone',
+      createdAt: '2026-10-01T00:00:00.000Z',
+      updatedAt: '2026-10-12T00:00:00.000Z',
+      activities: [
+        {
+          id: 'p-contact',
+          prospectId: 'prospect',
+          type: 'contactResult',
+          channel: 'phone',
+          result: 'contacted',
+          occurredAt: '2026-10-10T15:00:00.000Z',
+          createdAt: '2026-10-10T15:00:00.000Z',
+          author: 'QA Tester',
+          description: 'Llamada: Contactado',
+          followUpAt: '2026-10-12T12:00:00.000Z',
+        },
+        {
+          id: 'p-reschedule',
+          prospectId: 'prospect',
+          type: 'contactResult',
+          channel: 'whatsapp',
+          result: 'reschedule',
+          occurredAt: '2026-10-11T15:00:00.000Z',
+          createdAt: '2026-10-11T15:00:00.000Z',
+          author: 'QA Tester',
+          description: 'WhatsApp: Reagendar',
+          previousFollowUpAt: '2026-10-12T12:00:00.000Z',
+          followUpAt: '2026-10-14T12:00:00.000Z',
+        },
+        {
+          id: 'p-profile',
+          prospectId: 'prospect',
+          type: 'note',
+          occurredAt: '2026-10-11T16:00:00.000Z',
+          createdAt: '2026-10-11T16:00:00.000Z',
+          author: 'QA Tester',
+          description: 'Datos actualizados: Origen: Web → Referencia',
+        },
+      ],
+    };
+    const withProspect: CommercialMetricsSources = { ...base, prospects: [prospect] };
+
+    it('counts prospect contacts and follow-ups but not profile edits', () => {
+      const metrics = calculateCommercialMetrics(withProspect, filters);
+      expect(metrics.kpis.contactsRegistered.value).toBe(3);
+      expect(metrics.kpis.effectiveContacts.value).toBe(2);
+      expect(metrics.kpis.notesAdded.value).toBe(0);
+      expect(metrics.kpis.followUpsRescheduled.value).toBe(2);
+    });
+
+    it('selects a single prospect from the client filter', () => {
+      const metrics = calculateCommercialMetrics(withProspect, {
+        ...filters,
+        clientId: 'prospect:prospect',
+      });
+      expect(metrics.kpis.contactsRegistered.value).toBe(2);
+      expect(metrics.kpis.quotesSent.value).toBe(0);
+    });
+
+    it('applies the channel filter to quote sends and prospect activity', () => {
+      const sent = calculateCommercialMetrics(
+        {
+          ...withProspect,
+          quotes: [
+            { ...base.quotes[0], sentAudit: { ...base.quotes[0].sentAudit!, channel: 'email' } },
+          ],
+        },
+        { ...filters, channel: 'whatsapp' },
+      );
+      expect(sent.kpis.quotesSent.value).toBe(0);
+      expect(sent.kpis.contactsRegistered.value).toBe(1);
+      expect(sent.kpis.followUpsRescheduled.value).toBe(1);
+    });
+
+    it('does not count a quote send activity as a contact', () => {
+      const metrics = calculateCommercialMetrics(
+        {
+          ...base,
+          activities: [
+            {
+              ...base.activities[0],
+              id: 'send',
+              type: 'whatsapp',
+              result: 'sent',
+              occurredAt: '2026-10-11T12:00:00.000Z',
+            },
+          ],
+        },
+        filters,
+      );
+      expect(metrics.kpis.activitiesRegistered.value).toBe(1);
+      expect(metrics.kpis.contactsRegistered.value).toBe(0);
+      expect(metrics.kpis.quotesSent.value).toBe(1);
+    });
+
+    it('labels channels in Spanish', () => {
+      expect(getCommercialChannelLabel('call')).toBe('Llamada');
+      expect(getCommercialChannelLabel('relevantChange')).toBe('Cambio relevante');
+    });
   });
 });
