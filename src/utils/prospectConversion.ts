@@ -31,28 +31,56 @@ export function canQualifyProspect(prospect: Prospect): boolean {
   );
 }
 
-export function getProspectConversionValidationError(
+export type ProspectConversionFieldErrors = Partial<Record<keyof ProspectConversionInput, string>>;
+
+/** Display and validation order of the "Calificar oportunidad" fields. */
+export const prospectConversionFieldOrder = [
+  'opportunityName',
+  'serviceOfInterest',
+  'interestLevel',
+  'detectedNeed',
+  'estimatedValue',
+  'nextStep',
+  'nextStepChannel',
+  'nextStepAt',
+  'responsible',
+] as const satisfies readonly (keyof ProspectConversionInput)[];
+
+/** Same rules and messages as getProspectConversionValidationError, per field (SCRUM-107). */
+export function getProspectConversionFieldErrors(
   input: ProspectConversionInput,
-): string | null {
-  if (!input.opportunityName.trim()) return 'Ingresá el nombre de la oportunidad u obra.';
-  if (!input.serviceOfInterest.trim()) return 'Ingresá el servicio de interés.';
-  if (!['high', 'medium', 'low'].includes(input.interestLevel)) return 'Elegí el nivel de interés.';
-  if (!input.detectedNeed.trim()) return 'Ingresá la necesidad detectada.';
+): ProspectConversionFieldErrors {
+  const errors: ProspectConversionFieldErrors = {};
+  if (!input.opportunityName.trim())
+    errors.opportunityName = 'Ingresá el nombre de la oportunidad u obra.';
+  if (!input.serviceOfInterest.trim()) errors.serviceOfInterest = 'Ingresá el servicio de interés.';
+  if (!['high', 'medium', 'low'].includes(input.interestLevel))
+    errors.interestLevel = 'Elegí el nivel de interés.';
+  if (!input.detectedNeed.trim()) errors.detectedNeed = 'Ingresá la necesidad detectada.';
   if (input.estimatedValue.trim()) {
     const value = Number(input.estimatedValue);
-    if (!Number.isFinite(value) || value < 0) return 'Ingresá un valor estimado válido.';
+    if (!Number.isFinite(value) || value < 0)
+      errors.estimatedValue = 'Ingresá un valor estimado válido.';
   }
-  if (!input.nextStep.trim()) return 'Ingresá el próximo paso.';
+  if (!input.nextStep.trim()) errors.nextStep = 'Ingresá el próximo paso.';
   if (
     !['call', 'whatsapp', 'email', 'instagram', 'meeting', 'waitForResponse', 'other'].includes(
       input.nextStepChannel,
     )
   )
-    return 'Elegí el canal del próximo paso.';
+    errors.nextStepChannel = 'Elegí el canal del próximo paso.';
   if (!localDateTimeToIso(input.nextStepAt).ok)
-    return 'Ingresá una fecha y hora válidas para el próximo paso.';
-  if (!input.responsible.trim()) return 'Ingresá el responsable.';
-  return null;
+    errors.nextStepAt = 'Ingresá una fecha y hora válidas para el próximo paso.';
+  if (!input.responsible.trim()) errors.responsible = 'Ingresá el responsable.';
+  return errors;
+}
+
+export function getProspectConversionValidationError(
+  input: ProspectConversionInput,
+): string | null {
+  const errors = getProspectConversionFieldErrors(input);
+  const first = prospectConversionFieldOrder.find((field) => errors[field]);
+  return first ? (errors[first] ?? null) : null;
 }
 
 function findReusableClient(prospect: Prospect): Client | undefined {

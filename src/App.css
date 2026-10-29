@@ -2590,7 +2590,8 @@ td small {
 }
 .modal-backdrop {
   position: fixed;
-  z-index: 20;
+  /* Above the mobile header (30) and menu button (42), so a modal is never covered on phones. */
+  z-index: 45;
   inset: 0;
   display: grid;
   place-items: center;
@@ -7975,12 +7976,33 @@ tr:last-child td {
 
 /* SCRUM-101: field-level validation messages, shown next to the field that needs a value. */
 .field-error {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
   margin-top: 6px;
   color: var(--danger);
   font-size: 0.84rem;
   font-weight: 600;
   line-height: 1.35;
+}
+
+/* Keep the error red inside a .field, where label spans are styled (and decorated on focus). */
+.field > span.field-error {
+  color: var(--danger);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.field > span.field-error::after {
+  content: none;
+}
+
+.field-error .ui-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin-top: 1px;
 }
 
 .field input[aria-invalid='true'],
