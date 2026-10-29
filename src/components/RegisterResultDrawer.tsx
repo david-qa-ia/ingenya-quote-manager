@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { FieldError } from './FieldError';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 import type { FollowUpResultSaveResult } from '../utils/followUpResultTransaction';
 import {
@@ -150,15 +151,6 @@ function OptionCard({
         </span>
       )}
     </button>
-  );
-}
-
-function FieldError({ id, message }: { id: string; message?: string }) {
-  if (!message) return null;
-  return (
-    <span id={id} className="field-error">
-      {message}
-    </span>
   );
 }
 

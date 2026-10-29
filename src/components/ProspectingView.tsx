@@ -17,11 +17,15 @@ import type {
 } from '../types/prospect';
 import {
   createNewProspect,
+  getProspectFieldErrors,
+  getProspectSaveErrorMessage,
   isProspectContactAvailable,
   isProspect,
   loadProspects,
   saveProspectWithResult,
 } from '../utils/prospectStorage';
+import { FieldError } from './FieldError';
+import { useFieldValidation } from './useFieldValidation';
 import {
   analyzeProspectCsv,
   argentinaDateTimeToIso,
@@ -57,7 +61,8 @@ import { formatActivityDateTime } from '../utils/activityTimeline';
 import {
   canQualifyProspect,
   createPendingProspectConversion,
-  getProspectConversionValidationError,
+  getProspectConversionFieldErrors,
+  prospectConversionFieldOrder,
   resumeProspectConversion,
   startProspectConversion,
   withRemoteConversionIds,
@@ -94,6 +99,11 @@ const activityTypeLabels = {
   conversionCompleted: 'Conversión completada',
 } as const;
 type DueGroup = 'overdue' | 'today' | 'upcoming';
+type FeedbackTone = 'status' | 'error';
+
+/** Prospect fields edited in the form; other validation errors are shown as a general message. */
+const prospectFormFields = ['name', 'phone', 'email'] as const;
+type ProspectFormField = (typeof prospectFormFields)[number];
 
 function prospectToInboxItem(prospect: Prospect): FollowUpInboxItem {
   return {
@@ -169,7 +179,15 @@ export function ProspectingView({
   const [preparedImport, setPreparedImport] = useState<PreparedProspectImport | null>(
     () => importRecovery?.prepared ?? null,
   );
-  const [feedback, setFeedback] = useState('');
+  const [feedbackState, setFeedbackState] = useState<{ message: string; tone: FeedbackTone }>({
+    message: '',
+    tone: 'status',
+  });
+  const feedback = feedbackState.message;
+  const setFeedback = useCallback(
+    (message: string, tone: FeedbackTone = 'status') => setFeedbackState({ message, tone }),
+    [],
+  );
   const [toast, setToast] = useState('');
   const [conversionTarget, setConversionTarget] = useState<Prospect | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -231,7 +249,7 @@ export function ProspectingView({
       onProspectsChanged?.(local);
       setFeedback('No se pudo consultar Supabase. Se muestran los últimos prospectos disponibles.');
     }
-  }, [onProspectsChanged, workspaceContext.session?.activeWorkspaceId]);
+  }, [onProspectsChanged, setFeedback, workspaceContext.session?.activeWorkspaceId]);
 
   useEffect(() => {
     void Promise.resolve().then(refresh);
@@ -250,6 +268,7 @@ export function ProspectingView({
     if (isAuthConfigured() && !isWorkspaceUuid(workspaceId)) {
       setFeedback(
         'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
+        'error',
       );
       return false;
     }
@@ -271,7 +290,7 @@ export function ProspectingView({
           changeAuthor,
         });
         if (!remote.ok) {
-          setFeedback(remote.message);
+          setFeedback(remote.message, 'error');
           return false;
         }
         next = { ...next, version: remote.version };
@@ -280,15 +299,14 @@ export function ProspectingView({
           error instanceof Error
             ? `No se pudo guardar en Supabase: ${error.message}`
             : 'No se pudo guardar en Supabase. Los cambios siguen abiertos para reintentar.',
+          'error',
         );
         return false;
       }
     }
     const result = saveProspectWithResult(next);
     if (!result.ok) {
-      setFeedback(
-        `No se pudo guardar (${result.reason})${result.error ? `: ${result.error}` : ''}`,
-      );
+      setFeedback(getProspectSaveErrorMessage(result), 'error');
       return false;
     }
     refresh();
@@ -303,15 +321,14 @@ export function ProspectingView({
   async function saveNew(next: Prospect): Promise<boolean> {
     const localResult = saveProspectWithResult(next);
     if (!localResult.ok) {
-      setFeedback(
-        `No se pudo guardar (${localResult.reason})${localResult.error ? `: ${localResult.error}` : ''}`,
-      );
+      setFeedback(getProspectSaveErrorMessage(localResult), 'error');
       return false;
     }
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
     if (isAuthConfigured() && !isWorkspaceUuid(workspaceId)) {
       setFeedback(
         'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
+        'error',
       );
       return false;
     }
@@ -323,6 +340,7 @@ export function ProspectingView({
           error instanceof Error
             ? `No se pudo guardar en el espacio activo: ${error.message}`
             : 'No se pudo guardar en el espacio activo. El respaldo local se conservó.',
+          'error',
         );
         return false;
       }
@@ -341,7 +359,7 @@ export function ProspectingView({
     const result = startProspectConversion(conversionTarget, input);
     if (!result.ok) {
       refresh();
-      return setFeedback(result.error);
+      return setFeedback(result.error, 'error');
     }
     refresh();
     onOpportunitiesChanged?.();
@@ -561,6 +579,7 @@ export function ProspectingView({
         }}
         onReload={refresh}
         feedback={feedback}
+        feedbackTone={feedbackState.tone}
         onOpenOpportunity={onOpenOpportunity}
         onOpportunitiesChanged={onOpportunitiesChanged}
         onDirtyChange={onDirtyChange}
@@ -579,6 +598,7 @@ export function ProspectingView({
           onSave={save}
           onReload={refresh}
           feedback={feedback}
+          feedbackTone={feedbackState.tone}
           onOpenOpportunity={onOpenOpportunity}
           onOpportunitiesChanged={onOpportunitiesChanged}
           onDirtyChange={onDirtyChange}
@@ -614,11 +634,16 @@ export function ProspectingView({
           </button>
         </div>
       </header>
-      {feedback && (
-        <p className="commercial-note" role="status">
-          {feedback}
-        </p>
-      )}
+      {feedback &&
+        (feedbackState.tone === 'error' ? (
+          <p className="form-error" role="alert">
+            {feedback}
+          </p>
+        ) : (
+          <p className="commercial-note" role="status">
+            {feedback}
+          </p>
+        ))}
       {isImportOpen && (
         <section className="quote-card prospect-import">
           <h2>Importar prospectos</h2>
@@ -1369,6 +1394,7 @@ function ProspectDetail({
   onBack,
   onSave,
   feedback,
+  feedbackTone = 'status',
   onOpenOpportunity,
   onReload,
   onOpportunitiesChanged,
@@ -1381,6 +1407,7 @@ function ProspectDetail({
   onBack: () => void;
   onSave: (prospect: Prospect) => boolean | Promise<boolean>;
   feedback: string;
+  feedbackTone?: FeedbackTone;
   onOpenOpportunity: (id: string) => void;
   onReload: () => void;
   onOpportunitiesChanged?: () => void;
@@ -1394,7 +1421,24 @@ function ProspectDetail({
   const [script, setScript] = useState('');
   const [isConversionOpen, setIsConversionOpen] = useState(false);
   const [conversionFeedback, setConversionFeedback] = useState('');
+  const [conversionError, setConversionError] = useState('');
   const [pendingConversion, setPendingConversion] = useState<Prospect | null>(null);
+  const allFieldErrors = getProspectFieldErrors(draft);
+  const formFieldErrors: Partial<Record<ProspectFormField, string>> = {
+    name: allFieldErrors.name,
+    phone: allFieldErrors.phone,
+    email: allFieldErrors.email,
+  };
+  // Fields that are not edited in this form (status, priority, channel, date) are reported once.
+  const otherFieldError = Object.entries(allFieldErrors).find(
+    ([key]) => !(prospectFormFields as readonly string[]).includes(key),
+  )?.[1];
+  const validation = useFieldValidation(
+    `prospect-${prospect.id}`,
+    formFieldErrors,
+    prospectFormFields,
+  );
+  const [showOtherFieldError, setShowOtherFieldError] = useState(false);
   useEffect(() => {
     onDirtyChange?.(
       isNew
@@ -1407,13 +1451,22 @@ function ProspectDetail({
   function field<K extends keyof Prospect>(key: K, value: Prospect[K]) {
     setDraft((current) => ({ ...current, [key]: value, updatedAt: new Date().toISOString() }));
   }
+  function showConversionError(message: string) {
+    setConversionFeedback('');
+    setConversionError(message);
+  }
+  function showConversionSuccess() {
+    setConversionError('');
+    setConversionFeedback('Oportunidad creada. Revisá su contexto y próximo paso en Seguimiento.');
+  }
   async function beginConversion(input: ProspectConversionInput) {
+    setConversionError('');
     try {
       let pending = createPendingProspectConversion(prospect, input);
       const workspaceId = workspaceContext.session?.activeWorkspaceId;
       if (isAuthConfigured()) {
         if (!isWorkspaceUuid(workspaceId)) {
-          setConversionFeedback(
+          showConversionError(
             'No se pudo identificar el espacio de trabajo en Supabase. Volvé a iniciar sesión o seleccioná otro espacio.',
           );
           return;
@@ -1425,7 +1478,7 @@ function ProspectDetail({
           idempotencyKey: `convert-prospect:${prospect.id}:${prospect.version ?? 1}`,
         });
         if (!remote.ok) {
-          setConversionFeedback(remote.message);
+          showConversionError(remote.message);
           return;
         }
         pending = { ...withRemoteConversionIds(pending, remote), version: remote.version };
@@ -1433,38 +1486,37 @@ function ProspectDetail({
       setPendingConversion(pending);
       const pendingSave = saveProspectWithResult(pending);
       if (!pendingSave.ok) {
-        setConversionFeedback(
-          'No se pudo iniciar la conversión. No se creó cliente ni oportunidad.',
-        );
+        showConversionError('No se pudo iniciar la conversión. No se creó cliente ni oportunidad.');
         return;
       }
       const result = resumeProspectConversion(pending);
       if (!result.ok) {
-        setConversionFeedback(result.error);
+        showConversionError(result.error);
         return;
       }
       onReload();
       onOpportunitiesChanged?.();
       setPendingConversion(null);
       setIsConversionOpen(false);
-      setConversionFeedback(
-        'Oportunidad creada. Revisá su contexto y próximo paso en Seguimiento.',
-      );
+      showConversionSuccess();
     } catch (error) {
-      setConversionFeedback(
+      showConversionError(
         error instanceof Error ? error.message : 'No se pudo iniciar la conversión.',
       );
     }
   }
   function retryConversion() {
     const result = resumeProspectConversion(pendingConversion ?? prospect);
-    if (!result.ok) return setConversionFeedback(result.error);
+    if (!result.ok) return showConversionError(result.error);
     onReload();
     onOpportunitiesChanged?.();
     setPendingConversion(null);
-    setConversionFeedback('Oportunidad creada. Revisá su contexto y próximo paso en Seguimiento.');
+    showConversionSuccess();
   }
   async function saveDraft() {
+    if (!validation.validateForSubmit()) return;
+    setShowOtherFieldError(Boolean(otherFieldError));
+    if (otherFieldError) return;
     const editableDraft = {
       ...draft,
       activities: prospect.activities,
@@ -1479,6 +1531,8 @@ function ProspectDetail({
   function cancelEditing() {
     setDraft(prospect);
     setIsEditing(false);
+    validation.reset();
+    setShowOtherFieldError(false);
   }
   const statusDescription: Record<ProspectStatus, string> = {
     uncontacted: 'Todavía no se realizó el primer contacto.',
@@ -1531,32 +1585,54 @@ function ProspectDetail({
           </button>
         )}
       </header>
-      {feedback && (
-        <p className="commercial-note" role="status">
-          {feedback}
-        </p>
-      )}
+      {feedback &&
+        (feedbackTone === 'error' ? (
+          <p className="form-error" role="alert">
+            {feedback}
+          </p>
+        ) : (
+          <p className="commercial-note" role="status">
+            {feedback}
+          </p>
+        ))}
       <div className="prospect-detail-grid">
         <section className="quote-card prospect-form">
           <h2>Datos del prospecto</h2>
           {isEditing ? (
             <div className="form-grid">
-              {detailFields.map(([key, label]) => (
-                <label className="field" key={key}>
-                  <span>{label}</span>
-                  {key === 'notes' ? (
-                    <textarea
-                      value={draft[key] as string}
-                      onChange={(e) => field(key, e.target.value)}
-                    />
-                  ) : (
-                    <input
-                      value={draft[key] as string}
-                      onChange={(e) => field(key, e.target.value)}
-                    />
-                  )}
-                </label>
-              ))}
+              {detailFields.map(([key, label]) => {
+                const validated = (prospectFormFields as readonly string[]).includes(key)
+                  ? (key as ProspectFormField)
+                  : null;
+                return (
+                  <label className="field" key={key}>
+                    <span>{label}</span>
+                    {key === 'notes' ? (
+                      <textarea
+                        value={draft[key] as string}
+                        onChange={(e) => field(key, e.target.value)}
+                      />
+                    ) : (
+                      <input
+                        value={draft[key] as string}
+                        onChange={(e) => field(key, e.target.value)}
+                        {...(validated ? validation.fieldProps(validated) : {})}
+                      />
+                    )}
+                    {validated && (
+                      <FieldError
+                        id={validation.errorId(validated)}
+                        message={validation.visibleError(validated)}
+                      />
+                    )}
+                  </label>
+                );
+              })}
+              {showOtherFieldError && otherFieldError && (
+                <p className="form-error" role="alert">
+                  {otherFieldError}
+                </p>
+              )}
             </div>
           ) : (
             <dl className="prospect-data">
@@ -1662,6 +1738,11 @@ function ProspectDetail({
               {conversionFeedback}
             </p>
           )}
+          {conversionError && !isConversionOpen && (
+            <p className="form-error" role="alert">
+              {conversionError}
+            </p>
+          )}
         </section>
         {!isNew && (
           <section className="quote-card prospect-contact-card">
@@ -1748,7 +1829,11 @@ function ProspectDetail({
       {isConversionOpen && (
         <ProspectConversionModal
           prospect={prospect}
-          onClose={() => setIsConversionOpen(false)}
+          saveError={conversionError}
+          onClose={() => {
+            setIsConversionOpen(false);
+            setConversionError('');
+          }}
           onSave={beginConversion}
         />
       )}
@@ -1758,10 +1843,13 @@ function ProspectDetail({
 
 function ProspectConversionModal({
   prospect,
+  saveError = '',
   onClose,
   onSave,
 }: {
   prospect: Prospect;
+  /** Error from creating the opportunity (Supabase or local save), shown inside the modal. */
+  saveError?: string;
   onClose: () => void;
   onSave: (input: ProspectConversionInput) => void;
 }) {
@@ -1783,11 +1871,14 @@ function ProspectConversionModal({
     })(),
     responsible: prospect.responsible,
   });
-  const [error, setError] = useState('');
+  const validation = useFieldValidation(
+    `conversion-${prospect.id}`,
+    getProspectConversionFieldErrors(input),
+    prospectConversionFieldOrder,
+  );
   function submit(event: FormEvent) {
     event.preventDefault();
-    const validation = getProspectConversionValidationError(input);
-    if (validation) return setError(validation);
+    if (!validation.validateForSubmit()) return;
     onSave(input);
   }
   const set = <K extends keyof ProspectConversionInput>(
@@ -1795,8 +1886,10 @@ function ProspectConversionModal({
     value: ProspectConversionInput[K],
   ) => {
     setInput((current) => ({ ...current, [key]: value }));
-    setError('');
   };
+  const fieldError = (field: keyof ProspectConversionInput) => (
+    <FieldError id={validation.errorId(field)} message={validation.visibleError(field)} />
+  );
   return (
     <div className="modal-backdrop">
       <form
@@ -1813,19 +1906,24 @@ function ProspectConversionModal({
           <input
             value={input.opportunityName}
             onChange={(e) => set('opportunityName', e.target.value)}
+            {...validation.fieldProps('opportunityName')}
           />
+          {fieldError('opportunityName')}
         </label>
         <label className="field">
           <span>Servicio de interés</span>
           <input
             value={input.serviceOfInterest}
             onChange={(e) => set('serviceOfInterest', e.target.value)}
+            {...validation.fieldProps('serviceOfInterest')}
           />
+          {fieldError('serviceOfInterest')}
         </label>
         <label className="field">
           <span>Nivel de interés</span>
           <select
             value={input.interestLevel}
+            {...validation.fieldProps('interestLevel')}
             onChange={(e) =>
               set('interestLevel', e.target.value as ProspectConversionInput['interestLevel'])
             }
@@ -1834,13 +1932,16 @@ function ProspectConversionModal({
             <option value="medium">Medio</option>
             <option value="low">Bajo</option>
           </select>
+          {fieldError('interestLevel')}
         </label>
         <label className="field">
           <span>Necesidad detectada</span>
           <textarea
             value={input.detectedNeed}
             onChange={(e) => set('detectedNeed', e.target.value)}
+            {...validation.fieldProps('detectedNeed')}
           />
+          {fieldError('detectedNeed')}
         </label>
         <label className="field">
           <span>Valor estimado (opcional)</span>
@@ -1850,16 +1951,24 @@ function ProspectConversionModal({
             step="any"
             value={input.estimatedValue}
             onChange={(e) => set('estimatedValue', e.target.value)}
+            {...validation.fieldProps('estimatedValue')}
           />
+          {fieldError('estimatedValue')}
         </label>
         <label className="field">
           <span>Próximo paso</span>
-          <input value={input.nextStep} onChange={(e) => set('nextStep', e.target.value)} />
+          <input
+            value={input.nextStep}
+            onChange={(e) => set('nextStep', e.target.value)}
+            {...validation.fieldProps('nextStep')}
+          />
+          {fieldError('nextStep')}
         </label>
         <label className="field">
           <span>Canal del próximo paso</span>
           <select
             value={input.nextStepChannel}
+            {...validation.fieldProps('nextStepChannel')}
             onChange={(e) =>
               set('nextStepChannel', e.target.value as ProspectConversionInput['nextStepChannel'])
             }
@@ -1872,6 +1981,7 @@ function ProspectConversionModal({
             <option value="waitForResponse">Esperar respuesta</option>
             <option value="other">Otra</option>
           </select>
+          {fieldError('nextStepChannel')}
         </label>
         <label className="field">
           <span>Fecha y hora del próximo paso</span>
@@ -1879,15 +1989,22 @@ function ProspectConversionModal({
             type="datetime-local"
             value={input.nextStepAt}
             onChange={(e) => set('nextStepAt', e.target.value)}
+            {...validation.fieldProps('nextStepAt')}
           />
+          {fieldError('nextStepAt')}
         </label>
         <label className="field">
           <span>Responsable</span>
-          <input value={input.responsible} onChange={(e) => set('responsible', e.target.value)} />
+          <input
+            value={input.responsible}
+            onChange={(e) => set('responsible', e.target.value)}
+            {...validation.fieldProps('responsible')}
+          />
+          {fieldError('responsible')}
         </label>
-        {error && (
-          <p className="commercial-warning" role="alert">
-            {error}
+        {saveError && (
+          <p className="form-error" role="alert">
+            {saveError}
           </p>
         )}
         <div className="confirmation-actions">

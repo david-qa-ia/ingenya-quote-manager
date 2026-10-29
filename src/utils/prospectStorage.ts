@@ -89,27 +89,48 @@ export function createNewProspect(): Prospect {
   };
 }
 
-export function getProspectValidationError(input: ProspectInput): string | null {
-  if (!input.name.trim()) return 'Ingresá el nombre del prospecto.';
+export type ProspectFieldErrors = Partial<Record<keyof ProspectInput, string>>;
+
+/** Validation order; the first invalid field is the one getProspectValidationError reports. */
+export const prospectFieldOrder = [
+  'name',
+  'phone',
+  'email',
+  'priority',
+  'status',
+  'preferredChannel',
+  'nextActionAt',
+] as const satisfies readonly (keyof ProspectInput)[];
+
+/** Same rules and messages as getProspectValidationError, reported per field (SCRUM-107). */
+export function getProspectFieldErrors(input: ProspectInput): ProspectFieldErrors {
+  const errors: ProspectFieldErrors = {};
+  if (!input.name.trim()) errors.name = 'Ingresá el nombre del prospecto.';
   if (
     input.phone.trim() &&
     (!/^\+?[\d\s().-]+$/.test(input.phone.trim()) ||
       !/^\d{7,15}$/.test(input.phone.replace(/\D/g, '')))
   )
-    return 'El teléfono debe tener entre 7 y 15 dígitos.';
+    errors.phone = 'El teléfono debe tener entre 7 y 15 dígitos.';
   if (
     input.email.trim() &&
     !isPendingEmail(input.email) &&
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())
   )
-    return 'Ingresá un email válido o none si está pendiente.';
-  if (!['high', 'medium', 'low'].includes(input.priority)) return 'Revisá la prioridad.';
-  if (!statuses.includes(input.status)) return 'Revisá el estado.';
+    errors.email = 'Ingresá un email válido o none si está pendiente.';
+  if (!['high', 'medium', 'low'].includes(input.priority)) errors.priority = 'Revisá la prioridad.';
+  if (!statuses.includes(input.status)) errors.status = 'Revisá el estado.';
   if (!['', 'phone', 'whatsapp', 'email', 'instagram'].includes(input.preferredChannel))
-    return 'Revisá el canal.';
+    errors.preferredChannel = 'Revisá el canal.';
   if (input.nextActionAt && !getLocalDateKeyFromFollowUp(input.nextActionAt))
-    return 'La próxima acción debe tener una fecha válida.';
-  return null;
+    errors.nextActionAt = 'La próxima acción debe tener una fecha válida.';
+  return errors;
+}
+
+export function getProspectValidationError(input: ProspectInput): string | null {
+  const errors = getProspectFieldErrors(input);
+  const first = prospectFieldOrder.find((field) => errors[field]);
+  return first ? (errors[first] ?? null) : null;
 }
 
 export function normalizeProspectInput(input: ProspectInput): ProspectInput {
@@ -188,6 +209,15 @@ export type SaveResult =
       reason: 'validation' | 'storage_unavailable' | 'storage_write_failed' | 'unknown';
       error?: string;
     };
+
+/** User-facing text for a failed local save; never exposes the internal reason code. */
+export function getProspectSaveErrorMessage(result: Extract<SaveResult, { ok: false }>): string {
+  if (result.reason === 'validation')
+    return 'No se pudo guardar: hay datos del prospecto con un formato que no se puede guardar. Revisá los campos y volvé a intentar.';
+  if (result.reason === 'storage_unavailable')
+    return 'No se pudo guardar en este navegador porque el almacenamiento no está disponible. Lo que cargaste sigue en el formulario.';
+  return 'No se pudo guardar en este navegador. Lo que cargaste sigue en el formulario; volvé a intentar en unos segundos.';
+}
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
