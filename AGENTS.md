@@ -18,13 +18,45 @@ Before editing files, agents must read:
 If the ticket touches persistence, drafts, saved quotes, localStorage, quote recovery, or stored data, agents must also read:
 
 - `docs/architecture/storage-architecture.md`
+- `docs/architecture/persistence-architecture.md`
+
+If the ticket touches workspaces, sign-in or the active workspace, agents must also read:
+
+- `docs/architecture/workspaces.md`
 
 ## Product Boundaries
 
-- The app helps Daniel create construction service quotes.
+- The app (Brio / Ingenya Quote Manager) helps Daniel manage commercial work for construction
+  services: prospects, clients, opportunities, quotes and their follow-up.
 - "Labor" means services charged to the final client, not workers, wages, salaries, unions, UOCRA, or construction chamber labor tables.
-- The current scope is quote creation and local draft/saved quote management for services/labor only.
-- Materials, taxes, margins, PDF generation, backend persistence, AI voice input, and customer follow-up are outside the current implementation scope unless a Jira ticket explicitly includes them.
+- Current scope (updated 2026-10-29, SCRUM-108):
+  - Quotes for services/labor: drafts, finalization, versions and PDF.
+  - Clients (contacts) and opportunities, with qualification and next actions.
+  - Prospecting: manual and CSV import, first contact, contact results, conversion to an
+    opportunity, and archive/restore (SCRUM-111).
+  - Follow-up ("Seguimiento"), cadences, registered quote sends and commercial outcomes
+    (accepted, rejected, lost, reopened).
+  - Commercial metrics ("Indicadores").
+  - Workspaces with Supabase as the source of truth (Auth, RLS, transactional RPCs and
+    migrations in `supabase/migrations`), plus a workspace-namespaced local mirror in
+    localStorage. Without Supabase environment variables the app runs in local-only mode.
+- The app records contacts and sends that the user confirms; it never sends WhatsApp or email
+  messages by itself.
+- Materials, taxes, margins, AI voice input, automatic message sending and team permissions for
+  the reserved `collaborator` role are outside the current scope unless a Jira ticket explicitly
+  includes them.
+
+## Forms And Validation
+
+- Validation rules live in pure functions in `src/utils` (for example `getProspectFieldErrors`,
+  `getClientFieldErrors`). Existing `get*ValidationError` functions also guard stored data and
+  CSV import, so change them only with equivalence tests.
+- Forms show one message per field with the shared `FieldError` component and
+  `useFieldValidation` hook: `aria-invalid`, `aria-describedby`, focus on the first invalid field,
+  and the `var(--danger)` color. Save or server errors use `.form-error` with `role="alert"`, in
+  Spanish and without internal codes.
+- Do not add form or validation libraries (react-hook-form, yup, zod, UI kits) without a
+  justification approved in the Jira ticket.
 
 ## Code Language Rules
 

@@ -88,6 +88,7 @@ import { QuoteDetailView } from './components/QuoteDetailView';
 import { RegisterQuoteSendDrawer, type QuoteSendInput } from './components/RegisterQuoteSendDrawer';
 import {
   defaultProspectFilters,
+  normalizeProspectFilters,
   registerProspectAction,
   type ProspectFilters,
 } from './utils/prospectWorkflow';
@@ -169,8 +170,8 @@ function loadProspectFilters(): ProspectFilters {
   try {
     const stored = localStorage.getItem(workspaceStorageKey(PROSPECT_FILTERS_STORAGE_KEY));
     if (!stored) return defaultProspectFilters;
-    const value = JSON.parse(stored) as Partial<ProspectFilters>;
-    return { ...defaultProspectFilters, ...value };
+    // SCRUM-110: an unknown stored value would filter while the dropdown shows "Todos".
+    return normalizeProspectFilters(JSON.parse(stored));
   } catch {
     return defaultProspectFilters;
   }

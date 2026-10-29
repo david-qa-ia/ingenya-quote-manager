@@ -4,7 +4,11 @@ Ingenya uses one authenticated identity with memberships in multiple workspaces.
 workspace is a UI context, never an authorization boundary: the server validates the authenticated
 user's active membership on every operation.
 
-The initial workspaces are Ingenya, Alef-Tau and Negocio familiar. Roles are `owner` and `admin`;
+Workspace names come from the `workspaces` table. In the current Supabase environment they are
+Brio, Alef-Tau and Negocio familiar (Brio is the commercial brand shown on the sign-in screen).
+The local development adapter, used without Supabase variables, still names the first workspace
+Ingenya; the name is cosmetic and its ID is `workspace-ingenya`. _(Updated 2026-10-29, SCRUM-108;
+the original text listed "Ingenya, Alef-Tau and Negocio familiar".)_ Roles are `owner` and `admin`;
 `collaborator` is reserved as a future model and does not add team permissions in this increment.
 
 All commercial records and files created by SCRUM-79 must have a mandatory `workspace_id`. RLS

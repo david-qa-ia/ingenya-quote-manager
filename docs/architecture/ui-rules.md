@@ -66,9 +66,11 @@ Avoid:
 The administrative application has one shared visual language. Future UI work must extend this
 language instead of introducing a separate style for each feature.
 
-For the broader interaction rationale and a pre-merge visual checklist, consult
-[`heloc-ui-reference.md`](./heloc-ui-reference.md). It is a visual reference, never a source of
-product or business-rule changes.
+For the broader interaction rationale and a pre-merge visual checklist, consult the interaction
+reference (private document). It is kept outside GitHub, in `docs/private/ui-interaction-reference.md`
+in each local copy (the folder is git-ignored); ask the project owner for it. It is a visual
+reference, never a source of product or business-rule changes. The rules approved in SCRUM-92
+are the ones in this file.
 
 ### Foundations
 
