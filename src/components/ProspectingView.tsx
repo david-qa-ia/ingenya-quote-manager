@@ -59,7 +59,6 @@ import {
   prospectContactResultLabels,
   prospectStatusLabels,
   sortProspectsForContact,
-  transitionProspect,
   type ProspectFilters,
 } from '../utils/prospectWorkflow';
 import { formatActivityDateTime } from '../utils/activityTimeline';
@@ -1728,15 +1727,14 @@ function ProspectDetail({
     if (!validation.validateForSubmit()) return;
     setShowOtherFieldError(Boolean(otherFieldError));
     if (otherFieldError) return;
-    const editableDraft = {
-      ...draft,
-      activities: prospect.activities,
-      ...(prospect.conversion ? { conversion: prospect.conversion } : {}),
-    };
-    const next =
-      editableDraft.status === prospect.status
-        ? editableDraft
-        : transitionProspect(editableDraft, editableDraft.status);
+    // Only the fields edited in this form are taken from the draft. Status, next step, history and
+    // version come from the current prospect, which may have changed after the form was opened.
+    const editedFields = Object.fromEntries(
+      detailFields.map(([key]) => [key, draft[key]]),
+    ) as Partial<Prospect>;
+    const next: Prospect = isNew
+      ? draft
+      : { ...prospect, ...editedFields, updatedAt: new Date().toISOString() };
     if (await onSave(next)) setIsEditing(false);
   }
   function cancelEditing() {
@@ -1897,7 +1895,11 @@ function ProspectDetail({
                 <button
                   className="button button-line"
                   type="button"
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => {
+                    // Start from the current data: the prospect may have changed since it opened.
+                    setDraft(prospect);
+                    setIsEditing(true);
+                  }}
                 >
                   Editar datos
                 </button>
