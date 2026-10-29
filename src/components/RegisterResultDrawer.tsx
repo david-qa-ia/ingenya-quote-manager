@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 import type { FollowUpResultSaveResult } from '../utils/followUpResultTransaction';
+import {
+  getFirstInvalidRegisterResultField,
+  getRegisterResultFieldErrors,
+  type RegisterResultField,
+} from '../utils/registerResultValidation';
 
 export type ResultChannel = 'call' | 'whatsapp' | 'email' | 'instagram' | 'meeting';
 export type ResultNextStep =
@@ -148,6 +153,15 @@ function OptionCard({
   );
 }
 
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <span id={id} className="field-error">
+      {message}
+    </span>
+  );
+}
+
 export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, onRecover }: Props) {
   const [result, setResult] = useState('');
   const [channel, setChannel] = useState<ResultChannel>(
@@ -163,7 +177,27 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [recoveryRequired, setRecoveryRequired] = useState(false);
+  const [showFieldErrors, setShowFieldErrors] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const fieldRefs = useRef<Partial<Record<RegisterResultField, HTMLElement | null>>>({});
+  const fieldErrors = showFieldErrors
+    ? getRegisterResultFieldErrors({
+        result,
+        nextStep,
+        dueAt,
+        actor,
+        hasPendingAction: Boolean(item.action),
+      })
+    : {};
+  const fieldErrorId = (field: RegisterResultField) => `register-result-${field}-error`;
+  const focusField = (field: RegisterResultField) => {
+    const target = fieldRefs.current[field];
+    const focusable =
+      target instanceof HTMLFieldSetElement
+        ? target.querySelector<HTMLElement>('button:not(:disabled)')
+        : target;
+    focusable?.focus();
+  };
   const unavailableChannelReason = (value: ResultChannel | ResultNextStep) => {
     if (value === 'whatsapp' && !item.phone) return 'Falta un teléfono válido para WhatsApp.';
     if (value === 'email' && !item.email) return 'Falta un email válido para este canal.';
@@ -206,19 +240,22 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
 
   async function submit() {
     if (isSaving || recoveryRequired) return;
-    if (
-      !result ||
-      !actor.trim() ||
-      (nextStep !== 'none' && !dueAt) ||
-      (!item.action && nextStep === 'none')
-    ) {
-      setError(
-        item.action
-          ? 'Completá resultado, responsable y la fecha del próximo paso.'
-          : 'Esta oportunidad no tiene una acción pendiente. Elegí el próximo paso y su fecha.',
-      );
+    const errors = getRegisterResultFieldErrors({
+      result,
+      nextStep,
+      dueAt,
+      actor,
+      hasPendingAction: Boolean(item.action),
+    });
+    const firstInvalid = getFirstInvalidRegisterResultField(errors);
+    if (firstInvalid) {
+      setShowFieldErrors(true);
+      setError('');
+      // Wait for the error messages to render before moving the focus.
+      window.requestAnimationFrame(() => focusField(firstInvalid));
       return;
     }
+    setError('');
     const input: RegisterResultInput = {
       actor: actor.trim(),
       reason: note.trim() || result,
@@ -286,7 +323,13 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
             <span>{item.clientCompany ?? 'Empresa pendiente'}</span>
             <span>{item.action?.description ?? 'Sin próxima tarea'}</span>
           </div>
-          <fieldset className="result-option-group">
+          <fieldset
+            className="result-option-group"
+            ref={(element) => {
+              fieldRefs.current.result = element;
+            }}
+            aria-describedby={fieldErrors.result ? fieldErrorId('result') : undefined}
+          >
             <legend>Resultado del contacto</legend>
             <div className="result-option-grid result-option-grid-four">
               {resultOptions.map(([value, label, icon]) => (
@@ -299,6 +342,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
                 />
               ))}
             </div>
+            <FieldError id={fieldErrorId('result')} message={fieldErrors.result} />
           </fieldset>
           <fieldset className="result-option-group">
             <legend>Canal realizado</legend>
@@ -324,7 +368,13 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
               ))}
             </div>
           </fieldset>
-          <fieldset className="result-option-group">
+          <fieldset
+            className="result-option-group"
+            ref={(element) => {
+              fieldRefs.current.nextStep = element;
+            }}
+            aria-describedby={fieldErrors.nextStep ? fieldErrorId('nextStep') : undefined}
+          >
             <legend>Próximo paso</legend>
             <div className="result-option-grid result-option-grid-six">
               {(
@@ -349,15 +399,22 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
                 />
               ))}
             </div>
+            <FieldError id={fieldErrorId('nextStep')} message={fieldErrors.nextStep} />
           </fieldset>
           {nextStep !== 'none' && (
             <label className="field">
               <span>Fecha y hora</span>
               <input
+                ref={(element) => {
+                  fieldRefs.current.dueAt = element;
+                }}
                 type="datetime-local"
                 value={dueAt}
                 onChange={(event) => setDueAt(event.target.value)}
+                aria-invalid={fieldErrors.dueAt ? true : undefined}
+                aria-describedby={fieldErrors.dueAt ? fieldErrorId('dueAt') : undefined}
               />
+              <FieldError id={fieldErrorId('dueAt')} message={fieldErrors.dueAt} />
             </label>
           )}
           {nextStep === 'sendQuote' && (
@@ -383,7 +440,16 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
           )}
           <label className="field">
             <span>Responsable</span>
-            <input value={actor} onChange={(event) => setActor(event.target.value)} />
+            <input
+              ref={(element) => {
+                fieldRefs.current.actor = element;
+              }}
+              value={actor}
+              onChange={(event) => setActor(event.target.value)}
+              aria-invalid={fieldErrors.actor ? true : undefined}
+              aria-describedby={fieldErrors.actor ? fieldErrorId('actor') : undefined}
+            />
+            <FieldError id={fieldErrorId('actor')} message={fieldErrors.actor} />
           </label>
           <label className="field">
             <span>Nota</span>
