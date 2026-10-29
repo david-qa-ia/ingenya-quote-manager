@@ -8,6 +8,13 @@ import type {
 } from '../types/activity';
 import type { NextAction } from '../types/opportunity';
 import { UiIcon, type UiIconName } from './UiIcon';
+import { FieldError } from './FieldError';
+import { useFieldValidation } from './useFieldValidation';
+import {
+  activityFormFieldOrder,
+  getActivityFormFieldErrors,
+  type ActivityFormField,
+} from '../utils/activityFormValidation';
 import {
   appendActivityNoteRevision,
   loadActivities,
@@ -106,7 +113,20 @@ export function ActivityTimeline({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedNote, setEditedNote] = useState('');
-  const [feedback, setFeedback] = useState('');
+  const [feedbackState, setFeedbackState] = useState<{ message: string; isError: boolean }>({
+    message: '',
+    isError: false,
+  });
+  const feedback = feedbackState.message;
+  const setFeedback = (message: string, isError = false) => setFeedbackState({ message, isError });
+  const validation = useFieldValidation(
+    `activity-${Object.values(entrySubject).join('-')}`,
+    getActivityFormFieldErrors({ noteOnly, ...input }),
+    activityFormFieldOrder,
+  );
+  const fieldError = (field: ActivityFormField) => (
+    <FieldError id={validation.errorId(field)} message={validation.visibleError(field)} />
+  );
   const visibleActivities = useMemo(
     () =>
       getTimelineActivitiesForSubjects(
@@ -128,7 +148,7 @@ export function ActivityTimeline({
 
   function saveAuthor() {
     if (!saveActivityAuthor(author)) {
-      setFeedback('Ingresá un autor para registrar actividades.');
+      setFeedback('Ingresá un autor para registrar actividades.', true);
       return;
     }
     setInput((current) => ({ ...current, author: author.trim() }));
@@ -144,10 +164,8 @@ export function ActivityTimeline({
       : input.occurredAt
         ? new Date(input.occurredAt).toISOString()
         : '';
-    if (!normalizedAuthor || !input.note.trim() || (!noteOnly && !input.occurredAt) || !result) {
-      setFeedback(
-        noteOnly ? 'Completá autor, fecha y nota.' : 'Completá autor, fecha, resultado y nota.',
-      );
+    if (!validation.validateForSubmit()) {
+      setFeedback('');
       return;
     }
     const activity: Activity = {
@@ -162,7 +180,10 @@ export function ActivityTimeline({
       noteRevisions: [],
     };
     if (!saveActivity(activity)) {
-      setFeedback('No se pudo guardar la actividad.');
+      setFeedback(
+        'No se pudo guardar la actividad. Lo que cargaste sigue en el formulario; volvé a intentar.',
+        true,
+      );
       return;
     }
     setAuthor(normalizedAuthor);
@@ -175,12 +196,13 @@ export function ActivityTimeline({
       note: '',
     });
     setIsFormOpen(false);
-    setFeedback('Actividad registrada.');
+    validation.reset();
+    setFeedback(noteOnly ? 'Nota registrada.' : 'Actividad registrada.');
   }
 
   function saveRevision(activity: Activity) {
     if (!editedNote.trim()) {
-      setFeedback('La nota no puede quedar vacía.');
+      setFeedback('La nota no puede quedar vacía.', true);
       return;
     }
     if (
@@ -190,7 +212,7 @@ export function ActivityTimeline({
         note: editedNote.trim(),
       })
     ) {
-      setFeedback('No se pudo guardar la edición de la nota.');
+      setFeedback('No se pudo guardar la edición de la nota.', true);
       return;
     }
     refresh();
@@ -215,7 +237,10 @@ export function ActivityTimeline({
       <button
         className={isFormOpen ? 'button button-line' : 'button button-primary'}
         type="button"
-        onClick={() => setIsFormOpen((open) => !open)}
+        onClick={() => {
+          setIsFormOpen((open) => !open);
+          validation.reset();
+        }}
       >
         {isFormOpen ? 'Cancelar' : registerLabel}
       </button>
@@ -251,7 +276,9 @@ export function ActivityTimeline({
                 onChange={(event) =>
                   setInput((current) => ({ ...current, occurredAt: event.target.value }))
                 }
+                {...validation.fieldProps('occurredAt')}
               />
+              {fieldError('occurredAt')}
             </label>
           )}
           <label className="field">
@@ -261,7 +288,9 @@ export function ActivityTimeline({
               onChange={(event) =>
                 setInput((current) => ({ ...current, author: event.target.value }))
               }
+              {...validation.fieldProps('author')}
             />
+            {fieldError('author')}
           </label>
           {!noteOnly && input.type === 'call' ? (
             <label className="field">
@@ -274,6 +303,7 @@ export function ActivityTimeline({
                     result: event.target.value as CallResult,
                   }))
                 }
+                {...validation.fieldProps('result')}
               >
                 <option value="">Seleccionar resultado</option>
                 {Object.entries(callResultLabels).map(([value, label]) => (
@@ -282,6 +312,7 @@ export function ActivityTimeline({
                   </option>
                 ))}
               </select>
+              {fieldError('result')}
             </label>
           ) : !noteOnly ? (
             <label className="field">
@@ -291,7 +322,9 @@ export function ActivityTimeline({
                 onChange={(event) =>
                   setInput((current) => ({ ...current, result: event.target.value }))
                 }
+                {...validation.fieldProps('result')}
               />
+              {fieldError('result')}
             </label>
           ) : null}
           <label className="field">
@@ -301,18 +334,25 @@ export function ActivityTimeline({
               onChange={(event) =>
                 setInput((current) => ({ ...current, note: event.target.value }))
               }
+              {...validation.fieldProps('note')}
             />
+            {fieldError('note')}
           </label>
           <button className="button button-primary" type="submit">
             {noteOnly ? 'Guardar nota' : 'Guardar actividad'}
           </button>
         </form>
       )}
-      {feedback && (
-        <p className="commercial-note" role="status">
-          {feedback}
-        </p>
-      )}
+      {feedback &&
+        (feedbackState.isError ? (
+          <p className="form-error" role="alert">
+            {feedback}
+          </p>
+        ) : (
+          <p className="commercial-note" role="status">
+            {feedback}
+          </p>
+        ))}
       {nextAction?.status === 'pending' && (
         <section className="activity-next-action" aria-label="Próximo paso agendado">
           <UiIcon name="calendar" />

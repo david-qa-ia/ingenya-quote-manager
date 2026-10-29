@@ -228,6 +228,28 @@ export function getOpportunityValidationError(input: OpportunityInput): string |
   return null;
 }
 
+export type OpportunityFormField = 'name' | 'estimatedStartDate';
+
+/** Display order of the editable opportunity fields, used to focus the first invalid one. */
+export const opportunityFormFieldOrder: readonly OpportunityFormField[] = [
+  'name',
+  'estimatedStartDate',
+];
+
+/**
+ * Field-level messages for the fields edited in the opportunity form (SCRUM-107). Same rules and
+ * messages as getOpportunityValidationError, which still guards the rest of the record.
+ */
+export function getOpportunityFormFieldErrors(
+  input: OpportunityInput,
+): Partial<Record<OpportunityFormField, string>> {
+  const errors: Partial<Record<OpportunityFormField, string>> = {};
+  if (!input.name.trim()) errors.name = 'Ingresá el nombre de la obra o trabajo.';
+  if (input.estimatedStartDate && !isValidDate(input.estimatedStartDate))
+    errors.estimatedStartDate = 'Ingresá una fecha estimada válida.';
+  return errors;
+}
+
 export function normalizeOpportunityInput(input: OpportunityInput): OpportunityInput {
   return {
     clientId: input.clientId.trim(),

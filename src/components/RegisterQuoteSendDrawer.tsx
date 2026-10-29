@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SavedQuote } from '../types/quote';
 import type { NextAction } from '../types/opportunity';
+import { getQuoteSendFieldErrors, quoteSendFieldOrder } from '../utils/quoteSendValidation';
+import { FieldError } from './FieldError';
 import { UiIcon } from './UiIcon';
+import { useFieldValidation } from './useFieldValidation';
 
 export type QuoteSendChannel = 'whatsapp' | 'email' | 'meeting' | 'other';
 export interface QuoteSendInput {
@@ -41,9 +44,6 @@ function argentinaLocalDateTime(date = new Date()): string {
     .reduce<Record<string, string>>((value, part) => ({ ...value, [part.type]: part.value }), {});
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
-function argentinaTimestamp(value: string): number {
-  return Date.parse(`${value}:00-03:00`);
-}
 export function RegisterQuoteSendDrawer({
   quote,
   onClose,
@@ -64,6 +64,11 @@ export function RegisterQuoteSendDrawer({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const lockRef = useRef(false);
+  const validation = useFieldValidation(
+    `quote-send-${quote.id}`,
+    getQuoteSendFieldErrors({ channel, sentAt, responsible, note, nextStep, nextStepAt }),
+    quoteSendFieldOrder,
+  );
   useEffect(() => {
     const prevent = (event: KeyboardEvent) => {
       if (saving && event.key === 'Escape') event.preventDefault();
@@ -73,18 +78,7 @@ export function RegisterQuoteSendDrawer({
   }, [saving]);
   async function submit() {
     if (saving || lockRef.current) return;
-    if (!responsible.trim()) return setError('Indicá quién registró el envío.');
-    const sentTimestamp = argentinaTimestamp(sentAt);
-    const nextStepTimestamp = nextStepAt ? argentinaTimestamp(nextStepAt) : NaN;
-    if (!sentAt || Number.isNaN(sentTimestamp) || sentTimestamp > Date.now())
-      return setError('La fecha y hora de envío debe ser válida y no futura.');
-    if (
-      nextStep !== 'none' &&
-      (!nextStepAt || Number.isNaN(nextStepTimestamp) || nextStepTimestamp <= Date.now())
-    )
-      return setError('El próximo paso debe tener una fecha futura.');
-    if (channel === 'other' && !note.trim())
-      return setError('Indicá una nota para registrar otro canal.');
+    if (!validation.validateForSubmit()) return setError('');
     lockRef.current = true;
     setSaving(true);
     setError('');
@@ -202,6 +196,11 @@ export function RegisterQuoteSendDrawer({
             value={sentAt}
             disabled={saving}
             onChange={(event) => setSentAt(event.target.value)}
+            {...validation.fieldProps('sentAt')}
+          />
+          <FieldError
+            id={validation.errorId('sentAt')}
+            message={validation.visibleError('sentAt')}
           />
         </label>
         <label className="field">
@@ -210,6 +209,11 @@ export function RegisterQuoteSendDrawer({
             value={responsible}
             disabled={saving}
             onChange={(event) => setResponsible(event.target.value)}
+            {...validation.fieldProps('responsible')}
+          />
+          <FieldError
+            id={validation.errorId('responsible')}
+            message={validation.visibleError('responsible')}
           />
         </label>
         <label className="field">
@@ -220,7 +224,9 @@ export function RegisterQuoteSendDrawer({
             disabled={saving}
             onChange={(event) => setNote(event.target.value)}
             placeholder="Presupuesto enviado; esperamos confirmación."
+            {...validation.fieldProps('note')}
           />
+          <FieldError id={validation.errorId('note')} message={validation.visibleError('note')} />
         </label>
         <fieldset disabled={saving}>
           <legend>
@@ -240,14 +246,22 @@ export function RegisterQuoteSendDrawer({
             {nextStep !== 'none' && (
               <input
                 type="datetime-local"
+                aria-label="Fecha y hora del próximo paso"
                 value={nextStepAt}
                 onChange={(event) => setNextStepAt(event.target.value)}
+                {...validation.fieldProps('nextStepAt')}
               />
             )}
           </div>
+          {nextStep !== 'none' && (
+            <FieldError
+              id={validation.errorId('nextStepAt')}
+              message={validation.visibleError('nextStepAt')}
+            />
+          )}
         </fieldset>
         {error && (
-          <p className="commercial-warning" role="alert">
+          <p className="form-error" role="alert">
             {error}
           </p>
         )}

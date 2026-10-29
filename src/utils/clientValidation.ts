@@ -39,6 +39,49 @@ export function getClientValidationError(input: ClientInput): string | null {
   return null;
 }
 
+export type ClientFormField =
+  'name' | 'phone' | 'email' | 'preferredChannel' | 'doNotContactReason' | 'doNotContactAuthor';
+
+/** Display order of the client form fields, used to focus the first invalid one. */
+export const clientFormFieldOrder: readonly ClientFormField[] = [
+  'name',
+  'phone',
+  'email',
+  'preferredChannel',
+  'doNotContactReason',
+  'doNotContactAuthor',
+];
+
+/**
+ * Field-level variant of getClientValidationError for the client form (SCRUM-107): same rules,
+ * one message per field. getClientValidationError stays unchanged because it also guards
+ * stored clients.
+ */
+export function getClientFieldErrors(input: ClientInput): Partial<Record<ClientFormField, string>> {
+  const errors: Partial<Record<ClientFormField, string>> = {};
+  if (!input.name.trim() && !input.company?.trim())
+    errors.name = 'Ingresá el nombre o la empresa del cliente.';
+  if (
+    !/^\+?[\d\s().-]+$/.test(input.phone.trim()) ||
+    !/^\d{7,15}$/.test(input.phone.replace(/\D/g, ''))
+  )
+    errors.phone = 'Ingresá un teléfono de 7 a 15 dígitos o 1111111111 si está pendiente.';
+  if (!isPendingEmail(input.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim()))
+    errors.email = 'Ingresá un email válido o none si está pendiente.';
+  if (
+    !['', 'phone', 'whatsapp', 'email'].includes(input.preferredChannel) ||
+    typeof input.contactConsent !== 'boolean'
+  )
+    errors.preferredChannel = 'Revisá el canal preferido y el consentimiento de contacto.';
+  if (input.doNotContact) {
+    if (!input.doNotContact.reason.trim())
+      errors.doNotContactReason = 'Ingresá el motivo del pedido de no contacto.';
+    if (!input.doNotContact.recordedBy.trim())
+      errors.doNotContactAuthor = 'Ingresá quién registró el pedido de no contacto.';
+  }
+  return errors;
+}
+
 export function normalizeClientInput(input: ClientInput): ClientInput {
   return {
     name: input.name.trim(),

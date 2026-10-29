@@ -68,6 +68,12 @@ import {
   type InboxActionInput,
 } from './components/OpportunityNextActionsInbox';
 import { MetricsDashboard } from './components/MetricsDashboard';
+import { FieldError } from './components/FieldError';
+import { useFieldValidation } from './components/useFieldValidation';
+import {
+  getManualQuoteLineFieldErrors,
+  manualQuoteLineFieldOrder,
+} from './utils/manualQuoteLineValidation';
 import { CadenceView } from './components/CadenceView';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
@@ -294,6 +300,15 @@ function App() {
   const [isLinkingOpen, setIsLinkingOpen] = useState(false);
   const [catalogError, setCatalogError] = useState('');
   const [manualError, setManualError] = useState('');
+  const manualValidation = useFieldValidation(
+    'manual-line',
+    getManualQuoteLineFieldErrors({
+      name: manualName,
+      quantity: manualQuantity,
+      unitPrice: manualUnitPrice,
+    }),
+    manualQuoteLineFieldOrder,
+  );
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState('');
   const [editUnitPrice, setEditUnitPrice] = useState('');
@@ -522,19 +537,8 @@ function App() {
     const quantity = Number(manualQuantity);
     const unitPrice = Number(manualUnitPrice);
 
-    if (!name) {
-      setManualError('Ingresá el nombre del servicio.');
-      return;
-    }
-
-    if (
-      !Number.isFinite(quantity) ||
-      !Number.isFinite(unitPrice) ||
-      manualUnitPrice.trim() === '' ||
-      quantity <= 0 ||
-      unitPrice < 0
-    ) {
-      setManualError('Ingresá una cantidad mayor a cero y un precio no negativo.');
+    if (!manualValidation.validateForSubmit()) {
+      setManualError('');
       return;
     }
 
@@ -567,6 +571,7 @@ function App() {
     setManualUnitPrice('');
     setSaveManualToCatalog(false);
     setManualError('');
+    manualValidation.reset();
   }
 
   function persistCatalog(nextJobs: CatalogJob[]): string | null {
@@ -2861,7 +2866,7 @@ function App() {
                 </button>
               </form>
             ) : (
-              <form onSubmit={handleManualSubmit}>
+              <form onSubmit={handleManualSubmit} noValidate>
                 <label className="field">
                   <span>Nombre del servicio</span>
                   <input
@@ -2870,6 +2875,11 @@ function App() {
                     onChange={(event) => setManualName(event.target.value)}
                     placeholder="Ej.: Reparar revoque"
                     required
+                    {...manualValidation.fieldProps('name')}
+                  />
+                  <FieldError
+                    id={manualValidation.errorId('name')}
+                    message={manualValidation.visibleError('name')}
                   />
                 </label>
 
@@ -2906,6 +2916,11 @@ function App() {
                       value={manualQuantity}
                       onChange={(event) => setManualQuantity(event.target.value)}
                       required
+                      {...manualValidation.fieldProps('quantity')}
+                    />
+                    <FieldError
+                      id={manualValidation.errorId('quantity')}
+                      message={manualValidation.visibleError('quantity')}
                     />
                   </label>
                   <label className="field">
@@ -2920,8 +2935,13 @@ function App() {
                         onChange={(event) => setManualUnitPrice(event.target.value)}
                         placeholder="0"
                         required
+                        {...manualValidation.fieldProps('unitPrice')}
                       />
                     </div>
+                    <FieldError
+                      id={manualValidation.errorId('unitPrice')}
+                      message={manualValidation.visibleError('unitPrice')}
+                    />
                   </label>
                 </div>
 
@@ -2934,7 +2954,11 @@ function App() {
                   <span>Guardar también en el catálogo para reutilizarlo</span>
                 </label>
 
-                {manualError && <p className="form-error">{manualError}</p>}
+                {manualError && (
+                  <p className="form-error" role="alert">
+                    {manualError}
+                  </p>
+                )}
                 <button className="button button-secondary" type="submit">
                   Agregar servicio
                 </button>

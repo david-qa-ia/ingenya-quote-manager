@@ -1,6 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import type { Client, ClientInput, PreferredChannel } from '../types/client';
-import { getClientValidationError, normalizeClientInput } from '../utils/clientValidation';
+import {
+  clientFormFieldOrder,
+  getClientFieldErrors,
+  getClientValidationError,
+  normalizeClientInput,
+  type ClientFormField,
+} from '../utils/clientValidation';
+import { FieldError } from './FieldError';
+import { useFieldValidation } from './useFieldValidation';
 
 interface Props {
   client?: Client;
@@ -18,22 +26,32 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
   const [doNotContactAuthor, setDoNotContactAuthor] = useState(
     client?.doNotContact?.recordedBy ?? '',
   );
+  const buildInput = (): ClientInput => ({
+    ...input,
+    ...(doNotContact
+      ? {
+          doNotContact: {
+            reason: doNotContactReason,
+            recordedAt: new Date().toISOString(),
+            recordedBy: doNotContactAuthor,
+          },
+        }
+      : {}),
+  });
+  const validation = useFieldValidation(
+    `client-${client?.id ?? 'new'}`,
+    getClientFieldErrors(buildInput()),
+    clientFormFieldOrder,
+  );
+  const fieldError = (field: ClientFormField) => (
+    <FieldError id={validation.errorId(field)} message={validation.visibleError(field)} />
+  );
   function submit(event: FormEvent) {
     event.preventDefault();
-    const next = {
-      ...input,
-      ...(doNotContact
-        ? {
-            doNotContact: {
-              reason: doNotContactReason,
-              recordedAt: new Date().toISOString(),
-              recordedBy: doNotContactAuthor,
-            },
-          }
-        : {}),
-    };
-    const validation = getClientValidationError(next);
-    setError(validation ?? onSave(normalizeClientInput(next)));
+    if (!validation.validateForSubmit()) return setError(null);
+    const next = buildInput();
+    // The stored-data rules still run before saving; field errors cover every case they check.
+    setError(getClientValidationError(next) ?? onSave(normalizeClientInput(next)));
   }
   return (
     <form className="commercial-form" onSubmit={submit} noValidate>
@@ -44,7 +62,9 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
           value={input.name}
           onChange={(e) => setInput({ ...input, name: e.target.value })}
           required
+          {...validation.fieldProps('name')}
         />
+        {fieldError('name')}
       </label>
       <label className="field">
         <span>Empresa</span>
@@ -60,8 +80,10 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
           value={input.phone}
           onChange={(e) => setInput({ ...input, phone: e.target.value })}
           required
+          {...validation.fieldProps('phone')}
         />
         <small>Si está pendiente de confirmar, ingresá 1111111111.</small>
+        {fieldError('phone')}
       </label>
       <label className="field">
         <span>Email del cliente</span>
@@ -71,8 +93,10 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
           value={input.email}
           onChange={(e) => setInput({ ...input, email: e.target.value })}
           required
+          {...validation.fieldProps('email')}
         />
         <small>Si está pendiente de confirmar, ingresá none.</small>
+        {fieldError('email')}
       </label>
       <label className="field">
         <span>Canal preferido</span>
@@ -81,12 +105,14 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
           onChange={(e) =>
             setInput({ ...input, preferredChannel: e.target.value as PreferredChannel })
           }
+          {...validation.fieldProps('preferredChannel')}
         >
           <option value="">Sin preferencia</option>
           <option value="phone">Teléfono</option>
           <option value="whatsapp">WhatsApp</option>
           <option value="email">Email</option>
         </select>
+        {fieldError('preferredChannel')}
       </label>
       <label className="commercial-consent">
         <input
@@ -111,19 +137,23 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
             <textarea
               value={doNotContactReason}
               onChange={(event) => setDoNotContactReason(event.target.value)}
+              {...validation.fieldProps('doNotContactReason')}
             />
+            {fieldError('doNotContactReason')}
           </label>
           <label className="field">
             <span>Registrado por</span>
             <input
               value={doNotContactAuthor}
               onChange={(event) => setDoNotContactAuthor(event.target.value)}
+              {...validation.fieldProps('doNotContactAuthor')}
             />
+            {fieldError('doNotContactAuthor')}
           </label>
         </>
       )}
       {error && (
-        <p className="commercial-warning" role="alert">
+        <p className="form-error" role="alert">
           {error}
         </p>
       )}
