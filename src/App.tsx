@@ -86,7 +86,8 @@ import {
 import {
   PROSPECT_FILTERS_STORAGE_KEY,
   PROSPECTS_STORAGE_KEY,
-  mergeRemoteProspectsWithLocal,
+  isProspect,
+  loadProspects,
   saveProspectWithResult,
 } from './utils/prospectStorage';
 import {
@@ -105,7 +106,6 @@ import { mirrorProspectActivitiesToOpportunity } from './utils/prospectConversio
 import { completeCadenceAction } from './utils/cadenceTransitions';
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
 import { deriveFollowUpInbox } from './utils/followUpInbox';
-import { loadProspects } from './utils/prospectStorage';
 import { deriveGlobalSearchResults } from './utils/globalSearch';
 import type { GlobalSearchResult } from './types/globalSearch';
 import type { Prospect } from './types/prospect';
@@ -119,12 +119,12 @@ import { commitLocalFollowUpResult } from './utils/followUpResultTransaction';
 import { isAuthConfigured } from './utils/authService';
 import {
   loadRemoteProspects,
+  mapRemoteProspect,
   registerRemoteProspectResult,
   registerRemoteQuoteSend,
   syncAndRegisterRemoteLocalQuoteSend,
   updateRemoteProspectProfile,
   SupabaseRepositoryError,
-  type SupabaseProspectRow,
 } from './utils/supabaseRepository';
 import { commitLocalQuoteSend, hasQuoteSendRecovery } from './utils/quoteSendTransaction';
 import {
@@ -148,32 +148,6 @@ const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'medium',
   timeStyle: 'short',
 });
-
-function mapRemoteProspectForInbox(row: SupabaseProspectRow): Prospect {
-  return {
-    id: row.id,
-    name: row.name,
-    company: row.company,
-    phone: row.phone,
-    email: row.email,
-    instagram: row.instagram ?? '',
-    address: row.address ?? '',
-    source: row.source,
-    potentialService: row.potential_service,
-    notes: row.notes,
-    status: row.status,
-    priority: row.priority,
-    priorityReason: row.priority_reason,
-    nextAction: row.next_action,
-    nextActionAt: row.next_action_at ?? '',
-    responsible: row.responsible,
-    preferredChannel: row.preferred_channel ?? '',
-    activities: [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    version: row.version,
-  };
-}
 
 function createLineId(): string {
   return crypto.randomUUID();
@@ -396,25 +370,9 @@ function App() {
     loadRemoteProspects(workspaceId)
       .then((rows) => {
         if (cancelled) return;
-        const localProspects = loadProspects().items;
-        const next = rows.map((row) => {
-          const remote = mapRemoteProspectForInbox(row);
-          const local = localProspects.find((prospect) => prospect.id === remote.id);
-          if (local?.status === 'converted' && remote.status !== 'converted') {
-            return {
-              ...remote,
-              status: 'converted' as const,
-              nextAction: '',
-              nextActionAt: '',
-              conversion: local.conversion,
-              activities: local.activities,
-            };
-          }
-          return { ...remote, activities: local?.activities ?? [] };
-        });
-        const merged = mergeRemoteProspectsWithLocal(next, localProspects);
-        merged.forEach((prospect) => saveProspectWithResult(prospect));
-        setProspects(merged);
+        const next = rows.map((row) => mapRemoteProspect(row)).filter(isProspect);
+        next.forEach((prospect) => saveProspectWithResult(prospect));
+        setProspects(next);
       })
       .catch(() => {
         // The local mirror remains available when the remote read is temporarily unavailable.

@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react';
 import { useWorkspace } from '../context/useWorkspace';
 import type {
   Prospect,
@@ -10,8 +18,8 @@ import type {
 import {
   createNewProspect,
   isProspectContactAvailable,
+  isProspect,
   loadProspects,
-  mergeRemoteProspectsWithLocal,
   saveProspectWithResult,
 } from '../utils/prospectStorage';
 import {
@@ -59,10 +67,10 @@ import {
   importRemoteProspects,
   updateRemoteProspectProfile,
   loadRemoteProspectActivities,
+  mapRemoteProspect,
   loadRemoteProspects,
   mapRemoteProspectActivity,
   SupabaseRepositoryError,
-  type SupabaseProspectRow,
 } from '../utils/supabaseRepository';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 
@@ -82,35 +90,6 @@ const activityTypeLabels = {
   conversionCompleted: 'Conversión completada',
 } as const;
 type DueGroup = 'overdue' | 'today' | 'upcoming';
-
-function mapRemoteProspect(
-  row: SupabaseProspectRow,
-  activities: Prospect['activities'] = [],
-): Prospect {
-  return {
-    id: row.id,
-    name: row.name,
-    company: row.company,
-    phone: row.phone,
-    email: row.email,
-    instagram: row.instagram ?? '',
-    address: row.address ?? '',
-    source: row.source,
-    potentialService: row.potential_service,
-    notes: row.notes,
-    status: row.status,
-    priority: row.priority,
-    priorityReason: row.priority_reason,
-    nextAction: row.next_action,
-    nextActionAt: row.next_action_at ?? '',
-    responsible: row.responsible,
-    preferredChannel: row.preferred_channel ?? '',
-    activities,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    version: row.version,
-  };
-}
 
 function prospectToInboxItem(prospect: Prospect): FollowUpInboxItem {
   return {
@@ -204,60 +183,63 @@ export function ProspectingView({
     const timeout = window.setTimeout(() => setToast(''), 3000);
     return () => window.clearTimeout(timeout);
   }, [toast]);
-  useEffect(() => {
+  const refresh = useCallback(async () => {
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
-    if (!isAuthConfigured() || !isWorkspaceUuid(workspaceId)) return;
-    Promise.all([loadRemoteProspects(workspaceId), loadRemoteProspectActivities(workspaceId)])
-      .then(([rows, activityRows]) => {
-        const activitiesByProspect = new Map<string, Prospect['activities']>();
-        activityRows.forEach((activity) => {
-          const activities = activitiesByProspect.get(activity.prospect_id) ?? [];
-          activities.push(mapRemoteProspectActivity(activity));
-          activitiesByProspect.set(activity.prospect_id, activities);
-        });
-        const localProspects = loadProspects().items;
-        const next = rows.map((row) => {
-          const remote = mapRemoteProspect(row, activitiesByProspect.get(row.id) ?? []);
-          const local = localProspects.find((prospect) => prospect.id === remote.id);
-          if (local?.status === 'converted' && remote.status !== 'converted') {
-            return {
-              ...remote,
-              status: 'converted' as const,
-              nextAction: '',
-              nextActionAt: '',
-              conversion: local.conversion,
-              activities: local.activities,
-            };
-          }
-          return remote;
-        });
-        const merged = mergeRemoteProspectsWithLocal(next, localProspects);
-        merged.forEach((prospect) => saveProspectWithResult(prospect));
-        setProspects(merged);
-        onProspectsChanged?.(merged);
-        const missingFromRemote = localProspects.filter(
-          (prospect) => !next.some((remote) => remote.id === prospect.id),
-        ).length;
-        if (missingFromRemote > 0)
-          setFeedback(
-            `La sincronización no devolvió ${missingFromRemote} prospecto(s) conocido(s). Se conservaron localmente y no se ocultaron.`,
-          );
-      })
-      .catch(() => setFeedback('No se pudieron cargar los prospectos del espacio activo.'));
-  }, [workspaceContext.session?.activeWorkspaceId, onProspectsChanged]);
+    if (!isAuthConfigured() || !isWorkspaceUuid(workspaceId)) {
+      const local = loadProspects().items;
+      setProspects(local);
+      onProspectsChanged?.(local);
+      return;
+    }
+    try {
+      const [rows, activityRows] = await Promise.all([
+        loadRemoteProspects(workspaceId),
+        loadRemoteProspectActivities(workspaceId),
+      ]);
+      const activitiesByProspect = new Map<string, Prospect['activities']>();
+      activityRows.forEach((activity) => {
+        const activities = activitiesByProspect.get(activity.prospect_id) ?? [];
+        activities.push(mapRemoteProspectActivity(activity));
+        activitiesByProspect.set(activity.prospect_id, activities);
+      });
+      const remoteProspects = rows.map((row) =>
+        mapRemoteProspect(row, activitiesByProspect.get(row.id) ?? []),
+      );
+      const validProspects = remoteProspects.filter(isProspect);
+      const invalidProspects = remoteProspects.filter((prospect) => !isProspect(prospect));
+      const mirrorFailures = validProspects.filter(
+        (prospect) => !saveProspectWithResult(prospect).ok,
+      );
+      setProspects(validProspects);
+      onProspectsChanged?.(validProspects);
+      if (invalidProspects.length || mirrorFailures.length) {
+        const affected = [...invalidProspects, ...mirrorFailures]
+          .slice(0, 3)
+          .map((prospect) => prospect.name)
+          .join(', ');
+        setFeedback(
+          `No se pudieron preparar ${invalidProspects.length + mirrorFailures.length} prospecto(s) para la vista local${affected ? `: ${affected}` : ''}. Los demás datos remotos siguen disponibles.`,
+        );
+      }
+    } catch {
+      const local = loadProspects().items;
+      setProspects(local);
+      onProspectsChanged?.(local);
+      setFeedback('No se pudo consultar Supabase. Se muestran los últimos prospectos disponibles.');
+    }
+  }, [onProspectsChanged, workspaceContext.session?.activeWorkspaceId]);
+
   useEffect(() => {
-    const handleProspectsUpdated = () => refresh();
+    void Promise.resolve().then(refresh);
+  }, [refresh]);
+  useEffect(() => {
+    const handleProspectsUpdated = () => void refresh();
     window.addEventListener('ingenya:prospects-updated', handleProspectsUpdated);
     return () => window.removeEventListener('ingenya:prospects-updated', handleProspectsUpdated);
-  });
+  }, [refresh]);
   function updateFilters(next: ProspectFilters) {
     setFilters(next);
     onFiltersChange(next);
-  }
-  function refresh() {
-    const next = loadProspects().items;
-    setProspects(next);
-    onProspectsChanged?.(next);
   }
   async function save(next: Prospect, openDetail = true): Promise<boolean> {
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
@@ -450,13 +432,7 @@ export function ProspectingView({
       clearProspectImportRecovery();
       setImportRecovery(null);
       setPreparedImport(null);
-      if (isAuthConfigured() && workspaceId) {
-        const remoteRows = await loadRemoteProspects(workspaceId);
-        const remoteProspects = remoteRows.map((row) => mapRemoteProspect(row));
-        const merged = mergeRemoteProspectsWithLocal(remoteProspects, loadProspects().items);
-        setProspects(merged);
-        onProspectsChanged?.(merged);
-      } else refresh();
+      await refresh();
       const omitted = rows.length - prepared.prospects.length;
       setFeedback(
         `${prepared.prospects.length} prospecto(s) importado(s)${omitted ? `, ${omitted} omitido(s)` : ''}${prepared.scheduledCount ? ` y ${prepared.scheduledCount} primer contacto(s) agendado(s)` : ''}.`,
