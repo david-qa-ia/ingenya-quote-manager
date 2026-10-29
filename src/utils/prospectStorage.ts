@@ -36,7 +36,6 @@ function isConversion(value: unknown): value is ProspectConversion {
     [
       'clientId',
       'clientName',
-      'clientCompany',
       'clientPhone',
       'clientEmail',
       'opportunityId',
@@ -47,6 +46,8 @@ function isConversion(value: unknown): value is ProspectConversion {
       'nextStepAt',
       'responsible',
     ].every((key) => text(draft[key]) && (draft[key] as string).trim().length > 0) &&
+    // Company is optional for prospects, so a converted prospect may not have one.
+    text(draft.clientCompany) &&
     ['', 'phone', 'whatsapp', 'email', 'instagram'].includes(
       draft.clientPreferredChannel as string,
     ) &&

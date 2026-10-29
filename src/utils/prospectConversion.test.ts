@@ -121,6 +121,15 @@ describe('prospect conversion', () => {
       }),
     );
   });
+  it('converts a prospect without company, which is optional for prospects', () => {
+    const withoutCompany = { ...prospect, company: '' };
+    const pending = createPendingProspectConversion(withoutCompany, input);
+    expect(saveProspectWithResult(pending).ok).toBe(true);
+    const result = resumeProspectConversion(pending);
+    expect(result.ok).toBe(true);
+    expect(loadClients().items[0].company).toBeUndefined();
+    expect(loadOpportunities().items).toHaveLength(1);
+  });
   it('reuses a matching contact and carries the prospect source into the opportunity', () => {
     expect(
       saveClient({
