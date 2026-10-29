@@ -69,6 +69,8 @@ import {
 } from './components/OpportunityNextActionsInbox';
 import { MetricsDashboard } from './components/MetricsDashboard';
 import { FieldError } from './components/FieldError';
+import { UnsavedQuoteDialog } from './components/UnsavedQuoteDialog';
+import { hasUnsavedQuoteChanges } from './utils/quoteUnsavedChanges';
 import { useFieldValidation } from './components/useFieldValidation';
 import {
   getManualQuoteLineFieldErrors,
@@ -314,8 +316,9 @@ function App() {
   const [editUnitPrice, setEditUnitPrice] = useState('');
   const [editError, setEditError] = useState('');
 
-  const hasUnsavedWorkspaceChanges =
-    (currentView === 'editor' && quoteLines.length > 0) || prospectHasUnsavedChanges;
+  const [pendingQuoteReplacement, setPendingQuoteReplacement] = useState<(() => void) | null>(null);
+  const [quoteReplacementError, setQuoteReplacementError] = useState('');
+  const quoteReplacementApprovedRef = useRef(false);
 
   const activeCatalogJobs = catalogJobs.filter((job) => job.isActive);
   const visibleActiveCatalogJobs = activeCatalogJobs.filter((job) =>
@@ -449,6 +452,43 @@ function App() {
       basedOnQuoteId: quoteBasedOnId,
       changeRequest: quoteChangeRequest,
     };
+  }
+
+  const quoteHasUnsavedChanges = hasUnsavedQuoteChanges(
+    getCurrentQuote(),
+    savedQuotes.find((quote) => quote.id === quoteId),
+  );
+  const hasUnsavedWorkspaceChanges = quoteHasUnsavedChanges || prospectHasUnsavedChanges;
+
+  /**
+   * Defers an action that replaces the quote in the editor while it has unsaved changes and
+   * asks first (SCRUM-97). Returns true when the action was deferred.
+   */
+  function deferQuoteReplacement(action: () => void): boolean {
+    if (quoteReplacementApprovedRef.current || !quoteHasUnsavedChanges) return false;
+    setQuoteReplacementError('');
+    setPendingQuoteReplacement(() => action);
+    return true;
+  }
+
+  function runQuoteReplacement() {
+    const action = pendingQuoteReplacement;
+    setPendingQuoteReplacement(null);
+    if (!action) return;
+    quoteReplacementApprovedRef.current = true;
+    try {
+      action();
+    } finally {
+      quoteReplacementApprovedRef.current = false;
+    }
+  }
+
+  function saveDraftAndReplaceQuote() {
+    if (handleDraftSave()) runQuoteReplacement();
+    else
+      setQuoteReplacementError(
+        'No se pudo guardar el borrador. Revisá el presupuesto o descartá los cambios para continuar.',
+      );
   }
 
   function handleAssociation(client: Client | undefined, opportunity: Opportunity | undefined) {
@@ -667,6 +707,7 @@ function App() {
   }
 
   function handleNewQuote() {
+    if (deferQuoteReplacement(() => handleNewQuote())) return;
     setQuoteId(createQuoteId());
     setQuoteStatus('draft');
     setCommercialStatus('prepared');
@@ -689,6 +730,7 @@ function App() {
   }
 
   function handleNewOpportunityQuote(opportunity: Opportunity) {
+    if (deferQuoteReplacement(() => handleNewOpportunityQuote(opportunity))) return;
     const client = loadClients().items.find((item) => item.id === opportunity.clientId);
     handleNewQuote();
     setClientId(client?.id);
@@ -719,16 +761,19 @@ function App() {
   }
 
   function handleSavedQuoteOpen(savedQuote: SavedQuote) {
+    if (deferQuoteReplacement(() => handleSavedQuoteOpen(savedQuote))) return;
     loadSavedQuoteIntoState(savedQuote);
     setCurrentView(savedQuote.status === 'draft' ? 'editor' : 'summary');
   }
 
   function handleSavedQuoteReview(savedQuote: SavedQuote) {
+    if (deferQuoteReplacement(() => handleSavedQuoteReview(savedQuote))) return;
     loadSavedQuoteIntoState(savedQuote);
     setCurrentView('summary');
   }
 
   function handleQuoteDetailOpen(savedQuote: SavedQuote) {
+    if (deferQuoteReplacement(() => handleQuoteDetailOpen(savedQuote))) return;
     setQuoteId(savedQuote.id);
     setQuoteStatus(savedQuote.status);
     setCommercialStatus(savedQuote.commercialStatus);
@@ -750,6 +795,7 @@ function App() {
   }
 
   function handleCreateQuoteVersion(source: SavedQuote, reason: string) {
+    if (deferQuoteReplacement(() => handleCreateQuoteVersion(source, reason))) return;
     const opportunity = source.opportunityId
       ? loadOpportunities().items.find((item) => item.id === source.opportunityId)
       : undefined;
@@ -820,6 +866,7 @@ function App() {
   }
 
   function handleDashboardQuoteIntent(item: FollowUpInboxItem, mode: 'new' | 'existing') {
+    if (deferQuoteReplacement(() => handleDashboardQuoteIntent(item, mode))) return;
     if (mode === 'existing' && item.quoteId) {
       const existing = savedQuotes.find((quote) => quote.id === item.quoteId);
       if (existing) {
@@ -1183,17 +1230,17 @@ function App() {
     }
   }
 
-  function handleDraftSave() {
+  function handleDraftSave(): boolean {
     const draft = getCurrentQuote();
 
-    if (draft.status !== 'draft') return;
+    if (draft.status !== 'draft') return false;
 
     const isNewQuote = !savedQuotes.some((savedQuote) => savedQuote.id === draft.id);
     if (directClientInput && !draft.clientId) {
       const result = saveDirectClientQuote(draft, directClientInput, directFollowUp);
       if (!result.ok) {
         setSaveFeedback({ type: 'error', message: result.message });
-        return;
+        return false;
       }
       setClientId(result.client.id);
       setClientName(result.client.name);
@@ -1205,7 +1252,7 @@ function App() {
         type: 'success',
         message: 'Cliente directo y borrador guardados correctamente.',
       });
-      return;
+      return true;
     }
     if (saveQuote(draft)) {
       const activitySaved =
@@ -1224,13 +1271,14 @@ function App() {
             : 'Borrador guardado correctamente.'
           : 'Borrador guardado, pero no se pudo registrar la actividad de creación.',
       });
-      return;
+      return true;
     }
 
     setSaveFeedback({
       type: 'error',
       message: 'No se pudo guardar el borrador. Intentá nuevamente.',
     });
+    return false;
   }
 
   function handleCommercialStatusChange(
@@ -1684,7 +1732,7 @@ function App() {
     }
   }
 
-  const appHeader = (
+  const appHeaderBar = (
     <AppHeader
       activeSection={resolveActiveNavigationSection(currentView)}
       onNewQuote={handleNewQuote}
@@ -1707,6 +1755,23 @@ function App() {
       onResetWorkspaceContext={resetWorkspaceContext}
       onLogout={workspaceContext.logout}
     />
+  );
+  // Rendered with the header so the question appears on every view (SCRUM-97).
+  const appHeader = (
+    <>
+      {appHeaderBar}
+      {pendingQuoteReplacement && (
+        <UnsavedQuoteDialog
+          saveError={quoteReplacementError}
+          onSave={saveDraftAndReplaceQuote}
+          onDiscard={runQuoteReplacement}
+          onCancel={() => {
+            setPendingQuoteReplacement(null);
+            setQuoteReplacementError('');
+          }}
+        />
+      )}
+    </>
   );
 
   if (workspaceContext.isLoading) {
