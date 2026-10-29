@@ -270,6 +270,7 @@ describe('remote prospect conversion', () => {
           code: 'OK',
           version: 3,
           opportunityId: '9a4e167e-8f7b-4a6d-b87c-6a671d9b7613',
+          contactId: '0b8f3f3e-2f8a-4d5c-9e1a-3c2b1a0f9e8d',
         }),
         { status: 200 },
       ),
@@ -280,6 +281,7 @@ describe('remote prospect conversion', () => {
       idempotent: false,
       version: 3,
       opportunityId: '9a4e167e-8f7b-4a6d-b87c-6a671d9b7613',
+      contactId: '0b8f3f3e-2f8a-4d5c-9e1a-3c2b1a0f9e8d',
     });
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/rest/v1/rpc/convert_prospect_to_opportunity');
