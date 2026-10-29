@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Activity } from '../types/activity';
-import { getTimelineActivities, getTimelineActivitiesForSubjects } from './activityTimeline';
+import {
+  formatActivityDateTime,
+  getActivityResultLabel,
+  getTimelineActivities,
+  getTimelineActivitiesForSubjects,
+} from './activityTimeline';
 
 const activities: Activity[] = [
   {
@@ -69,5 +74,20 @@ describe('activity timeline', () => {
         'all',
       ).map((item) => item.id),
     ).toEqual(['c', 'b', 'a']);
+  });
+});
+
+describe('activity display helpers', () => {
+  it('translates call result codes instead of showing them raw (SCRUM-102)', () => {
+    expect(getActivityResultLabel({ ...activities[0], result: 'effectiveContact' })).toBe(
+      'Contacto efectivo',
+    );
+    expect(
+      getActivityResultLabel({ ...activities[0], type: 'whatsapp', result: 'Contacto registrado' }),
+    ).toBe('Contacto registrado');
+  });
+
+  it('formats history times in 24-hour Argentina time', () => {
+    expect(formatActivityDateTime('2026-10-29T00:17:14.000Z')).toBe('28/10/2026, 21:17');
   });
 });

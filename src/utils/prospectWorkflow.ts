@@ -1,6 +1,7 @@
 import type {
   Prospect,
   ProspectChannel,
+  ProspectActivity,
   ProspectContactResult,
   ProspectPriority,
   ProspectStatus,
@@ -39,6 +40,35 @@ export const prospectChannelLabels: Record<ProspectChannel, string> = {
   phone: 'Llamada',
   instagram: 'Instagram',
 };
+
+// Raw result codes that older versions stored as the note when the user left it empty.
+const internalResultCodes = new Set([
+  'effectiveContact',
+  'noAnswer',
+  'notInterested',
+  'invalidNumber',
+]);
+
+export interface ProspectActivityDisplay {
+  title: string;
+  note?: string;
+}
+
+/**
+ * Builds the history entry from the structured activity fields so channel, result and note are
+ * always visible together, regardless of how the description was stored (SCRUM-102).
+ */
+export function getProspectActivityDisplay(activity: ProspectActivity): ProspectActivityDisplay {
+  const channel = activity.channel ? prospectChannelLabels[activity.channel] : undefined;
+  const result = activity.result ? prospectContactResultLabels[activity.result] : undefined;
+  const title =
+    activity.type === 'contactResult' && (channel || result)
+      ? `${[channel, result].filter(Boolean).join(': ')}.`
+      : activity.description;
+  const note = activity.note?.trim();
+  if (!note || note === title || internalResultCodes.has(note)) return { title };
+  return { title, note };
+}
 
 export function getProspectStatusFromContactResult(result: string): ProspectStatus {
   if (result === 'Sin contactar') return 'uncontacted';

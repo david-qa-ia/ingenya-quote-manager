@@ -963,7 +963,7 @@ function App() {
         const next = registerProspectAction(prospect, {
           result,
           channel,
-          note: input.reason,
+          note: manualNote,
           author: input.actor,
           ...(input.nextStep !== 'none' && input.dueAt ? { followUpAt: input.dueAt } : {}),
         });
@@ -981,7 +981,7 @@ function App() {
             expectedVersion: prospect.version ?? 1,
             result,
             channel,
-            note: input.reason,
+            note: manualNote,
             followUpAt: next.nextActionAt || undefined,
             responsible: input.actor,
             idempotencyKey: `prospect-result:${prospect.id}:${prospect.version ?? 1}:${result}:${channel}:${input.dueAt}`,

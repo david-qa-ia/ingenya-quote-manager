@@ -41,6 +41,7 @@ import {
 import { isoToLocalDateTime } from '../utils/prospectFollowUp';
 import {
   filterProspects,
+  getProspectActivityDisplay,
   createProspectInstagramUrl,
   createProspectWhatsAppUrl,
   prospectPriorityLabels,
@@ -51,6 +52,7 @@ import {
   transitionProspect,
   type ProspectFilters,
 } from '../utils/prospectWorkflow';
+import { formatActivityDateTime } from '../utils/activityTimeline';
 import {
   canQualifyProspect,
   createPendingProspectConversion,
@@ -1317,14 +1319,11 @@ export function ProspectInboxDetail({
           <ol className="prospect-panel-history">
             {contactActivities.map((activity) => (
               <li key={activity.id}>
-                <strong>
-                  {activity.channel ? prospectChannelLabels[activity.channel] : 'Contacto'} ·{' '}
-                  {activity.result
-                    ? prospectContactResultLabels[activity.result]
-                    : activity.description}
-                </strong>
-                <small>{new Date(activity.occurredAt).toLocaleString('es-AR')}</small>
-                {activity.note && <p>{activity.note}</p>}
+                <strong>{getProspectActivityDisplay(activity).title}</strong>
+                <small>{formatActivityDateTime(activity.occurredAt)}</small>
+                {getProspectActivityDisplay(activity).note && (
+                  <p>{getProspectActivityDisplay(activity).note}</p>
+                )}
               </li>
             ))}
           </ol>
@@ -1713,16 +1712,20 @@ function ProspectDetail({
           <h2>Historial</h2>
           {prospect.activities.length ? (
             <ol className="activity-list">
-              {[...prospect.activities].reverse().map((activity) => (
-                <li key={activity.id}>
-                  <strong>{activity.description}</strong>
-                  <small>
-                    {activityTypeLabels[activity.type]} ·{' '}
-                    {new Date(activity.occurredAt).toLocaleString('es-AR')}
-                    {activity.author ? ` · ${activity.author}` : ''}
-                  </small>
-                </li>
-              ))}
+              {[...prospect.activities].reverse().map((activity) => {
+                const display = getProspectActivityDisplay(activity);
+                return (
+                  <li key={activity.id}>
+                    <strong>{display.title}</strong>
+                    {display.note && <p>{display.note}</p>}
+                    <small>
+                      {activityTypeLabels[activity.type]} ·{' '}
+                      {formatActivityDateTime(activity.occurredAt)}
+                      {activity.author ? ` · ${activity.author}` : ''}
+                    </small>
+                  </li>
+                );
+              })}
             </ol>
           ) : (
             <p className="empty-inline">Todavía no hay contactos registrados.</p>
