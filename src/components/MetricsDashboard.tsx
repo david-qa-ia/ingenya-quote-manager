@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
 import type { CommercialMetricsSources } from '../types/commercialMetrics';
 import { defaultCommercialMetricsFilters } from '../types/commercialMetrics';
-import { calculateCommercialMetrics, getArgentinaToday } from '../utils/commercialMetrics';
+import {
+  calculateCommercialMetrics,
+  getArgentinaToday,
+  PROSPECT_FILTER_PREFIX,
+} from '../utils/commercialMetrics';
 import { MetricsActivityFocus } from './MetricsActivityFocus';
 import { MetricsEffectivenessTable } from './MetricsEffectivenessTable';
 import { MetricsFilters } from './MetricsFilters';
@@ -16,11 +20,13 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
     endDate: today,
   });
   const metrics = useMemo(() => calculateCommercialMetrics(sources, filters), [sources, filters]);
+  const prospects = sources.prospects ?? [];
   const responsible = [
     ...new Set(
       [
         ...sources.activities.map((item) => item.author),
         ...sources.quotes.flatMap((item) => [item.sentAudit?.changedBy ?? '']),
+        ...prospects.flatMap((item) => item.activities.map((activity) => activity.author ?? '')),
         ...sources.opportunities.flatMap((item) =>
           item.nextAction ? item.nextAction.history.map((entry) => entry.actor) : [],
         ),
@@ -31,6 +37,11 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
     ...new Set([
       ...sources.activities.map((item) => item.type),
       ...sources.opportunities.flatMap((item) => (item.nextAction ? [item.nextAction.type] : [])),
+      ...prospects.flatMap((item) =>
+        item.activities.flatMap((activity) =>
+          activity.channel ? [activity.channel === 'phone' ? 'call' : activity.channel] : [],
+        ),
+      ),
     ]),
   ].sort();
   const recoveryError =
@@ -57,11 +68,21 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
         onChange={setFilters}
         responsible={responsible}
         channels={channels}
-        clients={sources.clients.map((item) => ({
-          id: item.id,
-          name: item.name,
-          restricted: Boolean(item.doNotContact),
-        }))}
+        clients={[
+          ...sources.clients.map((item) => ({
+            id: item.id,
+            name: item.name,
+            restricted: Boolean(item.doNotContact),
+          })),
+          // Converted prospects are measured through their client and opportunity.
+          ...prospects
+            .filter((item) => item.conversion?.state !== 'completed')
+            .map((item) => ({
+              id: `${PROSPECT_FILTER_PREFIX}${item.id}`,
+              name: `${item.name} · Prospecto`,
+              restricted: false,
+            })),
+        ]}
         opportunities={sources.opportunities.map((item) => ({ id: item.id, name: item.name }))}
         quotes={sources.quotes.map((item) => ({ id: item.id, name: item.projectName || item.id }))}
       />

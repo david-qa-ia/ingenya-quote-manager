@@ -1,4 +1,5 @@
 import type { CommercialMetricsFilters } from '../types/commercialMetrics';
+import { getCommercialChannelLabel } from '../utils/commercialMetrics';
 import { UiIcon } from './UiIcon';
 
 interface Props {
@@ -70,7 +71,9 @@ export function MetricsFilters({
           <select value={filters.channel} onChange={(event) => set('channel', event.target.value)}>
             <option value="all">Todos</option>
             {channels.map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {getCommercialChannelLabel(item)}
+              </option>
             ))}
           </select>
         </label>

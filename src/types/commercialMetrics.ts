@@ -3,6 +3,7 @@ import type { CadenceExecution } from './cadence';
 import type { Client } from './client';
 import type { CommercialOutcome } from './commercialOutcome';
 import type { Opportunity } from './opportunity';
+import type { Prospect } from './prospect';
 import type { SavedQuote } from './quote';
 
 export interface CommercialMetricsFilters {
@@ -23,6 +24,8 @@ export interface CommercialMetricsSources {
   activities: readonly Activity[];
   executions: readonly CadenceExecution[];
   outcomes: readonly CommercialOutcome[];
+  /** Prospect activity is part of the commercial work even before a conversion (SCRUM-105). */
+  prospects?: readonly Prospect[];
   issues: readonly (string | null)[];
 }
 

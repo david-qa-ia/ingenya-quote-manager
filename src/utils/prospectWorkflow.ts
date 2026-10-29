@@ -82,6 +82,8 @@ export function getProspectActivityDisplay(activity: ProspectActivity): Prospect
       activity.previousFollowUpAt && activity.previousFollowUpAt !== activity.followUpAt
         ? `Próximo paso reprogramado: ${formatActivityDateTime(activity.previousFollowUpAt)} → ${formatActivityDateTime(activity.followUpAt)}`
         : `Próximo paso: ${formatActivityDateTime(activity.followUpAt)}`;
+  } else if (activity.previousFollowUpAt) {
+    display.followUp = `Próximo paso cerrado (estaba agendado para ${formatActivityDateTime(activity.previousFollowUpAt)}).`;
   }
   return display;
 }
@@ -302,7 +304,8 @@ export function registerProspectAction(prospect: Prospect, input: ProspectAction
         description: `${prospectChannelLabels[input.channel]}: ${prospectContactResultLabels[input.result]}.`,
         result: input.result,
         channel: input.channel,
-        ...(followUpAt && prospect.nextActionAt && prospect.nextActionAt !== followUpAt
+        // The pending step this result closes or replaces (rescheduled / completed follow-up).
+        ...(prospect.nextActionAt && prospect.nextActionAt !== followUpAt
           ? { previousFollowUpAt: prospect.nextActionAt }
           : {}),
         ...(input.note.trim() ? { note: input.note.trim() } : {}),

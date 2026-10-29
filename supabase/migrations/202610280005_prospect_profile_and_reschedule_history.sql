@@ -1,8 +1,8 @@
 -- SCRUM-103: prospect traceability.
 -- * update_prospect_profile records the edited fields (summary sent by the client) as a prospect
 --   activity, in addition to the audit_events row added in SCRUM-96.
--- * register_prospect_result keeps the replaced follow-up date (previousFollowUpAt) so a
---   rescheduled next step shows the previous and the new date.
+-- * register_prospect_result keeps the follow-up date it replaces or closes (previousFollowUpAt), so
+--   the history shows rescheduled and completed next steps and metrics can count them (SCRUM-105).
 -- Function signatures are unchanged; existing rows are not rewritten.
 
 create or replace function public.update_prospect_profile(
@@ -139,8 +139,8 @@ begin
       'channel', p_channel,
       'followUpAt', p_follow_up_at,
       'previousFollowUpAt', case
-        when p_follow_up_at is not null and current_prospect.next_action_at is not null
-          and current_prospect.next_action_at <> p_follow_up_at
+        when current_prospect.next_action_at is not null
+          and current_prospect.next_action_at is distinct from p_follow_up_at
         then current_prospect.next_action_at
       end,
       'responsible', p_responsible
