@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Prospect } from '../types/prospect';
 import { localDateTimeToIso } from './prospectFollowUp';
+import { isProspect } from './prospectStorage';
 import {
   filterProspects,
   createProspectInstagramUrl,
@@ -9,8 +10,10 @@ import {
   getDueGroup,
   getProspectStatusFromContactResult,
   isDuplicateProspect,
+  describeProspectProfileChanges,
   getProspectActivityDisplay,
   registerProspectAction,
+  withProspectProfileChangeActivity,
   transitionProspect,
 } from './prospectWorkflow';
 
@@ -167,6 +170,42 @@ describe('prospect workflow', () => {
         description: 'Llamar después de las 18',
       }),
     ).toEqual({ title: 'Llamar después de las 18' });
+  });
+  it('keeps the replaced date when a next step is rescheduled (SCRUM-103)', () => {
+    const scheduled = { ...prospect, nextActionAt: '2026-11-02T18:00:00.000Z' };
+    const updated = registerProspectAction(scheduled, {
+      result: 'noResponse',
+      channel: 'phone',
+      note: '',
+      followUpAt: '2026-11-04T13:00:00.000Z',
+    });
+    const entry = updated.activities.at(-1)!;
+    expect(entry).toMatchObject({
+      previousFollowUpAt: '2026-11-02T18:00:00.000Z',
+      followUpAt: '2026-11-04T13:00:00.000Z',
+    });
+    expect(getProspectActivityDisplay(entry).followUp).toBe(
+      'Próximo paso reprogramado: 02/11/2026, 15:00 → 04/11/2026, 10:00',
+    );
+    expect(isProspect(updated)).toBe(true);
+  });
+  it('records which profile fields changed, by whom and when (SCRUM-103)', () => {
+    const edited = { ...prospect, source: 'Web', instagram: '@ana.sur' };
+    expect(describeProspectProfileChanges(prospect, edited)).toEqual([
+      'Instagram: (vacío) → @ana.sur',
+      'Origen: Referencia → Web',
+    ]);
+    const saved = withProspectProfileChangeActivity(prospect, edited, 'qa@example.test');
+    const entry = saved.activities.at(-1)!;
+    expect(entry).toMatchObject({
+      type: 'note',
+      author: 'qa@example.test',
+      description: 'Datos actualizados: Instagram: (vacío) → @ana.sur; Origen: Referencia → Web.',
+    });
+    expect(getProspectActivityDisplay(entry).kindLabel).toBe('Cambio de datos');
+    // Stored with an existing activity type so the prospect stays valid for every client.
+    expect(isProspect(saved)).toBe(true);
+    expect(withProspectProfileChangeActivity(prospect, { ...prospect }, 'qa')).toEqual(prospect);
   });
   it('builds a direct WhatsApp URL only for confirmed phones', () => {
     expect(createProspectWhatsAppUrl('341 555-0101')).toBe('https://wa.me/3415550101');

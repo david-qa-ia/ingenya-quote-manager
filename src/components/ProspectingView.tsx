@@ -42,6 +42,7 @@ import { isoToLocalDateTime } from '../utils/prospectFollowUp';
 import {
   filterProspects,
   getProspectActivityDisplay,
+  withProspectProfileChangeActivity,
   createProspectInstagramUrl,
   createProspectWhatsAppUrl,
   prospectPriorityLabels,
@@ -61,7 +62,7 @@ import {
   startProspectConversion,
   type ProspectConversionInput,
 } from '../utils/prospectConversion';
-import { isAuthConfigured } from '../utils/authService';
+import { isAuthConfigured, loadAuthSession } from '../utils/authService';
 import { getActiveWorkspaceId, isWorkspaceUuid } from '../utils/workspaceStorage';
 import {
   createRemoteProspect,
@@ -251,12 +252,22 @@ export function ProspectingView({
       );
       return false;
     }
+    const before = prospects.find((item) => item.id === next.id);
+    const changeAuthor = loadAuthSession()?.email;
+    if (before) next = withProspectProfileChangeActivity(before, next, changeAuthor);
+    const changeEntry = next.activities.at(-1);
+    const changeSummary =
+      changeEntry && changeEntry !== before?.activities.at(-1) && changeEntry.type === 'note'
+        ? changeEntry.description
+        : undefined;
     if (isAuthConfigured() && workspaceId) {
       try {
         const remote = await updateRemoteProspectProfile({
           workspaceId,
           prospect: next,
           idempotencyKey: `update-prospect:${next.id}:${next.version ?? 1}:${next.updatedAt}`,
+          changeSummary,
+          changeAuthor,
         });
         if (!remote.ok) {
           setFeedback(remote.message);
@@ -1718,8 +1729,9 @@ function ProspectDetail({
                   <li key={activity.id}>
                     <strong>{display.title}</strong>
                     {display.note && <p>{display.note}</p>}
+                    {display.followUp && <p>{display.followUp}</p>}
                     <small>
-                      {activityTypeLabels[activity.type]} ·{' '}
+                      {display.kindLabel ?? activityTypeLabels[activity.type]} ·{' '}
                       {formatActivityDateTime(activity.occurredAt)}
                       {activity.author ? ` · ${activity.author}` : ''}
                     </small>

@@ -335,6 +335,31 @@ describe('remote prospect history and profile', () => {
     });
   });
 
+  it('maps the replaced follow-up date of a rescheduled next step (SCRUM-103)', async () => {
+    const { mapRemoteProspectActivity } = await import('./supabaseRepository');
+    expect(
+      mapRemoteProspectActivity({
+        id: 'activity-2',
+        workspace_id: 'workspace',
+        prospect_id: 'prospect-1',
+        type: 'contactResult',
+        occurred_at: '2026-10-28T15:39:30.000Z',
+        created_at: '2026-10-28T15:39:30.000Z',
+        result: 'noResponse',
+        note: '',
+        communication: {
+          channel: 'call',
+          followUpAt: '2026-11-04T13:00:00.000Z',
+          previousFollowUpAt: '2026-11-02T18:00:00.000Z',
+        },
+      }),
+    ).toMatchObject({
+      channel: 'phone',
+      followUpAt: '2026-11-04T13:00:00.000Z',
+      previousFollowUpAt: '2026-11-02T18:00:00.000Z',
+    });
+  });
+
   it('translates every prospect channel at the Supabase boundary', () => {
     expect(toSupabaseProspectChannel('phone')).toBe('call');
     expect(toSupabaseProspectChannel('whatsapp')).toBe('whatsapp');

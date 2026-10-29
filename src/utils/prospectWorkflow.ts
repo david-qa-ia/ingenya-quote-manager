@@ -3,9 +3,11 @@ import type {
   ProspectChannel,
   ProspectActivity,
   ProspectContactResult,
+  ProspectInput,
   ProspectPriority,
   ProspectStatus,
 } from '../types/prospect';
+import { formatActivityDateTime } from './activityTimeline';
 import { isPendingEmail, isPendingPhone } from './clientValidation';
 import {
   getLocalDateKey,
@@ -51,12 +53,18 @@ const internalResultCodes = new Set([
 
 export interface ProspectActivityDisplay {
   title: string;
+  /** Replaces the generic activity type label when the entry has a more specific meaning. */
+  kindLabel?: string;
   note?: string;
+  followUp?: string;
 }
 
+/** Prefix used by profile edit entries; stored as a regular note so older clients can read it. */
+export const PROFILE_CHANGE_PREFIX = 'Datos actualizados:';
+
 /**
- * Builds the history entry from the structured activity fields so channel, result and note are
- * always visible together, regardless of how the description was stored (SCRUM-102).
+ * Builds the history entry from the structured activity fields so channel, result, note and
+ * next-step changes are always visible together (SCRUM-102, SCRUM-103).
  */
 export function getProspectActivityDisplay(activity: ProspectActivity): ProspectActivityDisplay {
   const channel = activity.channel ? prospectChannelLabels[activity.channel] : undefined;
@@ -65,9 +73,78 @@ export function getProspectActivityDisplay(activity: ProspectActivity): Prospect
     activity.type === 'contactResult' && (channel || result)
       ? `${[channel, result].filter(Boolean).join(': ')}.`
       : activity.description;
+  const display: ProspectActivityDisplay = { title };
+  if (activity.description.startsWith(PROFILE_CHANGE_PREFIX)) display.kindLabel = 'Cambio de datos';
   const note = activity.note?.trim();
-  if (!note || note === title || internalResultCodes.has(note)) return { title };
-  return { title, note };
+  if (note && note !== title && !internalResultCodes.has(note)) display.note = note;
+  if (activity.followUpAt) {
+    display.followUp =
+      activity.previousFollowUpAt && activity.previousFollowUpAt !== activity.followUpAt
+        ? `Próximo paso reprogramado: ${formatActivityDateTime(activity.previousFollowUpAt)} → ${formatActivityDateTime(activity.followUpAt)}`
+        : `Próximo paso: ${formatActivityDateTime(activity.followUpAt)}`;
+  }
+  return display;
+}
+
+const profileChangeFields: { key: keyof ProspectInput; label: string }[] = [
+  { key: 'name', label: 'Nombre' },
+  { key: 'company', label: 'Empresa' },
+  { key: 'phone', label: 'Teléfono' },
+  { key: 'email', label: 'Email' },
+  { key: 'instagram', label: 'Instagram' },
+  { key: 'address', label: 'Dirección' },
+  { key: 'source', label: 'Origen' },
+  { key: 'potentialService', label: 'Servicio potencial' },
+  { key: 'notes', label: 'Observaciones' },
+  { key: 'priority', label: 'Prioridad' },
+  { key: 'responsible', label: 'Responsable' },
+  { key: 'preferredChannel', label: 'Canal preferido' },
+];
+
+function profileValue(key: keyof ProspectInput, value: unknown): string {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) return '(vacío)';
+  if (key === 'priority') return prospectPriorityLabels[text as ProspectPriority] ?? text;
+  if (key === 'preferredChannel') return prospectChannelLabels[text as ProspectChannel] ?? text;
+  return text.length > 60 ? `${text.slice(0, 57)}…` : text;
+}
+
+/** Human-readable list of profile changes, e.g. "Origen: Referido → Web". */
+export function describeProspectProfileChanges(before: Prospect, after: Prospect): string[] {
+  return profileChangeFields
+    .filter(
+      ({ key }) => (before[key] ?? '').toString().trim() !== (after[key] ?? '').toString().trim(),
+    )
+    .map(
+      ({ key, label }) =>
+        `${label}: ${profileValue(key, before[key])} → ${profileValue(key, after[key])}`,
+    );
+}
+
+/** Appends a history entry describing what changed, who changed it and when (SCRUM-103). */
+export function withProspectProfileChangeActivity(
+  before: Prospect,
+  after: Prospect,
+  author?: string,
+): Prospect {
+  const changes = describeProspectProfileChanges(before, after);
+  if (!changes.length) return after;
+  const now = new Date().toISOString();
+  return {
+    ...after,
+    activities: [
+      ...after.activities,
+      {
+        id: crypto.randomUUID(),
+        occurredAt: now,
+        prospectId: after.id,
+        createdAt: now,
+        type: 'note',
+        description: `${PROFILE_CHANGE_PREFIX} ${changes.join('; ')}.`,
+        ...(author?.trim() ? { author: author.trim() } : {}),
+      },
+    ],
+  };
 }
 
 export function getProspectStatusFromContactResult(result: string): ProspectStatus {
@@ -225,6 +302,9 @@ export function registerProspectAction(prospect: Prospect, input: ProspectAction
         description: `${prospectChannelLabels[input.channel]}: ${prospectContactResultLabels[input.result]}.`,
         result: input.result,
         channel: input.channel,
+        ...(followUpAt && prospect.nextActionAt && prospect.nextActionAt !== followUpAt
+          ? { previousFollowUpAt: prospect.nextActionAt }
+          : {}),
         ...(input.note.trim() ? { note: input.note.trim() } : {}),
         ...(input.author?.trim() ? { author: input.author.trim() } : {}),
         ...(followUpAt ? { followUpAt } : {}),

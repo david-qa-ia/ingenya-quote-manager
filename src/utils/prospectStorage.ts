@@ -171,7 +171,8 @@ export function isProspect(value: unknown): value is Prospect {
         (record.channel === undefined ||
           ['phone', 'whatsapp', 'email', 'instagram'].includes(record.channel as string)) &&
         (record.note === undefined || text(record.note)) &&
-        (record.followUpAt === undefined || text(record.followUpAt))
+        (record.followUpAt === undefined || text(record.followUpAt)) &&
+        (record.previousFollowUpAt === undefined || text(record.previousFollowUpAt))
       );
     })
   );
