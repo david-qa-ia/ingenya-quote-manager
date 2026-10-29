@@ -92,7 +92,7 @@ describe('prospect workflow', () => {
       followUpAt: persistedFollowUp.value,
     });
   });
-  it('keeps the recorded result when the next step schedules another contact', () => {
+  it('reflects the contact result in the status even when a next step is scheduled', () => {
     const persistedFollowUp = localDateTimeToIso('2026-10-16T10:30');
     if (!persistedFollowUp.ok) throw new Error(persistedFollowUp.error);
     const updated = registerProspectAction(prospect, {
@@ -101,11 +101,24 @@ describe('prospect workflow', () => {
       note: 'Enviar propuesta luego de confirmar medidas.',
       followUpAt: '2026-10-16T10:30',
     });
-    expect(updated.status).toBe('uncontacted');
+    expect(updated.status).toBe('contacted');
+    expect(updated.nextActionAt).toBe(persistedFollowUp.value);
+    // The follow-up inbox depends on the next step, not on the "uncontacted" status.
+    expect(getDueGroup(updated, new Date('2026-10-16T12:00:00Z'))).toBe('today');
     expect(updated.activities.at(-1)).toMatchObject({
       result: 'contacted',
       followUpAt: persistedFollowUp.value,
     });
+  });
+  it('moves an unanswered first contact to "Sin respuesta" and keeps the follow-up', () => {
+    const updated = registerProspectAction(prospect, {
+      result: 'noResponse',
+      channel: 'phone',
+      note: '',
+      followUpAt: '2026-10-16T10:30',
+    });
+    expect(updated.status).toBe('noResponse');
+    expect(updated.nextActionAt).not.toBe('');
   });
   it('accepts the ISO date emitted by the unified result drawer', () => {
     const updated = registerProspectAction(prospect, {
