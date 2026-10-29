@@ -235,6 +235,43 @@ export const defaultProspectFilters: ProspectFilters = {
   service: 'all',
 };
 
+const filterStatuses = Object.keys(prospectStatusLabels) as ProspectStatus[];
+const filterPriorities = Object.keys(prospectPriorityLabels) as ProspectPriority[];
+const filterChannels = Object.keys(prospectChannelLabels);
+
+/**
+ * Keeps only filter values the dropdowns can show (SCRUM-110). Anything else, such as an empty
+ * value or a service that no prospect has anymore, falls back to 'all', so the list never
+ * filters by a value the user cannot see.
+ */
+export function normalizeProspectFilters(
+  value: unknown,
+  options: { services?: readonly string[] } = {},
+): ProspectFilters {
+  const stored =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  const pick = <T extends string>(raw: unknown, allowed: readonly T[]): T | 'all' =>
+    typeof raw === 'string' && (allowed as readonly string[]).includes(raw) ? (raw as T) : 'all';
+  const service =
+    typeof stored.service === 'string' &&
+    stored.service.trim() !== '' &&
+    (!options.services || options.services.includes(stored.service))
+      ? stored.service
+      : 'all';
+  return {
+    status: pick(stored.status, filterStatuses),
+    priority: pick(stored.priority, filterPriorities),
+    channel: pick(stored.channel, filterChannels),
+    service,
+  };
+}
+
+export function countActiveProspectFilters(filters: ProspectFilters): number {
+  return (Object.values(filters) as string[]).filter((value) => value !== 'all').length;
+}
+
 export function normalizeIdentity(value: string): string {
   return value.trim().toLocaleLowerCase('es').replace(/\s+/g, ' ');
 }

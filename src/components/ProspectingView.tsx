@@ -45,8 +45,11 @@ import {
 } from '../utils/prospectImportTransaction';
 import { isoToLocalDateTime } from '../utils/prospectFollowUp';
 import {
+  countActiveProspectFilters,
+  defaultProspectFilters,
   filterProspects,
   getBulkArchiveCandidates,
+  normalizeProspectFilters,
   getProspectActivityDisplay,
   isProspectArchived,
   withProspectArchived,
@@ -159,7 +162,7 @@ export function ProspectingView({
 }: Props) {
   const workspaceContext = useWorkspace();
   const [prospects, setProspects] = useState(() => loadProspects().items);
-  const [filters, setFilters] = useState(initialFilters);
+  const [storedFilters, setFilters] = useState(initialFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creationDraft, setCreationDraft] = useState<Prospect | null>(null);
   const initialContactChannel: ProspectChannel = 'phone';
@@ -203,6 +206,16 @@ export function ProspectingView({
   const [listView, setListView] = useState<ProspectListView>('active');
   const [isBulkArchiveOpen, setIsBulkArchiveOpen] = useState(false);
   const [isBulkArchiving, setIsBulkArchiving] = useState(false);
+  const services = useMemo(
+    () => [...new Set(prospects.map((item) => item.potentialService).filter(Boolean))],
+    [prospects],
+  );
+  // SCRUM-110: filter only by values the dropdowns can show; anything else counts as "Todos".
+  const filters = useMemo(
+    () => normalizeProspectFilters(storedFilters, { services }),
+    [storedFilters, services],
+  );
+  const activeFilterCount = countActiveProspectFilters(filters);
   const visible = useMemo(
     () => filterProspects(prospects, filters, listView),
     [prospects, filters, listView],
@@ -1002,6 +1015,19 @@ export function ProspectingView({
           </div>
           <span className="line-count">{visible.length}</span>
         </div>
+        {activeFilterCount > 0 && (
+          <p className="commercial-note prospect-active-filters" role="status">
+            {activeFilterCount === 1 ? '1 filtro activo' : `${activeFilterCount} filtros activos`} ·{' '}
+            {visible.length} resultado{visible.length === 1 ? '' : 's'}.{' '}
+            <button
+              className="button button-link"
+              type="button"
+              onClick={() => updateFilters(defaultProspectFilters)}
+            >
+              Limpiar filtros
+            </button>
+          </p>
+        )}
         <div className="prospect-list-toolbar">
           <div
             className="service-entry-toggle prospect-view-toggle"
@@ -1092,13 +1118,11 @@ export function ProspectingView({
               onChange={(e) => updateFilters({ ...filters, service: e.target.value })}
             >
               <option value="all">Todos</option>
-              {[...new Set(prospects.map((item) => item.potentialService).filter(Boolean))].map(
-                (service) => (
-                  <option key={service} value={service}>
-                    {service}
-                  </option>
-                ),
-              )}
+              {services.map((service) => (
+                <option key={service} value={service}>
+                  {service}
+                </option>
+              ))}
             </select>
           </label>
         </div>
