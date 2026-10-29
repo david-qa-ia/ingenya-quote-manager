@@ -1,4 +1,4 @@
-import type { Activity, ActivitySubject, ActivityType } from '../types/activity';
+import type { Activity, ActivitySubject, ActivityType, CallResult } from '../types/activity';
 
 export type ActivityFilter = 'all' | ActivityType;
 
@@ -51,4 +51,34 @@ export function getTimelineSubjectLabel(
   subjects: readonly TimelineSubject[],
 ): TimelineSubject['label'] {
   return subjects.find(({ subject }) => hasSubject(activity, subject))?.label ?? 'Presupuesto';
+}
+
+const callResultLabels: Record<CallResult, string> = {
+  effectiveContact: 'Contacto efectivo',
+  noAnswer: 'No contesta',
+  callBack: 'Volver a llamar',
+  notInterested: 'No interesado',
+  invalidNumber: 'Número inválido',
+};
+
+/** Human-readable result for compact activity lists; never exposes internal result codes. */
+export function getActivityResultLabel(activity: Activity): string {
+  if (activity.type === 'call' && activity.result in callResultLabels)
+    return callResultLabels[activity.result as CallResult];
+  return activity.result;
+}
+
+const activityDateTimeFormatter = new Intl.DateTimeFormat('es-AR', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** Date and time in 24-hour Argentina format, e.g. "28/10/2026, 21:17". */
+export function formatActivityDateTime(iso: string): string {
+  return activityDateTimeFormatter.format(new Date(iso));
 }

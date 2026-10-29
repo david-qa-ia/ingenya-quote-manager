@@ -9,6 +9,7 @@ import {
   getDueGroup,
   getProspectStatusFromContactResult,
   isDuplicateProspect,
+  getProspectActivityDisplay,
   registerProspectAction,
   transitionProspect,
 } from './prospectWorkflow';
@@ -132,6 +133,40 @@ describe('prospect workflow', () => {
       result: 'contacted',
       followUpAt: '2026-10-16T13:30:00.000Z',
     });
+  });
+  it('shows channel, result and note together in the history (SCRUM-102)', () => {
+    const base = {
+      id: 'a1',
+      occurredAt: '2026-10-28T15:37:57.000Z',
+      type: 'contactResult' as const,
+    };
+    // Remote activities used the note as description, hiding channel and result.
+    expect(
+      getProspectActivityDisplay({
+        ...base,
+        description: 'QA nota',
+        channel: 'whatsapp',
+        result: 'contacted',
+        note: 'QA nota',
+      }),
+    ).toEqual({ title: 'WhatsApp: Contactado.', note: 'QA nota' });
+    // Older entries stored the internal result code as the note.
+    expect(
+      getProspectActivityDisplay({
+        ...base,
+        description: 'effectiveContact',
+        channel: 'phone',
+        result: 'contacted',
+        note: 'effectiveContact',
+      }),
+    ).toEqual({ title: 'Llamada: Contactado.' });
+    expect(
+      getProspectActivityDisplay({
+        ...base,
+        type: 'note',
+        description: 'Llamar después de las 18',
+      }),
+    ).toEqual({ title: 'Llamar después de las 18' });
   });
   it('builds a direct WhatsApp URL only for confirmed phones', () => {
     expect(createProspectWhatsAppUrl('341 555-0101')).toBe('https://wa.me/3415550101');

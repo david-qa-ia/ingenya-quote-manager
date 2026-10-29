@@ -8,6 +8,7 @@ import type { SavedQuote } from '../types/quote';
 import type { Activity } from '../types/activity';
 import { businessTimeZone } from '../utils/opportunityNextAction';
 import { loadActivities } from '../utils/activityStorage';
+import { getActivityResultLabel } from '../utils/activityTimeline';
 import { mirrorProspectActivitiesToOpportunity } from '../utils/prospectConversion';
 import { loadProspects } from '../utils/prospectStorage';
 import { getOpportunityQuoteAction } from '../utils/opportunityQuoteAction';
@@ -847,7 +848,7 @@ export function OpportunityDetailView({
                         />
                       </span>
                       <div>
-                        <strong>{activity.result}</strong>
+                        <strong>{getActivityResultLabel(activity)}</strong>
                         <small>{activity.note || 'Actividad registrada'}</small>
                       </div>
                       <time>{new Date(activity.occurredAt).toLocaleDateString('es-AR')}</time>
