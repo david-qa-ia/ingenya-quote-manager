@@ -52,6 +52,8 @@ export interface ProspectActivity {
   channel?: ProspectChannel;
   note?: string;
   followUpAt?: string;
+  /** Follow-up date that this action replaced, when the next step was rescheduled. */
+  previousFollowUpAt?: string;
 }
 
 export interface Prospect {

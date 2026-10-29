@@ -436,6 +436,7 @@ export interface SupabaseProspectActivityRow {
   communication: {
     channel?: SupabaseProspectChannel;
     followUpAt?: string;
+    previousFollowUpAt?: string;
     responsible?: string;
   } | null;
 }
@@ -466,6 +467,9 @@ export function mapRemoteProspectActivity(row: SupabaseProspectActivityRow): Pro
     ...(channel ? { channel } : {}),
     ...(row.note ? { note: row.note } : {}),
     ...(row.communication?.followUpAt ? { followUpAt: row.communication.followUpAt } : {}),
+    ...(row.communication?.previousFollowUpAt
+      ? { previousFollowUpAt: row.communication.previousFollowUpAt }
+      : {}),
     ...(row.communication?.responsible ? { author: row.communication.responsible } : {}),
   };
 }
@@ -478,8 +482,11 @@ export async function updateRemoteProspectProfile(input: {
   workspaceId: string;
   prospect: Prospect;
   idempotencyKey: string;
+  /** History entry describing the edited fields (SCRUM-103); stored by the RPC as an activity. */
+  changeSummary?: string;
+  changeAuthor?: string;
 }): Promise<RemoteProspectProfileResult> {
-  const { workspaceId, prospect, idempotencyKey } = input;
+  const { workspaceId, prospect, idempotencyKey, changeSummary, changeAuthor } = input;
   const result = await request<{ code?: string; version?: number; idempotent?: boolean }>(
     '/rest/v1/rpc/update_prospect_profile',
     {
@@ -502,6 +509,7 @@ export async function updateRemoteProspectProfile(input: {
           priorityReason: prospect.priorityReason,
           responsible: prospect.responsible,
           preferredChannel: toSupabaseProspectChannel(prospect.preferredChannel),
+          ...(changeSummary ? { changeSummary, changeAuthor: changeAuthor ?? '' } : {}),
         },
         p_idempotency_key: idempotencyKey,
         p_request_id: crypto.randomUUID(),
