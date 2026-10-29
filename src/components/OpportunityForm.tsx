@@ -1,9 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import type { Opportunity, OpportunityInput } from '../types/opportunity';
 import {
+  getOpportunityFormFieldErrors,
   getOpportunityValidationError,
   normalizeOpportunityInput,
+  opportunityFormFieldOrder,
 } from '../utils/opportunityValidation';
+import { FieldError } from './FieldError';
+import { useFieldValidation } from './useFieldValidation';
 
 interface Props {
   clientId: string;
@@ -23,8 +27,14 @@ export function OpportunityForm({ clientId, opportunity, onSave, onCancel }: Pro
     },
   );
   const [error, setError] = useState<string | null>(null);
+  const validation = useFieldValidation(
+    `opportunity-${opportunity?.id ?? 'new'}`,
+    getOpportunityFormFieldErrors(input),
+    opportunityFormFieldOrder,
+  );
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (!validation.validateForSubmit()) return setError(null);
     setError(getOpportunityValidationError(input) ?? onSave(normalizeOpportunityInput(input)));
   }
   return (
@@ -36,7 +46,9 @@ export function OpportunityForm({ clientId, opportunity, onSave, onCancel }: Pro
           value={input.name}
           onChange={(e) => setInput({ ...input, name: e.target.value })}
           required
+          {...validation.fieldProps('name')}
         />
+        <FieldError id={validation.errorId('name')} message={validation.visibleError('name')} />
       </label>
       <label className="field">
         <span>Dirección (opcional)</span>
@@ -51,6 +63,11 @@ export function OpportunityForm({ clientId, opportunity, onSave, onCancel }: Pro
           type="date"
           value={input.estimatedStartDate}
           onChange={(e) => setInput({ ...input, estimatedStartDate: e.target.value })}
+          {...validation.fieldProps('estimatedStartDate')}
+        />
+        <FieldError
+          id={validation.errorId('estimatedStartDate')}
+          message={validation.visibleError('estimatedStartDate')}
         />
       </label>
       <label className="field">
@@ -61,7 +78,7 @@ export function OpportunityForm({ clientId, opportunity, onSave, onCancel }: Pro
         />
       </label>
       {error && (
-        <p className="commercial-warning" role="alert">
+        <p className="form-error" role="alert">
           {error}
         </p>
       )}

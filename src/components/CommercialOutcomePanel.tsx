@@ -4,6 +4,12 @@ import type { Opportunity } from '../types/opportunity';
 import type { Quote, SavedQuote } from '../types/quote';
 import { commercialOutcomeLabels, commercialReasonLabels } from '../utils/commercialOutcome';
 import { loadCommercialOutcomes } from '../utils/commercialOutcomeStorage';
+import {
+  commercialOutcomeFieldOrder,
+  getCommercialOutcomeFieldErrors,
+} from '../utils/commercialOutcomeValidation';
+import { FieldError } from './FieldError';
+import { useFieldValidation } from './useFieldValidation';
 
 const labels = { open: 'Abierta', won: 'Ganada', lost: 'Perdida' } as const;
 
@@ -27,6 +33,11 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
   const relatedQuotes = savedQuotes.filter((item) => item.opportunityId === opportunity.id);
   const isQuoteResult = type === 'accepted' || type === 'rejected';
   const needsReason = type !== 'reopened';
+  const validation = useFieldValidation(
+    `outcome-${opportunity.id}`,
+    getCommercialOutcomeFieldErrors({ needsReason, reasonCode, note, author }),
+    commercialOutcomeFieldOrder,
+  );
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -34,12 +45,8 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
       setError('Solo los presupuestos finalizados pueden aceptarse o rechazarse.');
       return;
     }
-    if (
-      !author.trim() ||
-      (needsReason && !reasonCode) ||
-      (reasonCode === 'other' && !note.trim())
-    ) {
-      setError('Completá autor, motivo y una nota cuando el motivo sea “Otro”.');
+    if (!validation.validateForSubmit()) {
+      setError('');
       return;
     }
     if (
@@ -66,6 +73,7 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
     if (message) return setError(message);
     setError('');
     setNote('');
+    validation.reset();
   }
 
   return (
@@ -105,6 +113,7 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
               onChange={(event) =>
                 setReasonCode(event.target.value as keyof typeof commercialReasonLabels)
               }
+              {...validation.fieldProps('reasonCode')}
             >
               {Object.entries(commercialReasonLabels).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -112,15 +121,32 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
                 </option>
               ))}
             </select>
+            <FieldError
+              id={validation.errorId('reasonCode')}
+              message={validation.visibleError('reasonCode')}
+            />
           </label>
         )}
         <label className="field">
           <span>{reasonCode === 'other' ? 'Nota (obligatoria)' : 'Nota (opcional)'}</span>
-          <textarea value={note} onChange={(event) => setNote(event.target.value)} />
+          <textarea
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            {...validation.fieldProps('note')}
+          />
+          <FieldError id={validation.errorId('note')} message={validation.visibleError('note')} />
         </label>
         <label className="field">
           <span>Autor</span>
-          <input value={author} onChange={(event) => setAuthor(event.target.value)} />
+          <input
+            value={author}
+            onChange={(event) => setAuthor(event.target.value)}
+            {...validation.fieldProps('author')}
+          />
+          <FieldError
+            id={validation.errorId('author')}
+            message={validation.visibleError('author')}
+          />
         </label>
         {type === 'accepted' && (
           <label className="checkbox-field">
@@ -133,7 +159,7 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
           </label>
         )}
         {error && (
-          <p className="commercial-warning" role="alert">
+          <p className="form-error" role="alert">
             {error}
           </p>
         )}
