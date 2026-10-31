@@ -1,4 +1,5 @@
 import type { Prospect, ProspectActivity, ProspectChannel } from '../types/prospect';
+import type { Activity } from '../types/activity';
 import type { Client } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
@@ -712,6 +713,149 @@ export async function saveRemoteContact(input: {
     version: result.version as number,
     ...(result.updatedAt ? { updatedAt: result.updatedAt } : {}),
   };
+}
+
+/** Opportunity row (SCRUM-114). `document` holds the app aggregate once written by the app. */
+export interface SupabaseOpportunityRow {
+  id: string;
+  workspace_id: string;
+  contact_id: string;
+  name: string;
+  address: string;
+  estimated_start_date: string | null;
+  responsible_seller: string;
+  origin: string | null;
+  status: string;
+  commercial_state: string;
+  pipeline_stage: string;
+  document: Partial<Opportunity> | null;
+  version: number;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function loadRemoteOpportunities(
+  workspaceId: string,
+): Promise<SupabaseOpportunityRow[]> {
+  const query = new URLSearchParams({
+    select: '*',
+    workspace_id: `eq.${workspaceId}`,
+    archived_at: 'is.null',
+    order: 'created_at.asc',
+  });
+  return request<SupabaseOpportunityRow[]>(`/rest/v1/opportunities?${query.toString()}`);
+}
+
+/**
+ * Uses the stored app document when present. Rows created by server flows (prospect conversion,
+ * quote send) have no document yet and are rebuilt from their columns.
+ */
+export function mapRemoteOpportunity(row: SupabaseOpportunityRow): Opportunity {
+  const columns = {
+    id: row.id,
+    clientId: row.contact_id,
+    name: row.name,
+    address: row.address,
+    estimatedStartDate: row.estimated_start_date ?? '',
+    responsibleSeller: row.responsible_seller,
+    ...(row.origin ? { origin: row.origin } : {}),
+    status: row.status as Opportunity['status'],
+    commercialState: row.commercial_state as Opportunity['commercialState'],
+    pipelineStage: row.pipeline_stage as Opportunity['pipelineStage'],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+  return row.document ? ({ ...row.document, ...columns } as Opportunity) : columns;
+}
+
+export interface SupabaseCommercialActivityRow {
+  id: string;
+  workspace_id: string;
+  contact_id: string | null;
+  opportunity_id: string | null;
+  type: Activity['type'];
+  occurred_at: string;
+  author_name: string | null;
+  result: string;
+  note: string;
+  source: Activity['source'];
+  event: Activity['event'] | null;
+  communication: Activity['communication'] | null;
+  note_revisions: Activity['noteRevisions'];
+}
+
+export async function loadRemoteCommercialActivities(
+  workspaceId: string,
+): Promise<SupabaseCommercialActivityRow[]> {
+  const query = new URLSearchParams({
+    select:
+      'id,workspace_id,contact_id,opportunity_id,type,occurred_at,author_name,result,note,source,event,communication,note_revisions',
+    workspace_id: `eq.${workspaceId}`,
+    or: '(contact_id.not.is.null,opportunity_id.not.is.null)',
+    order: 'occurred_at.asc',
+  });
+  return request<SupabaseCommercialActivityRow[]>(`/rest/v1/activities?${query.toString()}`);
+}
+
+export function mapRemoteCommercialActivity(row: SupabaseCommercialActivityRow): Activity {
+  return {
+    id: row.id,
+    type: row.type,
+    occurredAt: row.occurred_at,
+    author: row.author_name?.trim() || 'Sistema',
+    result: row.result,
+    note: row.note,
+    subject: row.opportunity_id
+      ? { kind: 'opportunity', opportunityId: row.opportunity_id }
+      : { kind: 'client', clientId: row.contact_id ?? '' },
+    source: row.source,
+    ...(row.event ? { event: row.event } : {}),
+    noteRevisions: row.note_revisions ?? [],
+    ...(row.communication ? { communication: row.communication } : {}),
+  };
+}
+
+export type RemoteCommercialSyncResult =
+  | { ok: true; versions: Record<string, number> }
+  | { ok: false; code: 'CONFLICT' | 'MISSING_REFERENCE' };
+
+/** Sends changed contacts, opportunities and activity in one atomic call (SCRUM-114). */
+export async function syncRemoteCommercialRecords(input: {
+  workspaceId: string;
+  contacts: Client[];
+  opportunities: { expectedVersion: number | null; data: Opportunity }[];
+  activities: Activity[];
+}): Promise<RemoteCommercialSyncResult> {
+  const requestId = crypto.randomUUID();
+  const result = await request<{ code?: string; versions?: Record<string, number> }>(
+    '/rest/v1/rpc/sync_commercial_records',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_workspace_id: input.workspaceId,
+        p_contacts: input.contacts.map((client) => ({
+          id: client.id,
+          name: client.name,
+          company: client.company ?? '',
+          phone: client.phone,
+          email: client.email,
+          preferredChannel: client.preferredChannel,
+          contactConsent: client.contactConsent,
+          doNotContact: client.doNotContact ?? null,
+        })),
+        p_opportunities: input.opportunities,
+        p_activities: input.activities,
+        p_idempotency_key: `sync-commercial:${requestId}`,
+        p_request_id: requestId,
+      }),
+    },
+  );
+  if (result.code === 'CONFLICT' || result.code === 'MISSING_REFERENCE')
+    return { ok: false, code: result.code };
+  if (result.code !== 'OK')
+    throw new SupabaseRepositoryError('server', 'Supabase no confirmó los cambios.');
+  return { ok: true, versions: result.versions ?? {} };
 }
 
 export async function createRemoteProspect(workspaceId: string, prospect: Prospect): Promise<void> {

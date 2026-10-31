@@ -72,6 +72,13 @@ import { FieldError } from './components/FieldError';
 import { UnsavedQuoteDialog } from './components/UnsavedQuoteDialog';
 import { hasUnsavedQuoteChanges } from './utils/quoteUnsavedChanges';
 import { persistContact, syncRemoteContacts } from './utils/contactPersistence';
+import { onLocalWrite } from './utils/localWriteEvents';
+import {
+  notifyLocalCommercialWrite,
+  REMOTE_SYNC_APPLIED_EVENT,
+  REMOTE_SYNC_FAILED_EVENT,
+  startRemoteCommercialSync,
+} from './utils/remoteCommercialSync';
 import { useFieldValidation } from './components/useFieldValidation';
 import {
   getManualQuoteLineFieldErrors,
@@ -261,6 +268,24 @@ function App() {
   const [opportunities, setOpportunities] = useState(loadOpportunitiesWithAcceptedQuoteRepair);
   // Bumped after remote data is copied into the browser so views that read it re-render.
   const [, setRemoteDataRevision] = useState(0);
+  const [remoteSyncError, setRemoteSyncError] = useState('');
+  useEffect(() => {
+    const stopListening = onLocalWrite(notifyLocalCommercialWrite);
+    const handleFailure = (event: Event) => {
+      // SCRUM-114: the browser copy was restored; show the restored data and why.
+      setRemoteSyncError((event as CustomEvent<string>).detail);
+      setOpportunities(loadOpportunities().items);
+      setRemoteDataRevision((value) => value + 1);
+    };
+    const handleApplied = () => setRemoteSyncError('');
+    window.addEventListener(REMOTE_SYNC_FAILED_EVENT, handleFailure);
+    window.addEventListener(REMOTE_SYNC_APPLIED_EVENT, handleApplied);
+    return () => {
+      stopListening();
+      window.removeEventListener(REMOTE_SYNC_FAILED_EVENT, handleFailure);
+      window.removeEventListener(REMOTE_SYNC_APPLIED_EVENT, handleApplied);
+    };
+  }, []);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [quoteVersion, setQuoteVersion] = useState(1);
@@ -399,13 +424,18 @@ function App() {
       .catch(() => {
         // The local mirror remains available when the remote read is temporarily unavailable.
       });
-    // SCRUM-113: contacts come from Supabase too, so they are the same in every browser.
+    // SCRUM-113/114: contacts, then opportunities and their activity, come from Supabase too, so
+    // they are the same in every browser. Contacts first: opportunities reference them.
     syncRemoteContacts(workspaceId)
-      .then(() => {
-        if (!cancelled) setRemoteDataRevision((value) => value + 1);
-      })
       .catch(() => {
         // Same fallback: keep showing the browser copy.
+      })
+      .then(() => startRemoteCommercialSync(workspaceId))
+      .then(() => {
+        if (cancelled) return;
+        setOpportunities(loadOpportunities().items);
+        window.dispatchEvent(new Event('activitiesupdated'));
+        setRemoteDataRevision((value) => value + 1);
       });
     return () => {
       cancelled = true;
@@ -1781,6 +1811,18 @@ function App() {
   const appHeader = (
     <>
       {appHeaderBar}
+      {remoteSyncError && (
+        <div className="remote-sync-error form-error" role="alert">
+          <span>{remoteSyncError}</span>
+          <button
+            className="button button-link"
+            type="button"
+            onClick={() => setRemoteSyncError('')}
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
       {pendingQuoteReplacement && (
         <UnsavedQuoteDialog
           saveError={quoteReplacementError}
