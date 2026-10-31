@@ -14,6 +14,7 @@ export function saveClient(client: Client): boolean {
       id: client.id,
       createdAt: client.createdAt,
       updatedAt: client.updatedAt,
+      ...(client.version !== undefined ? { version: client.version } : {}),
     },
     isClient,
   );

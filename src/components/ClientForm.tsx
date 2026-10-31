@@ -12,7 +12,8 @@ import { useFieldValidation } from './useFieldValidation';
 
 interface Props {
   client?: Client;
-  onSave: (input: ClientInput) => string | null;
+  /** Returns an error message, or null when saved. May be async (Supabase, SCRUM-113). */
+  onSave: (input: ClientInput) => string | null | Promise<string | null>;
   onCancel: () => void;
 }
 
@@ -46,15 +47,24 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
   const fieldError = (field: ClientFormField) => (
     <FieldError id={validation.errorId(field)} message={validation.visibleError(field)} />
   );
-  function submit(event: FormEvent) {
+  const [isSaving, setIsSaving] = useState(false);
+  async function submit(event: FormEvent) {
     event.preventDefault();
+    if (isSaving) return;
     if (!validation.validateForSubmit()) return setError(null);
     const next = buildInput();
     // The stored-data rules still run before saving; field errors cover every case they check.
-    setError(getClientValidationError(next) ?? onSave(normalizeClientInput(next)));
+    const stored = getClientValidationError(next);
+    if (stored) return setError(stored);
+    setIsSaving(true);
+    try {
+      setError(await onSave(normalizeClientInput(next)));
+    } finally {
+      setIsSaving(false);
+    }
   }
   return (
-    <form className="commercial-form" onSubmit={submit} noValidate>
+    <form className="commercial-form" onSubmit={(event) => void submit(event)} noValidate>
       <h3>{client ? 'Editar cliente' : 'Nuevo cliente'}</h3>
       <label className="field">
         <span>Nombre del cliente</span>
@@ -158,8 +168,8 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
         </p>
       )}
       <div className="commercial-actions">
-        <button className="button button-line" type="submit">
-          Guardar cliente
+        <button className="button button-line" type="submit" disabled={isSaving}>
+          {isSaving ? 'Guardando…' : 'Guardar cliente'}
         </button>
         <button className="button button-line" type="button" onClick={onCancel}>
           Cancelar
