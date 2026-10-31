@@ -9,6 +9,7 @@ import type {
 import type { ContactCommunicationSnapshot, WhatsAppResult } from '../types/contactScript';
 import { hasRecordId, loadCollection, readCollection } from './localCollectionStorage';
 import { workspaceStorageKey } from './workspaceStorage';
+import { emitLocalWrite } from './localWriteEvents';
 
 export const ACTIVITIES_STORAGE_KEY = 'ingenya.activities.v1';
 export const ACTIVITY_AUTHOR_STORAGE_KEY = 'ingenya.activityAuthor.v1';
@@ -131,6 +132,7 @@ export function saveActivity(activity: Activity): boolean {
     if (records.some((record) => hasRecordId(record, activity.id))) return false;
     records.push(activity);
     localStorage.setItem(workspaceStorageKey(ACTIVITIES_STORAGE_KEY), JSON.stringify(records));
+    emitLocalWrite();
     notifyActivityChange();
     return true;
   } catch {
@@ -256,6 +258,7 @@ export function appendActivityNoteRevision(
       noteRevisions: [...activity.noteRevisions, revision],
     };
     localStorage.setItem(workspaceStorageKey(ACTIVITIES_STORAGE_KEY), JSON.stringify(records));
+    emitLocalWrite();
     notifyActivityChange();
     return true;
   } catch {

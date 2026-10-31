@@ -1,4 +1,5 @@
 import { workspaceStorageKey } from './workspaceStorage';
+import { emitLocalWrite } from './localWriteEvents';
 
 export interface CollectionLoad<T> {
   items: T[];
@@ -58,6 +59,7 @@ export function saveCollectionItem<T extends { id: string }>(
     else records[index] = item;
     // Preserve unrelated invalid records for recovery; never replace an unreadable root.
     localStorage.setItem(workspaceStorageKey(key), JSON.stringify(records));
+    emitLocalWrite();
     return true;
   } catch {
     return false;

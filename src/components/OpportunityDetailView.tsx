@@ -89,6 +89,7 @@ export function OpportunityDetailView({
   const [copied, setCopied] = useState('');
   const [, setActivityRevision] = useState(0);
   const [editingOpportunityData, setEditingOpportunityData] = useState(false);
+  const [dataError, setDataError] = useState('');
   const [editingClient, setEditingClient] = useState(false);
   const [dataDraft, setDataDraft] = useState<OpportunityDataDraft>(() => ({
     address: opportunity.address,
@@ -205,18 +206,29 @@ export function OpportunityDetailView({
       estimatedCloseDate: dataDraft.estimatedCloseDate
         ? new Date(`${dataDraft.estimatedCloseDate}T12:00:00-03:00`).toISOString()
         : undefined,
-      qualification: {
-        ...(opportunity.qualification ?? {
-          serviceOfInterest: '',
-          interestLevel: 'medium' as const,
-          detectedNeed: '',
-        }),
-        serviceOfInterest: dataDraft.serviceOfInterest.trim(),
-        estimatedValue: Number.isFinite(estimatedValue) ? estimatedValue : undefined,
-      },
       updatedAt: new Date().toISOString(),
     };
-    if (onSaveOpportunity(updated, 'edited')) setEditingOpportunityData(false);
+    const service = dataDraft.serviceOfInterest.trim();
+    const hasEstimatedValue = Number.isFinite(estimatedValue);
+    if (service) {
+      updated.qualification = {
+        interestLevel: opportunity.qualification?.interestLevel ?? 'medium',
+        detectedNeed: opportunity.qualification?.detectedNeed.trim() || service,
+        serviceOfInterest: service,
+        estimatedValue: hasEstimatedValue ? estimatedValue : undefined,
+      };
+    } else if (opportunity.qualification || hasEstimatedValue) {
+      setDataError('Ingresá el servicio de interés para guardar la calificación.');
+      return;
+    } else {
+      delete updated.qualification;
+    }
+    if (onSaveOpportunity(updated, 'edited')) {
+      setDataError('');
+      setEditingOpportunityData(false);
+    } else {
+      setDataError('No se pudieron guardar los datos de la oportunidad. Revisá los campos.');
+    }
   }
 
   return (
@@ -498,6 +510,11 @@ export function OpportunityDetailView({
                   {editingOpportunityData ? 'Guardar' : 'Editar'}
                 </button>
               </div>
+              {dataError && (
+                <p className="form-error" role="alert">
+                  {dataError}
+                </p>
+              )}
               <dl>
                 <div className="opportunity-data-row">
                   <span className="opportunity-data-icon" aria-hidden="true">

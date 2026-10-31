@@ -6,6 +6,7 @@ import { OPPORTUNITIES_STORAGE_KEY } from './opportunityStorage';
 import { SAVED_QUOTES_STORAGE_KEY } from './quoteDraftStorage';
 import { readCollection } from './localCollectionStorage';
 import { workspaceStorageKey } from './workspaceStorage';
+import { emitLocalWrite } from './localWriteEvents';
 
 export const QUOTE_SEND_RECOVERY_STORAGE_KEY = 'ingenya.quoteSendRecovery.v1';
 
@@ -126,6 +127,7 @@ export function commitLocalQuoteSend(input: QuoteSendTransactionInput): {
       workspaceStorageKey(OPPORTUNITIES_STORAGE_KEY),
       JSON.stringify(opportunities),
     );
+    emitLocalWrite();
     return { ok: true };
   } catch {
     try {

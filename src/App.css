@@ -8062,3 +8062,23 @@ tr:last-child td {
 .prospect-list-toolbar .prospect-view-toggle {
   margin-left: 0;
 }
+
+/* SCRUM-114: a change that Supabase did not save was undone. */
+.remote-sync-error {
+  position: fixed;
+  z-index: 60;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+  justify-content: space-between;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+.remote-sync-error .button-link {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  flex: 0 0 auto;
+}
