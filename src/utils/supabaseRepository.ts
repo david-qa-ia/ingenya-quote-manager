@@ -590,6 +590,130 @@ export async function setRemoteProspectArchived(input: {
   };
 }
 
+/** Contact row as stored in Supabase (SCRUM-113). */
+export interface SupabaseContactRow {
+  id: string;
+  workspace_id: string;
+  name: string;
+  company: string | null;
+  phone: string;
+  email: string;
+  preferred_channel: string | null;
+  contact_consent: boolean;
+  do_not_contact: Client['doNotContact'] | null;
+  version: number;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const clientChannels = ['phone', 'whatsapp', 'email'] as const;
+
+/** Maps a Supabase contact into the local client mirror shape. */
+export function mapRemoteContact(row: SupabaseContactRow): Client {
+  const channel = (clientChannels as readonly string[]).includes(row.preferred_channel ?? '')
+    ? (row.preferred_channel as Client['preferredChannel'])
+    : '';
+  return {
+    id: row.id,
+    name: row.name,
+    ...(row.company?.trim() ? { company: row.company } : {}),
+    phone: row.phone,
+    email: row.email,
+    preferredChannel: channel,
+    contactConsent: row.contact_consent,
+    ...(row.do_not_contact ? { doNotContact: row.do_not_contact } : {}),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    version: row.version,
+  };
+}
+
+export async function loadRemoteContacts(workspaceId: string): Promise<SupabaseContactRow[]> {
+  const query = new URLSearchParams({
+    select: '*',
+    workspace_id: `eq.${workspaceId}`,
+    archived_at: 'is.null',
+    order: 'created_at.asc',
+  });
+  return request<SupabaseContactRow[]>(`/rest/v1/contacts?${query.toString()}`);
+}
+
+export type RemoteContactSaveResult =
+  | { ok: true; version: number; updatedAt?: string }
+  | {
+      ok: false;
+      reason: 'duplicate' | 'conflict' | 'notFound' | 'validation';
+      message: string;
+      duplicateId?: string;
+    };
+
+/** Creates (no version) or updates (with version) a contact in Supabase (SCRUM-113). */
+export async function saveRemoteContact(input: {
+  workspaceId: string;
+  client: Client;
+  isNew: boolean;
+}): Promise<RemoteContactSaveResult> {
+  const { workspaceId, client, isNew } = input;
+  const result = await request<{
+    code?: string;
+    version?: number;
+    updatedAt?: string;
+    contactId?: string;
+    name?: string;
+  }>('/rest/v1/rpc/save_contact', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_workspace_id: workspaceId,
+      p_contact_id: client.id,
+      p_expected_version: isNew ? null : (client.version ?? 1),
+      p_payload: {
+        name: client.name,
+        company: client.company ?? '',
+        phone: client.phone,
+        email: client.email,
+        preferredChannel: client.preferredChannel,
+        contactConsent: client.contactConsent,
+        doNotContact: client.doNotContact ?? null,
+      },
+      p_idempotency_key: `save-contact:${client.id}:${isNew ? 'new' : (client.version ?? 1)}:${client.updatedAt}`,
+      p_request_id: crypto.randomUUID(),
+    }),
+  });
+  if (result.code === 'DUPLICATE')
+    return {
+      ok: false,
+      reason: 'duplicate',
+      duplicateId: result.contactId,
+      message: `Ya existe un contacto con ese email o teléfono${result.name ? `: ${result.name}` : ''}. Buscalo y usá ese contacto.`,
+    };
+  if (result.code === 'CONFLICT')
+    return {
+      ok: false,
+      reason: 'conflict',
+      message: 'El contacto cambió en otro lugar. Recargá la página antes de volver a guardar.',
+    };
+  if (result.code === 'NOT_FOUND')
+    return {
+      ok: false,
+      reason: 'notFound',
+      message: 'El contacto no existe en el espacio de trabajo. Recargá la página.',
+    };
+  if (result.code === 'VALIDATION')
+    return {
+      ok: false,
+      reason: 'validation',
+      message: 'Ingresá el nombre o la empresa del cliente.',
+    };
+  if (result.code !== 'OK' || !Number.isInteger(result.version))
+    throw new SupabaseRepositoryError('server', 'Supabase no confirmó el contacto.');
+  return {
+    ok: true,
+    version: result.version as number,
+    ...(result.updatedAt ? { updatedAt: result.updatedAt } : {}),
+  };
+}
+
 export async function createRemoteProspect(workspaceId: string, prospect: Prospect): Promise<void> {
   await request('/rest/v1/rpc/create_prospect', {
     method: 'POST',

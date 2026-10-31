@@ -71,6 +71,7 @@ import { MetricsDashboard } from './components/MetricsDashboard';
 import { FieldError } from './components/FieldError';
 import { UnsavedQuoteDialog } from './components/UnsavedQuoteDialog';
 import { hasUnsavedQuoteChanges } from './utils/quoteUnsavedChanges';
+import { persistContact, syncRemoteContacts } from './utils/contactPersistence';
 import { useFieldValidation } from './components/useFieldValidation';
 import {
   getManualQuoteLineFieldErrors,
@@ -258,6 +259,8 @@ function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [opportunities, setOpportunities] = useState(loadOpportunitiesWithAcceptedQuoteRepair);
+  // Bumped after remote data is copied into the browser so views that read it re-render.
+  const [, setRemoteDataRevision] = useState(0);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [quoteVersion, setQuoteVersion] = useState(1);
@@ -395,6 +398,14 @@ function App() {
       })
       .catch(() => {
         // The local mirror remains available when the remote read is temporarily unavailable.
+      });
+    // SCRUM-113: contacts come from Supabase too, so they are the same in every browser.
+    syncRemoteContacts(workspaceId)
+      .then(() => {
+        if (!cancelled) setRemoteDataRevision((value) => value + 1);
+      })
+      .catch(() => {
+        // Same fallback: keep showing the browser copy.
       });
     return () => {
       cancelled = true;
@@ -911,14 +922,23 @@ function App() {
     return true;
   }
 
-  function updateOpportunityClient(client: Client, input: ClientInput): string | null {
+  async function updateOpportunityClient(
+    client: Client,
+    input: ClientInput,
+  ): Promise<string | null> {
     const now = new Date().toISOString();
     const next: Client = {
       ...input,
       id: client.id,
       createdAt: client.createdAt,
       updatedAt: now,
+      ...(client.version !== undefined ? { version: client.version } : {}),
     };
+    // SCRUM-113: Supabase confirms the contact before the browser copy changes.
+    const remote = await persistContact(next, false);
+    if (!remote.ok) return remote.error;
+    next.version = remote.client.version;
+    next.updatedAt = remote.client.updatedAt;
     const sourceProspect = loadProspects().items.find(
       (prospect) => prospect.conversion?.draft.clientId === client.id,
     );

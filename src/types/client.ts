@@ -17,6 +17,8 @@ export interface Client {
   doNotContact?: DoNotContactRecord;
   createdAt: string;
   updatedAt: string;
+  /** Optimistic concurrency token from Supabase (SCRUM-113); absent for local-only clients. */
+  version?: number;
 }
 
-export type ClientInput = Omit<Client, 'id' | 'createdAt' | 'updatedAt'>;
+export type ClientInput = Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'version'>;

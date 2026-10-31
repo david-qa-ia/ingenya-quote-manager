@@ -3,7 +3,8 @@ import type { Client, ClientInput } from '../types/client';
 import type { Opportunity, OpportunityInput } from '../types/opportunity';
 import type { Quote, SavedQuote } from '../types/quote';
 import type { CommercialOutcome } from '../types/commercialOutcome';
-import { loadClients, saveClient } from '../utils/clientStorage';
+import { loadClients } from '../utils/clientStorage';
+import { persistContact } from '../utils/contactPersistence';
 import { loadOpportunities, saveOpportunity } from '../utils/opportunityStorage';
 import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
 import {
@@ -102,7 +103,7 @@ export function QuoteCommercialContext({
     setForm(null);
     onEntitiesChange();
   }
-  function persistClient(input: ClientInput): string | null {
+  async function persistClient(input: ClientInput): Promise<string | null> {
     if (readOnly) return 'El presupuesto finalizado es de solo lectura.';
     const existing = form === 'editClient' ? client : undefined;
     const now = new Date().toISOString();
@@ -111,9 +112,10 @@ export function QuoteCommercialContext({
       id: existing?.id ?? crypto.randomUUID(),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
+      ...(existing?.version !== undefined ? { version: existing.version } : {}),
     };
-    if (!saveClient(next))
-      return 'No se pudo guardar el cliente. Los datos existentes se conservaron.';
+    const persisted = await persistContact(next, !existing);
+    if (!persisted.ok) return persisted.error;
     if (next.doNotContact) {
       loadOpportunities()
         .items.filter((item) => item.clientId === next.id && item.nextAction?.status === 'pending')

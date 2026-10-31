@@ -32,7 +32,7 @@ interface Props {
   quotes: readonly SavedQuote[];
   onBack: () => void;
   onSaveOpportunity: (opportunity: Opportunity, event: string) => boolean;
-  onUpdateClient: (input: ClientInput) => string | null;
+  onUpdateClient: (input: ClientInput) => string | null | Promise<string | null>;
   onRegisterResult: () => void;
   onCreateQuote: () => void;
   onContinueQuote: (quote: SavedQuote) => void;
@@ -819,8 +819,8 @@ export function OpportunityDetailView({
               {client && editingClient && (
                 <ClientForm
                   client={client}
-                  onSave={(input) => {
-                    const error = onUpdateClient(input);
+                  onSave={async (input) => {
+                    const error = await onUpdateClient(input);
                     if (!error) setEditingClient(false);
                     return error;
                   }}

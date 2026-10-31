@@ -112,6 +112,8 @@ export function isClient(value: unknown): value is Client {
     (client.id as string).trim().length > 0 &&
     Number.isFinite(Date.parse(client.createdAt as string)) &&
     Number.isFinite(Date.parse(client.updatedAt as string)) &&
+    (client.version === undefined ||
+      (Number.isInteger(client.version) && (client.version as number) > 0)) &&
     getClientValidationError(client as unknown as ClientInput) === null
   );
 }
