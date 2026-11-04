@@ -28,3 +28,26 @@ contract before replacing these local adapters as the source of truth.
 Changing workspaces invalidates all local collection keys through the workspace namespace. Forms,
 filters, search results, metrics and detail context are reset only after the server confirms the
 new active workspace. A failed switch keeps the previous workspace and form unchanged.
+
+## One workspace per company (SCRUM-125)
+
+Each company that gets the app has its own workspace. Its data never mixes with other
+workspaces: every table and RPC checks `workspace_id` against the user's active memberships.
+
+**New company (Ventro, in the Supabase dashboard):**
+
+1. Authentication > Users > Add user: the person's email and password.
+2. SQL Editor:
+   ```sql
+   select public.admin_create_workspace('Martita', 'martita@pasteleria.com');
+   ```
+   It creates the workspace (unique slug) with that user as `owner`. The function cannot be called
+   from the app: only the SQL Editor or the service role can run it.
+
+**Sharing a workspace:** the owner opens Configuración > Miembros del espacio, writes the email of
+someone who already has a user, and selects "Dar acceso". That person joins as `admin` of that
+workspace only and sees it in the workspace selector the next time they sign in. "Quitar acceso"
+deactivates the membership (history keeps it); owners cannot be removed from the app.
+
+RPCs: `list_workspace_members`, `add_workspace_member` and `remove_workspace_member` (owner only,
+idempotent, audited). Migration: `202611040005_workspace_members.sql`.

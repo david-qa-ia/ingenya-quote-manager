@@ -11,6 +11,7 @@ import { getSystemHealthCards, getSystemHealthOperations } from '../utils/system
 import { UiIcon, type UiIconName } from './UiIcon';
 import { ResponsiblesSettings } from './ResponsiblesSettings';
 import { CompanyProfileSettings } from './CompanyProfileSettings';
+import { WorkspaceMembersSettings } from './WorkspaceMembersSettings';
 
 interface Props {
   membership: WorkspaceMembership;
@@ -110,6 +111,14 @@ export function SettingsView({ membership, onRetryConnection, onShowServices }: 
       <CompanyProfileSettings workspaceId={membership.workspace.id} />
 
       <ResponsiblesSettings workspaceId={membership.workspace.id} />
+
+      {/* SCRUM-125: only the owner decides who else can open this workspace. */}
+      {backendConfigured && validWorkspace && membership.role === 'owner' && (
+        <WorkspaceMembersSettings
+          workspaceId={membership.workspace.id}
+          workspaceName={membership.workspace.name}
+        />
+      )}
 
       <section className="settings-card system-health-services">
         <button

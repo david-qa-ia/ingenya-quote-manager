@@ -1181,3 +1181,53 @@ export async function syncRemoteDocuments(
     throw new SupabaseRepositoryError('server', 'Supabase no confirmó los cambios.');
   return { ok: true, versions: result.versions ?? {} };
 }
+
+/** SCRUM-125: people with access to a workspace (only its owner can list and change them). */
+export interface WorkspaceMember {
+  userId: string;
+  email: string;
+  role: 'owner' | 'admin' | 'collaborator';
+  isYou: boolean;
+}
+
+export async function listWorkspaceMembers(workspaceId: string): Promise<WorkspaceMember[]> {
+  const rows = await request<WorkspaceMember[]>('/rest/v1/rpc/list_workspace_members', {
+    method: 'POST',
+    body: JSON.stringify({ p_workspace_id: workspaceId }),
+  });
+  return Array.isArray(rows) ? rows : [];
+}
+
+export type WorkspaceMemberChangeResult = { ok: true } | { ok: false; message: string };
+
+async function changeWorkspaceMember(
+  path: string,
+  body: Record<string, unknown>,
+  operation: string,
+): Promise<WorkspaceMemberChangeResult> {
+  const requestId = crypto.randomUUID();
+  const result = await request<{ code?: string; message?: string }>(path, {
+    method: 'POST',
+    body: JSON.stringify({
+      ...body,
+      p_idempotency_key: `${operation}:${requestId}`,
+      p_request_id: requestId,
+    }),
+  });
+  if (result.code === 'OK') return { ok: true };
+  return { ok: false, message: result.message ?? 'Supabase no confirmó el cambio.' };
+}
+
+export const addWorkspaceMember = (workspaceId: string, email: string) =>
+  changeWorkspaceMember(
+    '/rest/v1/rpc/add_workspace_member',
+    { p_workspace_id: workspaceId, p_email: email },
+    'add-member',
+  );
+
+export const removeWorkspaceMember = (workspaceId: string, userId: string) =>
+  changeWorkspaceMember(
+    '/rest/v1/rpc/remove_workspace_member',
+    { p_workspace_id: workspaceId, p_user_id: userId },
+    'remove-member',
+  );
