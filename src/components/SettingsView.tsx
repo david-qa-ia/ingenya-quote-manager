@@ -52,7 +52,7 @@ export function SettingsView({ membership, onRetryConnection, onShowServices }: 
     hasSession: Boolean(session),
     recovery,
   });
-  const operations = getSystemHealthOperations(validWorkspace);
+  const operations = getSystemHealthOperations(validWorkspace, backendConfigured);
 
   function recover() {
     if (!recovery) return;

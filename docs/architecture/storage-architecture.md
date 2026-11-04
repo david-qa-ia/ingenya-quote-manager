@@ -291,3 +291,20 @@ journal retains only the conversion provenance and the prospect history records 
 - New prospects created from the form need a phone, email or Instagram, and the form warns about
   possible duplicates (phone, email, Instagram, or name plus company). These are form rules only:
   CSV import keeps `getProspectValidationError` unchanged.
+
+## SCRUM-119 Compatible Extension
+
+- `ingenya.companyProfile.v1` and `ingenya.companyProfileVersion.v1` (workspace-namespaced): the
+  company data printed on quotes (name, subtitle, email, WhatsApp, website, Instagram, footer and
+  quote validity in days) and the remote version last seen. With Supabase the source of truth is
+  `public.workspace_company_profiles`, written only through `save_workspace_company_profile`
+  (migration `202611040002`). Without stored data the PDF uses Ventro's details
+  (`src/config/deploymentBrand.ts`). Only the company name is required; empty contact fields are
+  left out of the PDF.
+- The PDF shows the issue date (the saved date for finalized quotes) and "Válido hasta" from the
+  validity days.
+- Each section has its own address (`#/prospectos`, `#/presupuestos`, ...), so the browser back
+  button and a reload keep the section. Views that need a selected record reopen their list
+  after a reload.
+- The starter catalog for a new workspace uses generic services with the "Unidad" unit; existing
+  catalogs are never replaced.

@@ -87,7 +87,7 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
       </p>
       {relatedQuotes.length > 1 && (
         <p className="commercial-warning">
-          Hay {relatedQuotes.length} presupuestos asociados. Rechazar uno no cierral proyecto.
+          Hay {relatedQuotes.length} presupuestos asociados. Rechazar uno no cierra el proyecto.
         </p>
       )}
       <form className="commercial-form" onSubmit={submit} noValidate>

@@ -332,7 +332,7 @@ export function QuoteCommercialContext({
         </p>
         {(clientLoad.issue || opportunityLoad.issue) && (
           <p className="commercial-warning" role="alert">
-            No se pudieron recuperar todos los datos de contactos u proyectos. Los presupuestos
+            No se pudieron recuperar todos los datos de contactos o proyectos. Los presupuestos
             conservan su información histórica.
           </p>
         )}

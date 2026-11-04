@@ -152,6 +152,8 @@ interface Props {
   onOpenOpportunity: (id: string) => void;
   onOpenResult: (item: FollowUpInboxItem) => void;
   openProspectId?: string | null;
+  /** SCRUM-119: changes when the user picks "Prospectos" in the menu; shows the list again. */
+  resetToken?: number;
   onOpenProspectHandled?: () => void;
   onProspectsChanged?: (prospects: Prospect[]) => void;
   onOpportunitiesChanged?: () => void;
@@ -164,6 +166,7 @@ export function ProspectingView({
   onOpenOpportunity,
   onOpenResult,
   openProspectId,
+  resetToken,
   onOpenProspectHandled,
   onProspectsChanged,
   onOpportunitiesChanged,
@@ -174,6 +177,14 @@ export function ProspectingView({
   const [storedFilters, setFilters] = useState(initialFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creationDraft, setCreationDraft] = useState<Prospect | null>(null);
+  const lastResetTokenRef = useRef(resetToken);
+  useEffect(() => {
+    if (resetToken === lastResetTokenRef.current) return;
+    lastResetTokenRef.current = resetToken;
+    setSelectedId(null);
+    setCreationDraft(null);
+    onOpenProspectHandled?.();
+  }, [resetToken, onOpenProspectHandled]);
   const initialContactChannel: ProspectChannel = 'phone';
   const [importRecovery, setImportRecovery] = useState<ProspectImportRecovery | null>(() =>
     loadProspectImportRecovery(),

@@ -54,7 +54,13 @@ import {
 } from './utils/jobCatalogStorage';
 import { createCatalogQuoteLine } from './utils/quoteLineFactory';
 import { addQuickService } from './utils/quickServiceAddition';
-import { resolveActiveNavigationSection, type AppView } from './utils/appNavigation';
+import {
+  hashForView,
+  initialViewFromHash,
+  resolveActiveNavigationSection,
+  viewFromHash,
+  type AppView,
+} from './utils/appNavigation';
 import {
   ACTIVITIES_STORAGE_KEY,
   loadActivities,
@@ -257,7 +263,33 @@ function App() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>('dailyDashboard');
+  const [currentView, setCurrentView] = useState<AppView>(() =>
+    initialViewFromHash(typeof window === 'undefined' ? '' : window.location.hash),
+  );
+  // SCRUM-119: "Prospectos" in the menu goes back to the list even from a prospect detail.
+  const [prospectsResetToken, setProspectsResetToken] = useState(0);
+  const navigatingFromHistoryRef = useRef(false);
+
+  // SCRUM-119: keep the address in step with the section, so back/forward and reload work.
+  useEffect(() => {
+    const hash = hashForView(currentView);
+    const fromHistory = navigatingFromHistoryRef.current;
+    navigatingFromHistoryRef.current = false;
+    if (window.location.hash === hash) return;
+    if (fromHistory || !window.location.hash) window.history.replaceState(null, '', hash);
+    else window.history.pushState(null, '', hash);
+  }, [currentView]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const view = viewFromHash(window.location.hash);
+      if (!view) return;
+      navigatingFromHistoryRef.current = true;
+      setCurrentView(view);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
   const [prospects, setProspects] = useState(() => loadProspects().items);
   const [prospectFilters, setProspectFilters] = useState(loadProspectFilters);
   const [requestedProspectId, setRequestedProspectId] = useState<string | null>(null);
@@ -1878,7 +1910,10 @@ function App() {
       onShowSavedQuotes={() => setCurrentView('savedQuotes')}
       onShowNextActions={() => setCurrentView('dailyDashboard')}
       onShowMetrics={() => setCurrentView('metrics')}
-      onShowProspects={() => setCurrentView('prospects')}
+      onShowProspects={() => {
+        setCurrentView('prospects');
+        setProspectsResetToken((value) => value + 1);
+      }}
       onShowSettings={() => setCurrentView('settings')}
       searchQuery={searchQuery}
       searchResults={globalSearchResults}
@@ -2065,6 +2100,7 @@ function App() {
       <>
         {appHeader}
         <ProspectingView
+          resetToken={prospectsResetToken}
           initialFilters={prospectFilters}
           onFiltersChange={(filters) => {
             setProspectFilters(filters);

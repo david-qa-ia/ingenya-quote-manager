@@ -68,3 +68,19 @@ describe('system health', () => {
     ).toBe(true);
   });
 });
+
+describe('local mode is not reported as a fault (SCRUM-119)', () => {
+  it('shows local mode as working, not as needing attention', () => {
+    const cards = getSystemHealthCards({
+      workspaceName: 'Ventro',
+      validWorkspace: false,
+      backendConfigured: false,
+      hasSession: false,
+      recovery: null,
+    });
+    expect(cards.map((card) => card.tone)).toEqual(['good', 'neutral', 'neutral', 'good']);
+    expect(cards[1].title).toBe('Modo local');
+    const operations = getSystemHealthOperations(false, false);
+    expect(operations.map((operation) => operation.available)).toEqual([true, true, false]);
+  });
+});

@@ -213,7 +213,7 @@ export function recoverOpportunity(value: unknown): Opportunity | null {
 }
 
 export function getOpportunityValidationError(input: OpportunityInput): string | null {
-  if (!input.clientId.trim()) return 'Seleccioná un contacto paral proyecto.';
+  if (!input.clientId.trim()) return 'Seleccioná un contacto para el proyecto.';
   if (!input.name.trim()) return 'Ingresá el nombre del proyecto.';
   if (input.estimatedStartDate && !isValidDate(input.estimatedStartDate))
     return 'Ingresá una fecha estimada válida.';

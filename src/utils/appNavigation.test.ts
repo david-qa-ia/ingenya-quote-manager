@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { getCircularFocusIndex, resolveActiveNavigationSection } from './appNavigation';
+import {
+  getCircularFocusIndex,
+  hashForView,
+  initialViewFromHash,
+  resolveActiveNavigationSection,
+  viewFromHash,
+} from './appNavigation';
 
 describe('resolveActiveNavigationSection', () => {
   it('keeps the editor and summary inside the new quote section', () => {
@@ -26,5 +32,20 @@ describe('getCircularFocusIndex', () => {
     expect(getCircularFocusIndex(-1, 1, 3)).toBe(0);
     expect(getCircularFocusIndex(-1, -1, 3)).toBe(2);
     expect(getCircularFocusIndex(-1, 1, 0)).toBe(-1);
+  });
+});
+
+describe('section addresses (SCRUM-119)', () => {
+  it('maps every section to an address and back', () => {
+    expect(hashForView('prospects')).toBe('#/prospectos');
+    expect(viewFromHash('#/indicadores')).toBe('metrics');
+    expect(viewFromHash('#/no-existe')).toBeNull();
+  });
+
+  it('reopens the list when a reload lands on a view that needs a selected record', () => {
+    expect(initialViewFromHash('#/presupuesto-detalle')).toBe('savedQuotes');
+    expect(initialViewFromHash('#/oportunidad')).toBe('nextActions');
+    expect(initialViewFromHash('#/configuracion')).toBe('settings');
+    expect(initialViewFromHash('')).toBe('dailyDashboard');
   });
 });

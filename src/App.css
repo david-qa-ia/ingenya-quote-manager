@@ -1477,9 +1477,9 @@
     border-top-color: rgba(216, 225, 247, 0.1);
   }
 
-  .app-sidebar-header + main,
-  .app-sidebar-header + .prospecting-view,
-  .app-sidebar-header + .metrics-dashboard {
+  .app-sidebar-header ~ main,
+  .app-sidebar-header ~ .prospecting-view,
+  .app-sidebar-header ~ .metrics-dashboard {
     margin-left: 232px;
     width: calc(100% - 232px);
   }
@@ -4046,9 +4046,9 @@ button.opportunity-nav-item:hover {
     width: 19px;
     height: 19px;
   }
-  .app-sidebar-header + main,
-  .app-sidebar-header + .prospecting-view,
-  .app-sidebar-header + .metrics-dashboard {
+  .app-sidebar-header ~ main,
+  .app-sidebar-header ~ .prospecting-view,
+  .app-sidebar-header ~ .metrics-dashboard {
     box-sizing: border-box;
     margin-left: 212px;
     min-height: 100vh;
@@ -5767,9 +5767,9 @@ body,
     flex: 0 0 46px;
     margin-top: -58px;
   }
-  .app-sidebar-header + main,
-  .app-sidebar-header + .prospecting-view,
-  .app-sidebar-header + .metrics-dashboard {
+  .app-sidebar-header ~ main,
+  .app-sidebar-header ~ .prospecting-view,
+  .app-sidebar-header ~ .metrics-dashboard {
     box-sizing: border-box;
     margin-left: 0;
     max-width: 100%;
@@ -6718,9 +6718,9 @@ tr:last-child td {
     margin: 20px 0 0;
   }
 
-  .app-sidebar-header + main,
-  .app-sidebar-header + .prospecting-view,
-  .app-sidebar-header + .metrics-dashboard {
+  .app-sidebar-header ~ main,
+  .app-sidebar-header ~ .prospecting-view,
+  .app-sidebar-header ~ .metrics-dashboard {
     margin-left: 224px;
     padding: 52px 44px 76px;
     width: calc(100% - 224px);
@@ -6742,7 +6742,7 @@ tr:last-child td {
 /* SCRUM-92: high-visibility layout polish for the daily operational views. */
 .prospecting-view,
 .metrics-dashboard,
-.app-sidebar-header + main {
+.app-sidebar-header ~ main {
   background: transparent;
 }
 
@@ -7978,9 +7978,9 @@ tr:last-child td {
     width: calc(100% - 8px);
   }
 
-  .app-sidebar-header + main,
-  .app-sidebar-header + .prospecting-view,
-  .app-sidebar-header + .metrics-dashboard {
+  .app-sidebar-header ~ main,
+  .app-sidebar-header ~ .prospecting-view,
+  .app-sidebar-header ~ .metrics-dashboard {
     margin-left: 232px;
     width: calc(100% - 232px);
   }
@@ -8359,6 +8359,9 @@ tr:last-child td {
   text-underline-offset: 3px;
 }
 
+/* SCRUM-119: the content is placed with "~" (any later sibling), not "+": a notice shown
+   between the navigation and the page (recovery, sync error) used to push the page under the
+   navigation and block every click on it. */
 /* SCRUM-119: on short screens (or zoomed in) the navigation used to slide over the workspace
    selector. The rail now stacks its parts without shrinking them and scrolls when needed. */
 @media (min-width: 801px) {
@@ -8438,4 +8441,36 @@ tr:last-child td {
   border: 0;
   color: var(--text-muted);
   background: none;
+}
+
+/* SCRUM-119: the selected tab keeps its colors on hover (white text was on a light hover). */
+.service-entry-toggle .is-selected:hover,
+.service-entry-toggle .is-selected:focus-visible {
+  color: #fff;
+  background: var(--accent-dark);
+}
+
+/* SCRUM-119: the open menu shows an X to close it. */
+.mobile-menu-button span {
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.mobile-menu-button[aria-expanded='true'] span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.mobile-menu-button[aria-expanded='true'] span:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-menu-button[aria-expanded='true'] span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu-button span {
+    transition: none;
+  }
 }

@@ -40,3 +40,40 @@ export function getCircularFocusIndex(
 
   return (currentIndex + direction + itemCount) % itemCount;
 }
+
+/**
+ * SCRUM-119: each section has its own address, so the browser back button and a reload keep
+ * the user where they were. Views that need a selected record (a quote or an opportunity)
+ * reopen their list after a reload, because that selection is not part of the address.
+ */
+const viewHashes: Record<AppView, string> = {
+  dailyDashboard: '#/seguimiento',
+  nextActions: '#/seguimiento-completo',
+  cadences: '#/automatizaciones',
+  prospects: '#/prospectos',
+  savedQuotes: '#/presupuestos',
+  editor: '#/nuevo-presupuesto',
+  summary: '#/presupuesto',
+  quoteDetail: '#/presupuesto-detalle',
+  opportunityDetail: '#/oportunidad',
+  metrics: '#/indicadores',
+  settings: '#/configuracion',
+  catalog: '#/servicios',
+};
+
+export const hashForView = (view: AppView) => viewHashes[view];
+
+export function viewFromHash(hash: string): AppView | null {
+  const entry = (Object.entries(viewHashes) as [AppView, string][]).find(
+    ([, value]) => value === hash,
+  );
+  return entry?.[0] ?? null;
+}
+
+/** The view to open when the page loads with this address. */
+export function initialViewFromHash(hash: string): AppView {
+  const view = viewFromHash(hash);
+  if (view === 'quoteDetail' || view === 'summary') return 'savedQuotes';
+  if (view === 'opportunityDetail') return 'nextActions';
+  return view ?? 'dailyDashboard';
+}
