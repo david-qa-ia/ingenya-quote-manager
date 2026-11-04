@@ -221,3 +221,62 @@ describe('quote send transaction', () => {
     expect(hasQuoteSendRecovery('another-quote')).toBe(false);
   });
 });
+
+describe('sending completes the "Enviar presupuesto" step (SCRUM-120)', () => {
+  const opportunityWith = (description: string) => ({
+    id: 'opp-1',
+    clientId: 'client',
+    name: 'Proyecto',
+    address: '',
+    estimatedStartDate: '',
+    responsibleSeller: 'David',
+    createdAt: '2026-10-20T10:00:00.000Z',
+    updatedAt: '2026-10-20T10:00:00.000Z',
+    nextAction: {
+      id: 'send-step',
+      type: 'whatsapp',
+      description,
+      dueAt: '2026-10-22T09:00:00.000Z',
+      responsible: 'David',
+      priority: 'medium',
+      status: 'pending',
+      createdAt: '2026-10-20T10:00:00.000Z',
+      updatedAt: '2026-10-20T10:00:00.000Z',
+      history: [],
+    },
+  });
+  const send = (nextStep?: { type: 'call'; dueAt: string }) =>
+    commitLocalQuoteSend({
+      quote,
+      audit: { changedAt: '2026-10-21T10:00:00.000Z', changedBy: 'Daniel', reason: 'Enviado' },
+      ...(nextStep ? { nextStep } : {}),
+    });
+
+  it('marks the pending send step as completed by who sent it', () => {
+    memory.set(SAVED_QUOTES_STORAGE_KEY, JSON.stringify([quote]));
+    memory.set(ACTIVITIES_STORAGE_KEY, '[]');
+    memory.set(OPPORTUNITIES_STORAGE_KEY, JSON.stringify([opportunityWith('Enviar presupuesto')]));
+    expect(send().ok).toBe(true);
+    const action = JSON.parse(memory.get(OPPORTUNITIES_STORAGE_KEY)!)[0].nextAction;
+    expect(action).toMatchObject({ id: 'send-step', status: 'completed' });
+    expect(action.history.at(-1)).toMatchObject({ actor: 'Daniel', event: 'completed' });
+  });
+
+  it('then schedules the new follow-up step if one was chosen', () => {
+    memory.set(SAVED_QUOTES_STORAGE_KEY, JSON.stringify([quote]));
+    memory.set(ACTIVITIES_STORAGE_KEY, '[]');
+    memory.set(OPPORTUNITIES_STORAGE_KEY, JSON.stringify([opportunityWith('Enviar presupuesto')]));
+    expect(send({ type: 'call', dueAt: '2026-10-25T10:00:00.000Z' }).ok).toBe(true);
+    const action = JSON.parse(memory.get(OPPORTUNITIES_STORAGE_KEY)!)[0].nextAction;
+    expect(action).toMatchObject({ status: 'pending', type: 'call' });
+  });
+
+  it('leaves other pending steps untouched', () => {
+    memory.set(SAVED_QUOTES_STORAGE_KEY, JSON.stringify([quote]));
+    memory.set(ACTIVITIES_STORAGE_KEY, '[]');
+    memory.set(OPPORTUNITIES_STORAGE_KEY, JSON.stringify([opportunityWith('Llamar al socio')]));
+    expect(send().ok).toBe(true);
+    const action = JSON.parse(memory.get(OPPORTUNITIES_STORAGE_KEY)!)[0].nextAction;
+    expect(action).toMatchObject({ id: 'send-step', status: 'pending' });
+  });
+});

@@ -7,6 +7,8 @@ import type {
   CallResult,
 } from '../types/activity';
 import type { NextAction } from '../types/opportunity';
+import { ResponsibleSelect } from './ResponsibleSelect';
+import { activityAuthorLabel } from '../utils/activityAuthor';
 import { UiIcon, type UiIconName } from './UiIcon';
 import { FieldError } from './FieldError';
 import { useFieldValidation } from './useFieldValidation';
@@ -15,13 +17,7 @@ import {
   getActivityFormFieldErrors,
   type ActivityFormField,
 } from '../utils/activityFormValidation';
-import {
-  appendActivityNoteRevision,
-  loadActivities,
-  loadActivityAuthor,
-  saveActivity,
-  saveActivityAuthor,
-} from '../utils/activityStorage';
+import { appendActivityNoteRevision, loadActivities, saveActivity } from '../utils/activityStorage';
 import {
   getTimelineActivitiesForSubjects,
   getTimelineSubjectLabel,
@@ -102,11 +98,11 @@ export function ActivityTimeline({
 }: Props) {
   const [activities, setActivities] = useState(() => loadActivities().items);
   const [filter, setFilter] = useState<ActivityFilter>(initialFilter);
-  const [author, setAuthor] = useState(loadActivityAuthor);
+  // SCRUM-120: the author comes from the team list (principal by default), not a free text.
   const [input, setInput] = useState<ActivityInput>({
     type: 'note',
     occurredAt: new Date().toISOString(),
-    author: loadActivityAuthor(),
+    author: '',
     result: '',
     note: '',
   });
@@ -146,15 +142,6 @@ export function ActivityTimeline({
     return () => window.removeEventListener('activitiesupdated', refresh);
   }, []);
 
-  function saveAuthor() {
-    if (!saveActivityAuthor(author)) {
-      setFeedback('Ingresá un autor para registrar actividades.', true);
-      return;
-    }
-    setInput((current) => ({ ...current, author: author.trim() }));
-    setFeedback('Autor local actualizado.');
-  }
-
   function submit(event: FormEvent) {
     event.preventDefault();
     const normalizedAuthor = input.author.trim();
@@ -186,7 +173,6 @@ export function ActivityTimeline({
       );
       return;
     }
-    setAuthor(normalizedAuthor);
     refresh();
     setInput({
       type: 'note',
@@ -206,9 +192,9 @@ export function ActivityTimeline({
       return;
     }
     if (
-      !appendActivityNoteRevision(activity.id, author.trim(), {
+      !appendActivityNoteRevision(activity.id, input.author.trim(), {
         editedAt: new Date().toISOString(),
-        editedBy: author.trim(),
+        editedBy: input.author.trim(),
         note: editedNote.trim(),
       })
     ) {
@@ -222,18 +208,6 @@ export function ActivityTimeline({
 
   return (
     <div className="activity-timeline" aria-label="Historial de actividades">
-      <details className="activity-advanced-tools">
-        <summary>Preferencias de actividad</summary>
-        <div className="activity-author">
-          <label className="field">
-            <span>Autor actual</span>
-            <input value={author} onChange={(event) => setAuthor(event.target.value)} />
-          </label>
-          <button className="button button-line" type="button" onClick={saveAuthor}>
-            Guardar autor
-          </button>
-        </div>
-      </details>
       <button
         className={isFormOpen ? 'button button-line' : 'button button-primary'}
         type="button"
@@ -283,11 +257,9 @@ export function ActivityTimeline({
           )}
           <label className="field">
             <span>Autor</span>
-            <input
+            <ResponsibleSelect
               value={input.author}
-              onChange={(event) =>
-                setInput((current) => ({ ...current, author: event.target.value }))
-              }
+              onChange={(value) => setInput((current) => ({ ...current, author: value }))}
               {...validation.fieldProps('author')}
             />
             {fieldError('author')}
@@ -376,7 +348,7 @@ export function ActivityTimeline({
               <div>
                 <strong>{activitySummary(activity)}</strong>
                 <small>
-                  {activity.source === 'automatic' ? 'Sistema local' : activity.author} ·{' '}
+                  {activityAuthorLabel(activity)} ·{' '}
                   {new Date(activity.occurredAt).toLocaleString('es-AR')}
                 </small>
               </div>
@@ -405,7 +377,7 @@ export function ActivityTimeline({
               )
             )}
             {activity.source === 'manual' &&
-              activity.author === author.trim() &&
+              activity.author === input.author.trim() &&
               editingId !== activity.id && (
                 <button
                   className="button button-link"

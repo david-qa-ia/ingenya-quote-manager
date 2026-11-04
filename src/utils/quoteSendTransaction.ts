@@ -43,6 +43,11 @@ export interface QuoteSendTransactionInput {
   nextStep?: { type: 'call' | 'whatsapp' | 'email' | 'meeting'; dueAt: string };
   replaceExistingNextAction?: boolean;
 }
+function isPendingSendQuoteStep(action: Opportunity['nextAction']): boolean {
+  if (!action || action.status !== 'pending') return false;
+  return action.kind === 'sendQuote' || /enviar\s+presupuesto/i.test(action.description);
+}
+
 export function commitLocalQuoteSend(input: QuoteSendTransactionInput): {
   ok: boolean;
   error?: string;
@@ -88,12 +93,35 @@ export function commitLocalQuoteSend(input: QuoteSendTransactionInput): {
       (opportunity) => opportunity.id === input.quote.opportunityId,
     );
     if (opportunityIndex >= 0) {
-      const opportunity = opportunities[opportunityIndex];
+      const original = opportunities[opportunityIndex];
+      // SCRUM-120: sending the quote completes a pending "Enviar presupuesto" step, so the
+      // opportunity no longer shows a next step that was already done.
+      const opportunity = isPendingSendQuoteStep(original.nextAction)
+        ? {
+            ...original,
+            nextAction: {
+              ...original.nextAction!,
+              status: 'completed' as const,
+              updatedAt: input.audit.changedAt,
+              history: [
+                ...(original.nextAction!.history ?? []),
+                {
+                  id: crypto.randomUUID(),
+                  occurredAt: input.audit.changedAt,
+                  actor: input.audit.changedBy,
+                  event: 'completed' as const,
+                  reason: 'Completada al registrar el envío del presupuesto.',
+                },
+              ],
+            },
+          }
+        : original;
+      const hasOpenAction = opportunity.nextAction?.status === 'pending';
       opportunities[opportunityIndex] = {
         ...opportunity,
         pipelineStage: 'proposal',
         updatedAt: input.audit.changedAt,
-        ...(input.nextStep && (!opportunity.nextAction || input.replaceExistingNextAction)
+        ...(input.nextStep && (!hasOpenAction || input.replaceExistingNextAction)
           ? {
               nextAction: {
                 id: crypto.randomUUID(),

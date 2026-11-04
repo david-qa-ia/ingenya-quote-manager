@@ -41,7 +41,6 @@ interface Props {
 function getAllowedChannelLabel(client: Client | undefined): string {
   if (!client) return 'Sin contacto vinculado';
   if (client.doNotContact) return 'No permitido: pedido de no contacto';
-  if (!client.contactConsent) return 'No permitido: falta consentimiento';
   if (isPendingPhone(client.phone)) return 'No permitido: teléfono pendiente de confirmar';
   const preferred =
     client.preferredChannel === 'phone'

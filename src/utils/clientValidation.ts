@@ -18,7 +18,7 @@ export function getClientValidationError(input: ClientInput): string | null {
     !/^\+?[\d\s().-]+$/.test(input.phone.trim()) ||
     !/^\d{7,15}$/.test(input.phone.replace(/\D/g, ''))
   ) {
-    return 'Ingresá un teléfono de 7 a 15 dígitos o 1111111111 si está pendiente.';
+    return 'Ingresá un teléfono de 7 a 15 dígitos o dejalo vacío.';
   }
   if (
     input.doNotContact &&
@@ -65,7 +65,7 @@ export function getClientFieldErrors(input: ClientInput): Partial<Record<ClientF
     !/^\+?[\d\s().-]+$/.test(input.phone.trim()) ||
     !/^\d{7,15}$/.test(input.phone.replace(/\D/g, ''))
   )
-    errors.phone = 'Ingresá un teléfono de 7 a 15 dígitos o 1111111111 si está pendiente.';
+    errors.phone = 'Ingresá un teléfono de 7 a 15 dígitos o dejalo vacío.';
   if (!isPendingEmail(input.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim()))
     errors.email = 'Ingresá un email válido, por ejemplo nombre@empresa.com.';
   if (
@@ -119,12 +119,13 @@ export function isClient(value: unknown): value is Client {
 }
 
 // This describes contact eligibility only; SCRUM-46 does not send communications.
+// SCRUM-120: consent is no longer asked in the form, so it does not block a contact; a recorded
+// do-not-contact request still does.
 export function canContactClient(
   client: ClientInput,
   channel: 'phone' | 'whatsapp' | 'email',
 ): boolean {
   return (
-    client.contactConsent &&
     !client.doNotContact &&
     getClientValidationError(client) === null &&
     (channel === 'email' ? !isPendingEmail(client.email) : !isPendingPhone(client.phone))

@@ -101,3 +101,36 @@ describe('prospect context sync', () => {
     );
   });
 });
+
+describe('editing the contact from the opportunity (SCRUM-120)', () => {
+  it('updates the prospect data together with the contact and records the changes', () => {
+    const synced = syncConvertedProspectContact(
+      prospect,
+      {
+        name: 'Sofía',
+        company: 'Estudio Martínez',
+        phone: '3411111111',
+        email: 'sofia@example.com',
+        preferredChannel: 'whatsapp',
+        contactConsent: false,
+      },
+      'Daniel',
+      '2026-11-04T10:00:00.000Z',
+      {
+        instagram: '@estudio',
+        address: 'Calle nueva 20',
+        source: 'Instagram',
+        potentialService: 'Puertas',
+        notes: 'Atiende de mañana',
+      },
+    );
+    expect(synced?.prospect).toMatchObject({
+      instagram: '@estudio',
+      address: 'Calle nueva 20',
+      notes: 'Atiende de mañana',
+    });
+    expect(synced?.prospect.conversion?.draft.address).toBe('Calle nueva 20');
+    expect(synced?.changes).toEqual(['Instagram', 'Dirección', 'Observaciones']);
+    expect(synced?.prospect.activities.at(-1)?.author).toBe('Daniel');
+  });
+});

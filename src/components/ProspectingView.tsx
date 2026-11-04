@@ -93,7 +93,7 @@ import {
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 import { UiIcon } from './UiIcon';
 import { useResponsibles } from '../utils/useResponsibles';
-import { primaryResponsibleName } from '../utils/responsibleStorage';
+import { loadResponsibles, primaryResponsibleName } from '../utils/responsibleStorage';
 import {
   findProspectDuplicates,
   getProspectContactRequirementError,
@@ -366,7 +366,25 @@ export function ProspectingView({
     );
     return true;
   }
-  async function saveNew(next: Prospect): Promise<boolean> {
+  async function saveNew(draftProspect: Prospect): Promise<boolean> {
+    // SCRUM-120: the prospect records who loaded it (the primary responsible by default).
+    const creator = draftProspect.responsible.trim() || primaryResponsibleName(loadResponsibles());
+    const next: Prospect = {
+      ...draftProspect,
+      responsible: creator,
+      activities: [
+        ...draftProspect.activities,
+        {
+          id: crypto.randomUUID(),
+          prospectId: draftProspect.id,
+          occurredAt: draftProspect.createdAt,
+          createdAt: draftProspect.createdAt,
+          type: 'note',
+          description: 'Prospecto cargado.',
+          ...(creator ? { author: creator } : {}),
+        },
+      ],
+    };
     const localResult = saveProspectWithResult(next);
     if (!localResult.ok) {
       setFeedback(getProspectSaveErrorMessage(localResult), 'error');

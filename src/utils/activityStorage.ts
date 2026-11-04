@@ -140,16 +140,21 @@ export function saveActivity(activity: Activity): boolean {
   }
 }
 
+/**
+ * SCRUM-120: `author` is the responsible who caused the event; without one the event reads
+ * "Automático" (something the app did on its own).
+ */
 export function recordAutomaticActivity(
   subject: ActivitySubject,
   event: AutomaticActivityEvent,
   note: string,
+  author?: string,
 ): boolean {
   return saveActivity({
     id: crypto.randomUUID(),
     type: 'relevantChange',
     occurredAt: new Date().toISOString(),
-    author: 'Sistema local',
+    author: author?.trim() || 'Sistema local',
     result: 'Registrado automáticamente',
     note,
     subject,
@@ -163,6 +168,7 @@ export function recordCommercialOutcomeActivity(
   opportunityId: string,
   outcomeId: string,
   note: string,
+  author?: string,
 ): boolean {
   const id = `commercial-outcome:${outcomeId}`;
   try {
@@ -172,7 +178,7 @@ export function recordCommercialOutcomeActivity(
       id,
       type: 'relevantChange',
       occurredAt: new Date().toISOString(),
-      author: 'Sistema local',
+      author: author?.trim() || 'Sistema local',
       result: 'Resultado comercial registrado',
       note,
       subject: { kind: 'opportunity', opportunityId },
@@ -190,6 +196,7 @@ export function recordNextActionActivity(
   actionId: string,
   event: 'completed' | 'rescheduled' | 'cancelled' | 'notRelevant',
   note: string,
+  author?: string,
 ): boolean {
   const id = `next-action:${actionId}:${event}`;
   try {
@@ -199,7 +206,7 @@ export function recordNextActionActivity(
       id,
       type: 'relevantChange',
       occurredAt: new Date().toISOString(),
-      author: 'Sistema local',
+      author: author?.trim() || 'Sistema local',
       result: 'Próxima acción actualizada',
       note,
       subject: { kind: 'opportunity', opportunityId },

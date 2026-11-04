@@ -45,6 +45,7 @@ export interface CommercialMetrics {
     | 'effectiveContacts'
     | 'notesAdded'
     | 'quotesSent'
+    | 'quotesAccepted'
     | 'followUpsCompleted'
     | 'followUpsRescheduled',
     MetricValue

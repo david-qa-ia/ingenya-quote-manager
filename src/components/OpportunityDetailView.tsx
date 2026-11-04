@@ -1,8 +1,9 @@
 import { formatNumberInput, parseLocaleNumber } from '../utils/localeNumber';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityTimeline } from './ActivityTimeline';
-import { ClientForm } from './ClientForm';
-import { UiIcon } from './UiIcon';
+import { ClientForm, type ContactProspectExtras } from './ClientForm';
+import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
+import { UiIcon, type UiIconName } from './UiIcon';
 import type { Client, ClientInput } from '../types/client';
 import type { Opportunity, OpportunityPipelineStage } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
@@ -33,7 +34,10 @@ interface Props {
   quotes: readonly SavedQuote[];
   onBack: () => void;
   onSaveOpportunity: (opportunity: Opportunity, event: string) => boolean;
-  onUpdateClient: (input: ClientInput) => string | null | Promise<string | null>;
+  onUpdateClient: (
+    input: ClientInput,
+    extras?: ContactProspectExtras,
+  ) => string | null | Promise<string | null>;
   onRegisterResult: () => void;
   onCreateQuote: () => void;
   onContinueQuote: (quote: SavedQuote) => void;
@@ -115,6 +119,52 @@ export function OpportunityDetailView({
   const sourceProspect = loadProspects().items.find(
     (item) => item.conversion?.draft.opportunityId === opportunity.id,
   );
+  // SCRUM-120: phone, email and the prospect data, shown and edited together.
+  const contactRows: { label: string; value: string; icon: UiIconName; copy?: boolean }[] = client
+    ? [
+        {
+          label: 'Teléfono',
+          value: isPendingPhone(client.phone) ? '' : client.phone,
+          icon: 'phone',
+          copy: true,
+        },
+        {
+          label: 'Email',
+          value: isPendingEmail(client.email) ? '' : client.email,
+          icon: 'email',
+          copy: true,
+        },
+        ...(sourceProspect
+          ? ([
+              { label: 'Instagram', value: sourceProspect.instagram ?? '', icon: 'instagram' },
+              {
+                label: 'Dirección',
+                value: sourceProspect.address || opportunity.address || '',
+                icon: 'map-pin',
+              },
+              { label: 'Origen', value: sourceProspect.source, icon: 'send' },
+              {
+                label: 'Servicio potencial',
+                value: sourceProspect.potentialService,
+                icon: 'document',
+              },
+            ] as const)
+          : []),
+        {
+          label: 'Canal preferido',
+          value: client.preferredChannel ? preferredChannelLabels[client.preferredChannel] : '',
+          icon:
+            client.preferredChannel === 'whatsapp'
+              ? 'whatsapp'
+              : client.preferredChannel === 'email'
+                ? 'email'
+                : 'phone',
+        },
+        ...(sourceProspect
+          ? ([{ label: 'Observaciones', value: sourceProspect.notes, icon: 'note' }] as const)
+          : []),
+      ]
+    : [];
   const currentQuote = relatedQuotes[0];
   const canCreateVersion = Boolean(
     currentQuote && canCreateQuoteVersion(currentQuote, opportunity),
@@ -170,10 +220,14 @@ export function OpportunityDetailView({
     [...activities, ...storedActivities].forEach((activity) => byId.set(activity.id, activity));
     return [...byId.values()];
   }, [activities, storedActivities]);
+  // SCRUM-120: the opportunity history also shows what happened to its quotes (created,
+  // finalized, sent with its note, accepted or rejected with the reason).
+  const relatedQuoteIds = new Set(relatedQuotes.map((quote) => quote.id));
   const recentActivities = opportunityActivities
     .filter(
       (item) =>
-        item.subject.kind === 'opportunity' && item.subject.opportunityId === opportunity.id,
+        (item.subject.kind === 'opportunity' && item.subject.opportunityId === opportunity.id) ||
+        (item.subject.kind === 'quote' && relatedQuoteIds.has(item.subject.quoteId)),
     )
     .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt))
     .slice(0, 4);
@@ -740,92 +794,32 @@ export function OpportunityDetailView({
                 <div>
                   <strong>{client?.name ?? 'Cliente no disponible'}</strong>
                   {client?.company && <p>{client.company}</p>}
-                  <small>Responsable de proyectos</small>
                 </div>
               </div>
-              {client?.phone && (
-                <p className="opportunity-contact-line">
-                  <span>
-                    <UiIcon name="phone" />
-                  </span>
-                  {client.phone}
-                  <button
-                    type="button"
-                    aria-label="Copiar teléfono"
-                    onClick={() => copy(client.phone, 'Teléfono')}
-                  >
-                    ⧉
-                  </button>
-                </p>
-              )}
-              {client?.email && (
-                <p className="opportunity-contact-line">
-                  <span>
-                    <UiIcon name="email" />
-                  </span>
-                  {client.email}
-                  <button
-                    type="button"
-                    aria-label="Copiar email"
-                    onClick={() => copy(client.email, 'Email')}
-                  >
-                    ⧉
-                  </button>
-                </p>
-              )}
-              {sourceProspect && (
-                <section className="opportunity-prospect-context" aria-label="Datos del prospecto">
-                  <p className="eyebrow">Datos del prospecto</p>
+              {/* SCRUM-120: every contact detail in one list; placeholders read "Sin definir". */}
+              {client && !editingClient && (
+                <section className="opportunity-prospect-context" aria-label="Datos del contacto">
+                  <p className="eyebrow">Datos del contacto</p>
                   <ul>
-                    <li>
-                      <UiIcon name="instagram" />
-                      <div>
-                        <span>Instagram</span>
-                        <strong>{sourceProspect.instagram || 'Sin definir'}</strong>
-                      </div>
-                    </li>
-                    <li>
-                      <UiIcon name="map-pin" />
-                      <div>
-                        <span>Dirección</span>
-                        <strong>
-                          {opportunity.address || sourceProspect.address || 'Sin definir'}
-                        </strong>
-                      </div>
-                    </li>
-                    <li>
-                      <UiIcon name="send" />
-                      <div>
-                        <span>Origen</span>
-                        <strong>{sourceProspect.source || 'Sin definir'}</strong>
-                      </div>
-                    </li>
-                    <li>
-                      <UiIcon name="document" />
-                      <div>
-                        <span>Servicio potencial</span>
-                        <strong>{sourceProspect.potentialService || 'Sin definir'}</strong>
-                      </div>
-                    </li>
-                    <li>
-                      <UiIcon
-                        name={
-                          sourceProspect.preferredChannel === 'whatsapp'
-                            ? 'whatsapp'
-                            : sourceProspect.preferredChannel === 'email'
-                              ? 'email'
-                              : sourceProspect.preferredChannel === 'instagram'
-                                ? 'instagram'
-                                : sourceProspect.preferredChannel === 'phone'
-                                  ? 'phone'
-                                  : 'help'
-                        }
-                      />
-                      <div>
-                        <span>Canal preferido</span>
-                        <strong>{preferredChannelLabels[sourceProspect.preferredChannel]}</strong>
-                      </div>
-                    </li>
+                    {contactRows.map((row) => (
+                      <li key={row.label}>
+                        <UiIcon name={row.icon} />
+                        <div>
+                          <span>{row.label}</span>
+                          <strong>{row.value || 'Sin definir'}</strong>
+                        </div>
+                        {row.copy && row.value && (
+                          <button
+                            type="button"
+                            className="opportunity-contact-copy"
+                            aria-label={`Copiar ${row.label.toLocaleLowerCase('es')}`}
+                            onClick={() => copy(row.value, row.label)}
+                          >
+                            <UiIcon name="copy" />
+                          </button>
+                        )}
+                      </li>
+                    ))}
                   </ul>
                 </section>
               )}
@@ -837,8 +831,9 @@ export function OpportunityDetailView({
               {client && editingClient && (
                 <ClientForm
                   client={client}
-                  onSave={async (input) => {
-                    const error = await onUpdateClient(input);
+                  prospect={sourceProspect}
+                  onSave={async (input, extras) => {
+                    const error = await onUpdateClient(input, extras);
                     if (!error) setEditingClient(false);
                     return error;
                   }}
@@ -898,6 +893,10 @@ export function OpportunityDetailView({
                 subject: { kind: 'opportunity', opportunityId: opportunity.id },
                 label: 'Proyecto',
               },
+              ...relatedQuotes.map((quote) => ({
+                subject: { kind: 'quote' as const, quoteId: quote.id },
+                label: 'Presupuesto' as const,
+              })),
             ]}
             emptyMessage="Todavía no hay actividades para esta oportunidad."
           />

@@ -18,7 +18,6 @@ export function getContactEligibility(
   const client = context.client;
   if (!client) return 'No hay un cliente disponible para preparar este contacto.';
   if (client.doNotContact) return 'Este cliente solicitó no recibir contactos.';
-  if (!client.contactConsent) return 'El cliente no otorgó consentimiento de contacto.';
   if (!canContactClient(client, channel === 'call' ? 'phone' : 'whatsapp'))
     return 'El teléfono está pendiente de confirmar o no es válido para este contacto.';
   return null;

@@ -8474,3 +8474,62 @@ tr:last-child td {
     transition: none;
   }
 }
+
+/* SCRUM-120: contact list with copy buttons for phone and email. */
+.opportunity-prospect-context li {
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+}
+
+.opportunity-prospect-context li strong {
+  overflow-wrap: anywhere;
+}
+
+.opportunity-contact-copy {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.opportunity-contact-copy:hover,
+.opportunity-contact-copy:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.opportunity-contact-copy .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+
+/* SCRUM-120: who accepted or rejected the quote, when and why. */
+.quote-outcome-summary {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.quote-outcome-summary p {
+  margin: 0;
+  color: var(--text);
+}
+
+.quote-outcome-accepted {
+  border-color: #bfe3cf;
+  background: #effaf4;
+}
+
+.quote-outcome-rejected {
+  border-color: #f0c9c5;
+  background: #fdf2f1;
+}

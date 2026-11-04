@@ -101,6 +101,8 @@ import {
 import { resultNextStepLabels } from './utils/resultNextStep';
 import { syncResponsibles } from './utils/responsibleSync';
 import { syncCompanyProfile } from './utils/companyProfileSync';
+import { loadResponsibles, primaryResponsibleName } from './utils/responsibleStorage';
+import type { ProspectContactExtras } from './utils/prospectContextSync';
 import {
   clearQuoteRecovery,
   isQuoteRecoveryUseful,
@@ -543,6 +545,11 @@ function App() {
     document.addEventListener('keydown', handleConfirmationKeyDown);
     return () => document.removeEventListener('keydown', handleConfirmationKeyDown);
   }, [isFinalizationConfirmationOpen, isFinalizing]);
+
+  /** SCRUM-120: who is acting when a form has no "Responsable" field (shared account). */
+  function currentResponsible(): string {
+    return primaryResponsibleName(loadResponsibles());
+  }
 
   function getCurrentQuote(): Quote {
     return {
@@ -1066,6 +1073,7 @@ function App() {
   async function updateOpportunityClient(
     client: Client,
     input: ClientInput,
+    extras?: ProspectContactExtras,
   ): Promise<string | null> {
     const now = new Date().toISOString();
     const next: Client = {
@@ -1084,7 +1092,13 @@ function App() {
       (prospect) => prospect.conversion?.draft.clientId === client.id,
     );
     const synced = sourceProspect
-      ? syncConvertedProspectContact(sourceProspect, input, sourceProspect.responsible, now)
+      ? syncConvertedProspectContact(
+          sourceProspect,
+          input,
+          primaryResponsibleName(loadResponsibles()) || sourceProspect.responsible,
+          now,
+          extras,
+        )
       : null;
     const saved = synced
       ? commitLocalFollowUpResult(
@@ -1432,6 +1446,7 @@ function App() {
           { kind: 'quote', quoteId: draft.id },
           'created',
           'Presupuesto creado.',
+          currentResponsible(),
         );
       setSavedQuotes(loadSavedQuotes());
       setSaveFeedback({
@@ -1518,6 +1533,7 @@ function App() {
               closedOpportunity.nextAction.id,
               'cancelled',
               `Próximo paso cancelado porque el presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}.`,
+              audit.changedBy,
             )
           )
             return `El presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}, pero no se pudo registrar la cancelación del próximo paso.`;
@@ -1539,7 +1555,10 @@ function App() {
         !recordAutomaticActivity(
           { kind: 'quote', quoteId: quote.id },
           'commercialStatusChanged',
-          `Estado comercial cambiado a ${commercialStatusLabels[nextStatus]}.`,
+          `Estado comercial cambiado a ${commercialStatusLabels[nextStatus]}.${
+            audit.reason?.trim() ? ` Motivo: ${audit.reason.trim()}` : ''
+          }`,
+          audit.changedBy,
         )
       ) {
         return 'El estado comercial se guardó, pero no se pudo registrar su actividad.';
@@ -1570,8 +1589,15 @@ function App() {
       return { ok: false, error: 'El contacto no tiene un email válido.' };
     if (input.channel === 'other' && !input.note.trim())
       return { ok: false, error: 'Indicá una nota para registrar otro canal.' };
+    // SCRUM-120: the form keeps minutes only; a send registered "now" keeps the real time so it
+    // is not listed before the quote was created or finalized a few seconds earlier.
+    const sentAtMs = Date.parse(input.sentAt);
+    const sentAt =
+      Number.isFinite(sentAtMs) && Math.abs(Date.now() - sentAtMs) < 120_000
+        ? new Date().toISOString()
+        : input.sentAt;
     const audit: Quote['commercialStatusAudit'] = {
-      changedAt: input.sentAt,
+      changedAt: sentAt,
       changedBy: input.responsible,
       reason:
         input.note ||
@@ -1619,7 +1645,7 @@ function App() {
               expectedVersion: quote.version ?? 1,
               channel: input.channel,
               recipient: remoteRecipient,
-              sentAt: input.sentAt,
+              sentAt,
               note: audit.reason,
               ...(nextAction ? { nextAction } : {}),
               nextActionDecision: input.replaceExistingNextAction ? 'replace' : 'preserve',
@@ -1634,7 +1660,7 @@ function App() {
                 : undefined,
               channel: input.channel,
               recipient: remoteRecipient,
-              sentAt: input.sentAt,
+              sentAt,
               note: audit.reason,
               ...(nextAction ? { nextAction } : {}),
               idempotencyKey: `quote-send:${quote.id}`,
@@ -1695,6 +1721,7 @@ function App() {
       { kind: 'quote', quoteId: quote.id },
       'commercialStatusChanged',
       `Pedido de cambio registrado: ${reason}`,
+      responsible,
     );
     setSavedQuotes(loadSavedQuotes());
     setDetailQuoteId(next.id);
@@ -1759,6 +1786,7 @@ function App() {
           { kind: 'quote', quoteId: persistedQuote.id },
           'finalized',
           'Presupuesto finalizado.',
+          currentResponsible(),
         );
         setIsFinalizationConfirmationOpen(false);
         setFinalizationFeedback({
@@ -1787,11 +1815,13 @@ function App() {
           { kind: 'quote', quoteId: finalizedQuote.id },
           'created',
           'Presupuesto creado.',
+          currentResponsible(),
         );
       const finalizationActivitySaved = recordAutomaticActivity(
         { kind: 'quote', quoteId: finalizedQuote.id },
         'finalized',
         'Presupuesto finalizado.',
+        currentResponsible(),
       );
       const activitySaved = creationActivitySaved && finalizationActivitySaved;
       setIsFinalizationConfirmationOpen(false);
@@ -1830,6 +1860,7 @@ function App() {
         { kind: 'quote', quoteId: quote.id },
         'pdfGenerated',
         'PDF generado.',
+        currentResponsible(),
       );
       setPdfFeedback({
         type: activitySaved ? 'success' : 'error',
@@ -1862,6 +1893,7 @@ function App() {
         { kind: 'quote', quoteId: savedQuote.id },
         'pdfGenerated',
         'PDF generado.',
+        currentResponsible(),
       );
       setSavedQuotePdfFeedback({
         quoteId: savedQuote.id,
@@ -1892,6 +1924,7 @@ function App() {
           { kind: 'quote', quoteId: savedQuote.id },
           'pdfGenerated',
           'PDF generado desde el detalle comercial.',
+          currentResponsible(),
         )
       )
         return 'El PDF se descargó, pero no se pudo registrar la actividad.';
@@ -2221,10 +2254,10 @@ function App() {
               quotes={savedQuotes}
               onBack={() => setCurrentView('nextActions')}
               onSaveOpportunity={saveOpportunityFromDetail}
-              onUpdateClient={(input) => {
+              onUpdateClient={(input, extras) => {
                 const client = loadClients().items.find((item) => item.id === opportunity.clientId);
                 return client
-                  ? updateOpportunityClient(client, input)
+                  ? updateOpportunityClient(client, input, extras)
                   : 'No se encontró el contacto de esta oportunidad.';
               }}
               onRegisterResult={() => {
