@@ -374,6 +374,7 @@ function App() {
     loadClients().items,
     opportunities,
     savedQuotes,
+    prospects,
   );
 
   function resetWorkspaceContext() {
@@ -899,6 +900,11 @@ function App() {
     }
     if (result.quote) {
       handleQuoteDetailOpen(result.quote);
+      return;
+    }
+    if (result.prospect) {
+      setRequestedProspectId(result.prospect.id);
+      setCurrentView('prospects');
       return;
     }
     setProspectFilters((current) => ({ ...current, search: result.client?.name ?? '' }));

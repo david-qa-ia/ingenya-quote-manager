@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { GlobalSearchGroup, GlobalSearchResult } from '../types/globalSearch';
 import { UiIcon } from './UiIcon';
+import { searchShortcutLabel } from '../utils/searchShortcut';
 
 interface Props {
   query: string;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 const groups: { key: GlobalSearchGroup; label: string }[] = [
+  { key: 'prospects', label: 'Prospectos' },
   { key: 'contacts', label: 'Contactos' },
   { key: 'opportunities', label: 'Oportunidades' },
   { key: 'quotes', label: 'Presupuestos' },
@@ -86,7 +88,7 @@ export function GlobalSearchPanel({
             onQueryChange(event.target.value);
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Buscar contactos, oportunidades..."
+          placeholder="Buscar prospectos, clientes, presupuestos..."
           aria-label="Buscar en Ventro"
         />
         {query && (
@@ -99,7 +101,7 @@ export function GlobalSearchPanel({
             ×
           </button>
         )}
-        <kbd>⌘ K</kbd>
+        <kbd>{searchShortcutLabel()}</kbd>
       </div>
       {query.trim() ? (
         results.length ? (

@@ -8129,3 +8129,11 @@ tr:last-child td {
   opacity: 1;
   border-style: dashed;
 }
+
+/* SCRUM-117: keyboard shortcuts mean nothing on touch screens. */
+@media (hover: none) and (pointer: coarse) {
+  .global-search-panel kbd,
+  .navigation-search-link kbd {
+    display: none;
+  }
+}
