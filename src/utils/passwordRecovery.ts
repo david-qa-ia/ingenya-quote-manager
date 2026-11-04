@@ -89,8 +89,9 @@ export async function requestPasswordReset(email: string): Promise<void> {
   } catch (reason) {
     throw new Error('network', { cause: reason });
   }
-  if (response.status === 429) throw new Error('rate-limited');
-  // Any other answer is treated as sent: the screen never says whether the email has a user.
+  // Every answer except a server failure is shown as "sent", including 4xx and "too many
+  // requests": Supabase limits repeated requests only for emails that have a user, so telling
+  // them apart would reveal which emails exist.
   if (response.status >= 500) throw new Error('network');
 }
 

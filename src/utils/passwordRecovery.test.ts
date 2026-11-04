@@ -64,14 +64,21 @@ describe('password recovery (SCRUM-126)', () => {
     expect(JSON.parse(init.body as string)).toEqual({ email: 'martita@pasteleria.com' });
   });
 
-  it('reports too many requests', async () => {
+  it('never reveals whether the email has a user (unknown, rate-limited or invalid)', async () => {
     stubSupabase();
     vi.stubGlobal('window', { location: { origin: 'https://x', pathname: '/' } });
+    for (const status of [200, 400, 422, 429]) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve(new Response('{}', { status }))),
+      );
+      await expect(requestPasswordReset('a@b.com')).resolves.toBeUndefined();
+    }
     vi.stubGlobal(
       'fetch',
-      vi.fn(() => Promise.resolve(new Response('{}', { status: 429 }))),
+      vi.fn(() => Promise.resolve(new Response('{}', { status: 503 }))),
     );
-    await expect(requestPasswordReset('a@b.com')).rejects.toThrow('rate-limited');
+    await expect(requestPasswordReset('a@b.com')).rejects.toThrow('network');
   });
 
   it('saves the new password and keeps the person signed in', async () => {

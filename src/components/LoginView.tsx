@@ -35,12 +35,8 @@ export function LoginView({ onAuthenticated }: Props) {
     try {
       await requestPasswordReset(email.trim());
       setMode('sent');
-    } catch (reason) {
-      setError(
-        reason instanceof Error && reason.message === 'rate-limited'
-          ? 'Ya pediste varios enlaces. Esperá unos minutos y volvé a intentar.'
-          : 'No pudimos enviar el enlace. Revisá la conexión e intentá nuevamente.',
-      );
+    } catch {
+      setError('No pudimos enviar el enlace. Revisá la conexión e intentá nuevamente.');
     } finally {
       setIsSubmitting(false);
     }
@@ -186,7 +182,8 @@ export function LoginView({ onAuthenticated }: Props) {
           <>
             <p className="login-card-description" role="status">
               Si {email.trim()} tiene un usuario, en unos minutos le llega un enlace para elegir una
-              contraseña nueva. Revisá también la carpeta de spam.
+              contraseña nueva. Revisá también la carpeta de spam. Si no llega, esperá un rato y
+              pedilo de nuevo.
             </p>
             <button
               className="button button-line"
