@@ -7,7 +7,18 @@ import {
   toWorkspaceAccessError,
 } from '../utils/workspaceService';
 import { WorkspaceContext } from './WorkspaceContext';
-import { isAuthConfigured, signOut } from '../utils/authService';
+import { isAuthConfigured, revokeRemoteSession, signOut } from '../utils/authService';
+import { clearLocalAppData } from '../utils/localDataCleanup';
+import {
+  flushRemoteCommercialChanges,
+  hasPendingCommercialChanges,
+  resetRemoteCommercialSync,
+} from '../utils/remoteCommercialSync';
+import {
+  flushRemoteDocumentChanges,
+  hasPendingDocumentChanges,
+  resetRemoteDocumentSync,
+} from '../utils/remoteDocumentSync';
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<WorkspaceSession | null>(() => {
@@ -79,10 +90,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         setReloadToken((value) => value + 1);
       },
-      logout: () => {
+      logout: async ({ discardPending = false }: { discardPending?: boolean } = {}) => {
+        if (!isAuthConfigured()) {
+          // Local mode: this browser is the only copy of the data, so it is kept.
+          signOut();
+          setSession(null);
+          setAccessError('session-expired');
+          return 'signed-out' as const;
+        }
+        await Promise.allSettled([flushRemoteCommercialChanges(), flushRemoteDocumentChanges()]);
+        if (!discardPending && (hasPendingCommercialChanges() || hasPendingDocumentChanges()))
+          return 'pending-changes' as const;
+        await revokeRemoteSession();
+        resetRemoteCommercialSync();
+        resetRemoteDocumentSync();
+        clearLocalAppData();
         signOut();
-        setSession(null);
-        setAccessError('session-expired');
+        // A fresh page also drops everything held in memory by the previous user.
+        window.location.replace(window.location.pathname);
+        return 'signed-out' as const;
       },
     }),
     [accessError, activeMembership, changeWorkspace, isLoading, isSwitching, session],

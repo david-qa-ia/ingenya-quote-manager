@@ -1,8 +1,9 @@
 import { initialJobCatalog } from '../data/jobCatalog';
 import { emitLocalWrite } from './localWriteEvents';
+import { isAuthConfigured } from './authService';
 import type { CatalogJob } from '../types/quote';
 import { isCatalogJob } from './jobCatalogValidation';
-import { workspaceStorageKey } from './workspaceStorage';
+import { getActiveWorkspaceId, workspaceStorageKey } from './workspaceStorage';
 
 export const LABOR_CATALOG_STORAGE_KEY = 'ingenya.laborCatalog.v1';
 
@@ -36,6 +37,9 @@ export function loadLaborCatalog(): LaborCatalogLoadResult {
     if (storedValue !== null) return parseLaborCatalog(storedValue);
 
     const jobs = seedCatalog();
+    // SCRUM-124: before signing in there is no workspace yet; the starter catalog is shown but
+    // not stored, so nothing stays in the browser after signing out.
+    if (isAuthConfigured() && !getActiveWorkspaceId()) return { jobs, issue: null };
     try {
       localStorage.setItem(workspaceStorageKey(LABOR_CATALOG_STORAGE_KEY), JSON.stringify(jobs));
       return { jobs, issue: null };
