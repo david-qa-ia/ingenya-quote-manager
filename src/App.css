@@ -8289,3 +8289,48 @@ tr:last-child td {
   min-height: 40px;
   padding: 0 16px;
 }
+
+/* SCRUM-118: possible duplicate before saving a prospect. */
+.prospect-duplicate-warning {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid #f0d9a8;
+  border-radius: var(--radius-md);
+  background: #fff8e8;
+}
+
+.prospect-duplicate-warning ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prospect-duplicate-warning li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prospect-duplicate-warning .button {
+  width: auto;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.prospect-next-step {
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+
+.prospect-row-actions .ui-icon {
+  width: 16px;
+  height: 16px;
+}

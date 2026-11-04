@@ -28,7 +28,7 @@ export function getClientValidationError(input: ClientInput): string | null {
   )
     return 'Ingresá motivo, fecha y autor del pedido de no contacto.';
   if (!isPendingEmail(input.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
-    return 'Ingresá un email válido o none si está pendiente.';
+    return 'Ingresá un email válido, por ejemplo nombre@empresa.com.';
   }
   if (
     !['', 'phone', 'whatsapp', 'email'].includes(input.preferredChannel) ||
@@ -67,7 +67,7 @@ export function getClientFieldErrors(input: ClientInput): Partial<Record<ClientF
   )
     errors.phone = 'Ingresá un teléfono de 7 a 15 dígitos o 1111111111 si está pendiente.';
   if (!isPendingEmail(input.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim()))
-    errors.email = 'Ingresá un email válido o none si está pendiente.';
+    errors.email = 'Ingresá un email válido, por ejemplo nombre@empresa.com.';
   if (
     !['', 'phone', 'whatsapp', 'email'].includes(input.preferredChannel) ||
     typeof input.contactConsent !== 'boolean'

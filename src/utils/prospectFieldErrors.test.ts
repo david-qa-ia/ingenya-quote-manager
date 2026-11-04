@@ -60,7 +60,7 @@ describe('getProspectFieldErrors (SCRUM-107)', () => {
     expect(getProspectFieldErrors({ ...prospect, name: '', phone: '12', email: 'x' })).toEqual({
       name: 'Ingresá el nombre del prospecto.',
       phone: 'El teléfono debe tener entre 7 y 15 dígitos.',
-      email: 'Ingresá un email válido o none si está pendiente.',
+      email: 'Ingresá un email válido, por ejemplo nombre@empresa.com.',
     });
   });
 
