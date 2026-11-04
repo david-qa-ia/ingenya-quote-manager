@@ -277,3 +277,17 @@ journal retains only the conversion provenance and the prospect history records 
   the next action stays "Retomar contacto", so older clients keep working.
 - Quote amounts are typed as text and read with `parseLocaleNumber` (`12,5`, `120.000`,
   `1.250,50`); stored values are still plain numbers.
+
+## SCRUM-118 Compatible Extension
+
+- `ingenya.quoteRecovery.v1` (workspace-namespaced): a recovery copy of the quote being built
+  while it has unsaved changes, stored with the same shape and validation as a saved quote. It is
+  never a saved draft by itself: after a reload the app offers "Recuperar" or "Descartar", and the
+  copy is cleared when the quote is saved, finalized or discarded. While an older copy waits for
+  that decision it is not overwritten. The browser also asks before a reload or close would drop
+  unsaved work.
+- Finalized quotes open their commercial detail from "Mis presupuestos", so a quote without an
+  opportunity can register its send.
+- New prospects created from the form need a phone, email or Instagram, and the form warns about
+  possible duplicates (phone, email, Instagram, or name plus company). These are form rules only:
+  CSV import keeps `getProspectValidationError` unchanged.

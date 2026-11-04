@@ -91,6 +91,13 @@ import {
   SupabaseRepositoryError,
 } from '../utils/supabaseRepository';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
+import { UiIcon } from './UiIcon';
+import {
+  findProspectDuplicates,
+  getProspectContactRequirementError,
+  prospectDuplicateReasonLabels,
+  type ProspectDuplicate,
+} from '../utils/prospectDuplicates';
 
 const statuses = Object.keys(prospectStatusLabels) as ProspectStatus[];
 const priorities = Object.keys(prospectPriorityLabels) as ProspectPriority[];
@@ -689,6 +696,11 @@ export function ProspectingView({
         prospect={creationDraft}
         initialContactChannel={initialContactChannel}
         isNew
+        existingProspects={prospects}
+        onOpenExisting={(id) => {
+          setCreationDraft(null);
+          setSelectedId(id);
+        }}
         onBack={() => setCreationDraft(null)}
         onSave={async (prospect) => {
           const saved = await saveNew(prospect);
@@ -714,6 +726,8 @@ export function ProspectingView({
             onOpenProspectHandled?.();
           }}
           onSave={save}
+          existingProspects={prospects}
+          onOpenExisting={(id) => setSelectedId(id)}
           onArchive={archiveFromDetail}
           onRestore={restoreFromDetail}
           onReload={refresh}
@@ -1294,7 +1308,8 @@ function ProspectRow({
       </div>
       {!isProspectArchived(prospect) && (
         <div className="prospect-row-actions">
-          {whatsappUrl ? (
+          {/* SCRUM-118: only the channels this prospect really has are offered. */}
+          {whatsappUrl && (
             <a
               className="button button-primary prospect-whatsapp"
               href={whatsappUrl}
@@ -1302,14 +1317,10 @@ function ProspectRow({
               rel="noreferrer"
               onClick={() => onToast('WhatsApp abierto.')}
             >
-              <span aria-hidden="true">◔</span> WhatsApp
+              <UiIcon name="whatsapp" /> WhatsApp
             </a>
-          ) : (
-            <button className="button button-primary prospect-whatsapp" type="button" disabled>
-              <span aria-hidden="true">◔</span> WhatsApp
-            </button>
           )}
-          {instagramUrl ? (
+          {instagramUrl && (
             <a
               className="button button-line"
               href={instagramUrl}
@@ -1317,17 +1328,8 @@ function ProspectRow({
               rel="noreferrer"
               onClick={() => onToast('Instagram abierto.')}
             >
-              Abrir Instagram
+              <UiIcon name="instagram" /> Abrir Instagram
             </a>
-          ) : (
-            <button
-              className="button button-line"
-              type="button"
-              disabled
-              title="Falta un usuario o URL de Instagram"
-            >
-              Abrir Instagram
-            </button>
           )}
           <button className="button button-line" type="button" onClick={onRegister}>
             <span aria-hidden="true">✓</span> Registrar acción
@@ -1615,8 +1617,13 @@ function ProspectDetail({
   onRegisterResult,
   onArchive,
   onRestore,
+  existingProspects = [],
+  onOpenExisting,
 }: {
   prospect: Prospect;
+  /** Other prospects, to warn about possible duplicates before saving (SCRUM-118). */
+  existingProspects?: readonly Prospect[];
+  onOpenExisting?: (id: string) => void;
   initialContactChannel: ProspectChannel;
   isNew?: boolean;
   onBack: () => void;
@@ -1660,11 +1667,27 @@ function ProspectDetail({
     setArchiveError(result.ok ? '' : result.error);
   }
   const allFieldErrors = getProspectFieldErrors(draft);
+  // SCRUM-118: a new prospect needs a way to reach them (form rule only; CSV keeps its rules).
+  const contactRequirementError = isNew ? getProspectContactRequirementError(draft) : null;
   const formFieldErrors: Partial<Record<ProspectFormField, string>> = {
     name: allFieldErrors.name,
-    phone: allFieldErrors.phone,
+    phone: allFieldErrors.phone ?? contactRequirementError ?? undefined,
     email: allFieldErrors.email,
   };
+  const [duplicates, setDuplicates] = useState<ProspectDuplicate[]>([]);
+  const duplicateKey = JSON.stringify([
+    draft.name,
+    draft.company,
+    draft.phone,
+    draft.email,
+    draft.instagram,
+  ]);
+  const [acceptedDuplicateKey, setAcceptedDuplicateKey] = useState('');
+  const duplicateWarningRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (duplicates.length)
+      duplicateWarningRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [duplicates]);
   // Fields that are not edited in this form (status, priority, channel, date) are reported once.
   const otherFieldError = Object.entries(allFieldErrors).find(
     ([key]) => !(prospectFormFields as readonly string[]).includes(key),
@@ -1749,10 +1772,17 @@ function ProspectDetail({
     setPendingConversion(null);
     showConversionSuccess();
   }
-  async function saveDraft() {
+  async function saveDraft(acceptDuplicates = false) {
     if (!validation.validateForSubmit()) return;
     setShowOtherFieldError(Boolean(otherFieldError));
     if (otherFieldError) return;
+    if (!acceptDuplicates && acceptedDuplicateKey !== duplicateKey) {
+      const found = findProspectDuplicates(draft, existingProspects);
+      setDuplicates(found);
+      if (found.length) return;
+    }
+    if (acceptDuplicates) setAcceptedDuplicateKey(duplicateKey);
+    setDuplicates([]);
     // Only the fields edited in this form are taken from the draft. Status, next step, history and
     // version come from the current prospect, which may have changed after the form was opened.
     const editedFields = Object.fromEntries(
@@ -1902,10 +1932,53 @@ function ProspectDetail({
                 ))}
             </dl>
           )}
+          {isEditing && duplicates.length > 0 && (
+            <div className="prospect-duplicate-warning" role="alert" ref={duplicateWarningRef}>
+              <strong>
+                {duplicates.length === 1
+                  ? 'Ya hay un prospecto parecido'
+                  : `Ya hay ${duplicates.length} prospectos parecidos`}
+              </strong>
+              <ul>
+                {duplicates.map(({ prospect: existing, reasons }) => (
+                  <li key={existing.id}>
+                    <span>
+                      {existing.name}
+                      {existing.company ? ` · ${existing.company}` : ''} (
+                      {reasons.map((reason) => prospectDuplicateReasonLabels[reason]).join(', ')}
+                      {existing.archivedAt ? ', archivado' : ''})
+                    </span>
+                    {onOpenExisting && (
+                      <button
+                        className="button button-line"
+                        type="button"
+                        onClick={() => onOpenExisting(existing.id)}
+                      >
+                        Abrir
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <div className="prospect-duplicate-actions">
+                <button
+                  className="button button-line"
+                  type="button"
+                  onClick={() => void saveDraft(true)}
+                >
+                  Guardar igual
+                </button>
+              </div>
+            </div>
+          )}
           <div className="commercial-actions">
             {isEditing ? (
               <>
-                <button className="button button-primary" type="button" onClick={saveDraft}>
+                <button
+                  className="button button-primary"
+                  type="button"
+                  onClick={() => void saveDraft()}
+                >
                   {isNew ? 'Guardar prospecto' : 'Guardar cambios'}
                 </button>
                 <button
@@ -2020,7 +2093,18 @@ function ProspectDetail({
         </section>
         {!isNew && !isArchived && (
           <section className="quote-card prospect-contact-card">
-            <h2>Preparar primer contacto</h2>
+            {/* SCRUM-118: the block follows the stage; after a contact it is about the next one. */}
+            <h2>
+              {prospect.status === 'uncontacted' || prospect.status === 'contactToday'
+                ? 'Preparar primer contacto'
+                : 'Preparar próximo contacto'}
+            </h2>
+            {prospect.nextAction && prospect.nextActionAt && (
+              <p className="prospect-next-step">
+                <strong>Próximo paso:</strong> {prospect.nextAction} ·{' '}
+                {formatActivityDateTime(prospect.nextActionAt)}
+              </p>
+            )}
             <p>
               Elegí el canal, prepará el mensaje y registrá el resultado después de contactarlo.
             </p>

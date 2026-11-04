@@ -117,7 +117,7 @@ export function getProspectFieldErrors(input: ProspectInput): ProspectFieldError
     !isPendingEmail(input.email) &&
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())
   )
-    errors.email = 'Ingresá un email válido o none si está pendiente.';
+    errors.email = 'Ingresá un email válido, por ejemplo nombre@empresa.com.';
   if (!['high', 'medium', 'low'].includes(input.priority)) errors.priority = 'Revisá la prioridad.';
   if (!statuses.includes(input.status)) errors.status = 'Revisá el estado.';
   if (!['', 'phone', 'whatsapp', 'email', 'instagram'].includes(input.preferredChannel))

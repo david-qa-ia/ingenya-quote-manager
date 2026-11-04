@@ -8248,3 +8248,89 @@ tr:last-child td {
   background: none;
   font-size: 0.88rem;
 }
+
+/* SCRUM-118: offer back a quote left unsaved by a reload or a closed tab. */
+.quote-recovery-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: center;
+  margin: 16px clamp(16px, 4vw, 44px) 0;
+  padding: 14px 18px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}
+
+@media (min-width: 801px) {
+  .quote-recovery-banner {
+    margin-left: calc(232px + clamp(16px, 4vw, 44px));
+  }
+}
+
+.quote-recovery-banner > .ui-icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.quote-recovery-banner > div {
+  display: grid;
+  flex: 1 1 240px;
+  gap: 2px;
+}
+
+.quote-recovery-banner span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.quote-recovery-banner .button {
+  width: auto;
+  min-height: 40px;
+  padding: 0 16px;
+}
+
+/* SCRUM-118: possible duplicate before saving a prospect. */
+.prospect-duplicate-warning {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid #f0d9a8;
+  border-radius: var(--radius-md);
+  background: #fff8e8;
+}
+
+.prospect-duplicate-warning ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prospect-duplicate-warning li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prospect-duplicate-warning .button {
+  width: auto;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.prospect-next-step {
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+
+.prospect-row-actions .ui-icon {
+  width: 16px;
+  height: 16px;
+}
