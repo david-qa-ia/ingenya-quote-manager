@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatCurrency } from '../utils/quoteFormatting';
 import type { FollowUpFilters, FollowUpInboxItem } from '../types/followUpInbox';
 import { defaultFollowUpFilters, filterFollowUpInbox } from '../utils/followUpInbox';
 import { businessTimeZone } from '../utils/opportunityNextAction';
@@ -245,6 +246,7 @@ export function OpportunityNextActionsInbox({
                           {new Intl.DateTimeFormat('es-AR', {
                             dateStyle: 'short',
                             timeStyle: 'short',
+                            hourCycle: 'h23',
                             timeZone: businessTimeZone,
                           }).format(new Date(item.action.dueAt))}{' '}
                           · {channelLabels[item.channel!]}
@@ -256,10 +258,7 @@ export function OpportunityNextActionsInbox({
                       {item.estimatedValue !== undefined && (
                         <span>
                           <UiIcon name="tag" />
-                          {new Intl.NumberFormat('es-AR', {
-                            style: 'currency',
-                            currency: 'ARS',
-                          }).format(item.estimatedValue)}
+                          {formatCurrency(item.estimatedValue)}
                         </span>
                       )}
                       {item.cadenceStep && (

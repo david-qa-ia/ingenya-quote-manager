@@ -182,6 +182,8 @@ const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'medium',
   timeStyle: 'short',
+  hourCycle: 'h23',
+  timeZone: 'America/Argentina/Buenos_Aires',
 });
 
 function createLineId(): string {

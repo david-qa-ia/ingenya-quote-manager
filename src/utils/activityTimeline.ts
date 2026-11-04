@@ -62,10 +62,21 @@ const callResultLabels: Record<CallResult, string> = {
 };
 
 /** Human-readable result for compact activity lists; never exposes internal result codes. */
+/** SCRUM-121: quote events store the commercial status code; it never shows in English. */
+const quoteResultLabels: Record<string, string> = {
+  prepared: 'Presupuesto preparado',
+  sent: 'Presupuesto enviado',
+  followingUp: 'Presupuesto en seguimiento',
+  accepted: 'Presupuesto aceptado',
+  rejected: 'Presupuesto rechazado',
+  expired: 'Presupuesto vencido',
+  paused: 'Presupuesto pausado',
+};
+
 export function getActivityResultLabel(activity: Activity): string {
   if (activity.type === 'call' && activity.result in callResultLabels)
     return callResultLabels[activity.result as CallResult];
-  return activity.result;
+  return quoteResultLabels[activity.result] ?? activity.result;
 }
 
 const activityDateTimeFormatter = new Intl.DateTimeFormat('es-AR', {

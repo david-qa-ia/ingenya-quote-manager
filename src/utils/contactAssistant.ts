@@ -1,4 +1,5 @@
 import type { Client } from '../types/client';
+import { formatCurrency } from './quoteFormatting';
 import type { ContactChannel, ContactScriptVariable } from '../types/contactScript';
 import type { Opportunity } from '../types/opportunity';
 import type { Quote } from '../types/quote';
@@ -31,11 +32,7 @@ export function getContactValues(
     oportunidad: context.opportunity?.name || context.quote?.projectName || undefined,
     servicio: services.length === 1 ? services[0] : undefined,
     presupuesto: context.quote?.id,
-    total: context.quote
-      ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
-          calculateQuoteTotal(context.quote.lines),
-        )
-      : undefined,
+    total: context.quote ? formatCurrency(calculateQuoteTotal(context.quote.lines)) : undefined,
     responsable: context.opportunity?.responsibleSeller || undefined,
     proximaAccion:
       context.opportunity?.nextAction?.status === 'pending'

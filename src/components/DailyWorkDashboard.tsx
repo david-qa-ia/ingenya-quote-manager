@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatCurrency } from '../utils/quoteFormatting';
 import type { FollowUpBucket, FollowUpInboxItem } from '../types/followUpInbox';
 import { businessTimeZone } from '../utils/opportunityNextAction';
 import { getContactAction } from '../utils/contactAction';
@@ -171,10 +172,7 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, onOpenContex
                 <span>
                   {item.estimatedValue === undefined
                     ? 'Sin valor estimado'
-                    : new Intl.NumberFormat('es-AR', {
-                        style: 'currency',
-                        currency: 'ARS',
-                      }).format(item.estimatedValue)}
+                    : formatCurrency(item.estimatedValue)}
                 </span>
                 <strong>
                   {new Intl.DateTimeFormat('es-AR', {

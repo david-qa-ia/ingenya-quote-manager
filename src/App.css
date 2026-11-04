@@ -8533,3 +8533,44 @@ tr:last-child td {
   border-color: #f0c9c5;
   background: #fdf2f1;
 }
+
+/* SCRUM-121: back links sit on the left, the size of their text. */
+.button-link.back-link {
+  justify-self: start;
+  align-self: flex-start;
+  width: auto;
+  padding: 0 12px 0 0;
+  text-align: left;
+}
+.button-link.back-link:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+/* Dates of the activity preview never get clipped; the button stays inside the card. */
+.opportunity-recent-list time {
+  white-space: nowrap;
+  padding-right: 2px;
+}
+.opportunity-detail-side > .opportunity-activity-preview {
+  padding: 24px;
+}
+.opportunity-activity-preview .opportunity-activity-all {
+  box-sizing: border-box;
+  max-width: 100%;
+  width: 100%;
+  margin-top: 16px;
+  white-space: normal;
+}
+.quote-contact-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.quote-contact-line .ui-icon,
+.quote-contact-line svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--accent-dark);
+}

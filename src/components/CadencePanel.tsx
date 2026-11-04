@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatActivityDateTime } from '../utils/activityTimeline';
 import type { Opportunity } from '../types/opportunity';
 import {
   loadCadenceExecutions,
@@ -146,7 +147,7 @@ export function CadencePanel({
             <ul>
               {execution.history.map((item) => (
                 <li key={item.id}>
-                  {item.type} · {new Date(item.occurredAt).toLocaleString('es-AR')} · {item.reason}
+                  {item.type} · {formatActivityDateTime(item.occurredAt)} · {item.reason}
                 </li>
               ))}
             </ul>

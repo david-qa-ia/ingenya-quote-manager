@@ -10,6 +10,26 @@ export const commercialStatusLabels: Record<CommercialStatus, string> = {
   paused: 'Pausado',
 };
 
+/** SCRUM-121: a quote ("presupuesto") reads in masculine; legacy or missing values never show raw. */
+export function quoteStatusLabel(status: CommercialStatus | undefined): string {
+  return status && status in commercialStatusLabels ? commercialStatusLabels[status] : 'Preparado';
+}
+
+const proposalLabels: Record<CommercialStatus, string> = {
+  prepared: 'Preparada',
+  sent: 'Enviada',
+  followingUp: 'En seguimiento',
+  accepted: 'Aceptada',
+  rejected: 'Rechazada',
+  expired: 'Vencida',
+  paused: 'Pausada',
+};
+
+/** The same status for a "propuesta", in feminine. */
+export function proposalStatusLabel(status: CommercialStatus | undefined): string {
+  return status && status in proposalLabels ? proposalLabels[status] : 'Preparada';
+}
+
 const transitions: Record<CommercialStatus, readonly CommercialStatus[]> = {
   prepared: ['sent', 'paused'],
   sent: ['followingUp', 'accepted', 'rejected', 'expired', 'paused'],

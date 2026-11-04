@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { formatActivityDateTime } from '../utils/activityTimeline';
 import type { SavedQuote } from '../types/quote';
 import type { NextAction } from '../types/opportunity';
 import { getQuoteSendFieldErrors, quoteSendFieldOrder } from '../utils/quoteSendValidation';
@@ -170,7 +171,7 @@ export function RegisterQuoteSendDrawer({
             <legend>Tarea pendiente actual</legend>
             <p className="commercial-note">
               {existingNextAction.description} · {existingNextAction.type} ·{' '}
-              {new Date(existingNextAction.dueAt).toLocaleString('es-AR')}
+              {formatActivityDateTime(existingNextAction.dueAt)}
             </p>
             <label>
               <input
