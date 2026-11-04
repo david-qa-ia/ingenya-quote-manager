@@ -95,9 +95,26 @@ export async function requestPasswordReset(email: string): Promise<void> {
   if (response.status >= 500) throw new Error('network');
 }
 
+/**
+ * Same rule as Supabase (Authentication > Email): at least 8 characters with a lowercase letter,
+ * an uppercase letter, a digit and a symbol. Checked here so the person sees what is missing.
+ */
+export const passwordRequirements: readonly { label: string; test: (value: string) => boolean }[] =
+  [
+    {
+      label: `${MIN_PASSWORD_LENGTH} caracteres o más`,
+      test: (v) => v.length >= MIN_PASSWORD_LENGTH,
+    },
+    { label: 'una minúscula', test: (v) => /[a-z]/.test(v) },
+    { label: 'una mayúscula', test: (v) => /[A-Z]/.test(v) },
+    { label: 'un número', test: (v) => /[0-9]/.test(v) },
+    { label: 'un símbolo (por ejemplo ! ? # $ .)', test: (v) => /[^A-Za-z0-9]/.test(v) },
+  ];
+
 export function getNewPasswordError(password: string, confirmation: string): string | null {
-  if (password.length < MIN_PASSWORD_LENGTH)
-    return `Usá al menos ${MIN_PASSWORD_LENGTH} caracteres.`;
+  const missing = passwordRequirements.filter((rule) => !rule.test(password));
+  if (missing.length)
+    return `A la contraseña le falta: ${missing.map((rule) => rule.label).join(', ')}.`;
   if (password !== confirmation) return 'Las contraseñas no coinciden.';
   return null;
 }

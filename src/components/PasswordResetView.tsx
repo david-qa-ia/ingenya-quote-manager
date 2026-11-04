@@ -4,7 +4,7 @@ import { FieldError } from './FieldError';
 import {
   EXPIRED_LINK_MESSAGE,
   getNewPasswordError,
-  MIN_PASSWORD_LENGTH,
+  passwordRequirements,
   updatePasswordWithRecovery,
   type PasswordRecovery,
 } from '../utils/passwordRecovery';
@@ -40,7 +40,7 @@ export function PasswordResetView({ recovery, onDone }: Props) {
           : code === 'same-password'
             ? 'Elegí una contraseña distinta a la anterior.'
             : code === 'weak-password'
-              ? 'Esa contraseña es muy fácil de adivinar. Probá con una más larga.'
+              ? 'Esa contraseña apareció en filtraciones o es fácil de adivinar. Elegí otra.'
               : 'No pudimos guardar la contraseña. Revisá la conexión e intentá nuevamente.',
       );
     } finally {
@@ -60,9 +60,7 @@ export function PasswordResetView({ recovery, onDone }: Props) {
             <h2>Elegí una contraseña nueva</h2>
           </div>
         </div>
-        <p className="login-card-description">
-          Usá al menos {MIN_PASSWORD_LENGTH} caracteres. Al guardarla vas a entrar directamente.
-        </p>
+        <p className="login-card-description">Al guardarla vas a entrar directamente.</p>
         <label htmlFor="reset-password">Contraseña nueva</label>
         <input
           id="reset-password"
@@ -73,6 +71,13 @@ export function PasswordResetView({ recovery, onDone }: Props) {
           aria-invalid={fieldError ? true : undefined}
           aria-describedby={fieldError ? 'reset-password-error' : undefined}
         />
+        <ul className="password-requirements" aria-label="Requisitos de la contraseña">
+          {passwordRequirements.map((rule) => (
+            <li key={rule.label} className={rule.test(password) ? 'password-requirement-met' : ''}>
+              <UiIcon name="check-circle" /> {rule.label}
+            </li>
+          ))}
+        </ul>
         <label htmlFor="reset-password-confirmation">Repetí la contraseña</label>
         <input
           id="reset-password-confirmation"

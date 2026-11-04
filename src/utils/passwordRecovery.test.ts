@@ -43,10 +43,12 @@ describe('password recovery (SCRUM-126)', () => {
     expect(parseRecoveryFragment('#access_token=a&refresh_token=r&type=signup')).toBeNull();
   });
 
-  it('asks for 8 characters and a matching confirmation', () => {
-    expect(getNewPasswordError('corta', 'corta')).toMatch(/al menos 8/);
-    expect(getNewPasswordError('larga-123', 'larga-124')).toBe('Las contraseñas no coinciden.');
-    expect(getNewPasswordError('larga-123', 'larga-123')).toBeNull();
+  it('asks for the same rule as Supabase and says what is missing', () => {
+    expect(getNewPasswordError('corta', 'corta')).toBe(
+      'A la contraseña le falta: 8 caracteres o más, una mayúscula, un número, un símbolo (por ejemplo ! ? # $ .).',
+    );
+    expect(getNewPasswordError('Larga-123', 'Larga-124')).toBe('Las contraseñas no coinciden.');
+    expect(getNewPasswordError('Larga-123', 'Larga-123')).toBeNull();
   });
 
   it('requests the email with the app as the return address', async () => {
@@ -97,7 +99,7 @@ describe('password recovery (SCRUM-126)', () => {
     vi.stubGlobal('fetch', fetchMock);
     await updatePasswordWithRecovery(
       { accessToken: 'a', refreshToken: 'r', expiresIn: 600 },
-      'nueva-123',
+      'Nueva-123',
     );
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(init.method).toBe('PUT');
@@ -119,7 +121,7 @@ describe('password recovery (SCRUM-126)', () => {
     await expect(
       updatePasswordWithRecovery(
         { accessToken: 'a', refreshToken: 'r', expiresIn: 1 },
-        'nueva-123',
+        'Nueva-123',
       ),
     ).rejects.toThrow('expired');
     vi.stubGlobal(
@@ -133,7 +135,7 @@ describe('password recovery (SCRUM-126)', () => {
     await expect(
       updatePasswordWithRecovery(
         { accessToken: 'a', refreshToken: 'r', expiresIn: 1 },
-        'nueva-123',
+        'Nueva-123',
       ),
     ).rejects.toThrow('same-password');
   });

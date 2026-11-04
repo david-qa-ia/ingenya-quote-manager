@@ -58,7 +58,10 @@ idempotent, audited). Migration: `202611040005_workspace_members.sql`.
 `redirect_to` = the app's own address. The emailed link opens the app with the recovery tokens in
 the URL fragment; `src/main.tsx` reads them once, removes them from the address bar and shows
 "Elegí una contraseña nueva" (`PUT /auth/v1/user`). Saving signs the person in. An expired or used
-link shows a message on the sign-in card. The screen never says whether an email has a user.
+link shows a message on the sign-in card. The screen never says whether an email has a user
+(every answer but a server error reads "sent", rate limits included). The new password follows
+the Supabase rule: 8+ characters with a lowercase, an uppercase, a digit and a symbol, shown as a
+checklist while typing.
 
 Supabase settings (Authentication > URL Configuration): Site URL = the published address (for
 example `https://gestion.somosventro.com`) and Redirect URLs including `https://gestion.somosventro.com/**`
