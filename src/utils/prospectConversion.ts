@@ -1,3 +1,4 @@
+import { parseLocaleNumber } from './localeNumber';
 import type { Client } from '../types/client';
 import type { Activity, ActivityType } from '../types/activity';
 import type { NextActionType, Opportunity } from '../types/opportunity';
@@ -58,9 +59,8 @@ export function getProspectConversionFieldErrors(
     errors.interestLevel = 'Elegí el nivel de interés.';
   if (!input.detectedNeed.trim()) errors.detectedNeed = 'Ingresá la necesidad detectada.';
   if (input.estimatedValue.trim()) {
-    const value = Number(input.estimatedValue);
-    if (!Number.isFinite(value) || value < 0)
-      errors.estimatedValue = 'Ingresá un valor estimado válido.';
+    const value = parseLocaleNumber(input.estimatedValue);
+    if (value === null || value < 0) errors.estimatedValue = 'Ingresá un valor estimado válido.';
   }
   if (!input.nextStep.trim()) errors.nextStep = 'Ingresá el próximo paso.';
   if (
@@ -110,7 +110,9 @@ export function createPendingProspectConversion(
   if (error) throw new Error(error);
   const dueAt = localDateTimeToIso(input.nextStepAt);
   if (!dueAt.ok) throw new Error(dueAt.error);
-  const estimatedValue = input.estimatedValue.trim() ? Number(input.estimatedValue) : undefined;
+  const estimatedValue = input.estimatedValue.trim()
+    ? (parseLocaleNumber(input.estimatedValue) ?? undefined)
+    : undefined;
   const existingClient = findReusableClient(prospect);
   const draft: ProspectConversionDraft = {
     clientId: existingClient?.id ?? crypto.randomUUID(),
@@ -229,7 +231,7 @@ function toOpportunityActivity(
           ? 'email'
           : 'relevantChange';
   const callResult =
-    activity.result === 'contacted'
+    activity.result === 'contacted' || activity.result === 'interested'
       ? 'effectiveContact'
       : activity.result === 'noResponse'
         ? 'noAnswer'
@@ -241,15 +243,17 @@ function toOpportunityActivity(
       ? callResult
       : activity.result === 'contacted'
         ? 'Contacto registrado'
-        : activity.result === 'noResponse'
-          ? 'Sin respuesta'
-          : activity.result === 'reschedule'
-            ? 'Seguimiento reprogramado'
-            : activity.result === 'discarded'
-              ? 'Contacto descartado'
-              : activity.type === 'conversionCompleted'
-                ? 'Conversión completada'
-                : 'Actividad de prospecto';
+        : activity.result === 'interested'
+          ? 'Prospecto interesado'
+          : activity.result === 'noResponse'
+            ? 'Sin respuesta'
+            : activity.result === 'reschedule'
+              ? 'Seguimiento reprogramado'
+              : activity.result === 'discarded'
+                ? 'Contacto descartado'
+                : activity.type === 'conversionCompleted'
+                  ? 'Conversión completada'
+                  : 'Actividad de prospecto';
   const channelLabel =
     channel === 'phone'
       ? 'Llamada'

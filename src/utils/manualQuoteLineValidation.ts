@@ -1,3 +1,5 @@
+import { parseLocaleNumber } from './localeNumber';
+
 export type ManualQuoteLineField = 'name' | 'quantity' | 'unitPrice';
 
 export const manualQuoteLineFieldOrder: readonly ManualQuoteLineField[] = [
@@ -17,11 +19,11 @@ export function getManualQuoteLineFieldErrors(draft: {
 }): Partial<Record<ManualQuoteLineField, string>> {
   const errors: Partial<Record<ManualQuoteLineField, string>> = {};
   if (!draft.name.trim()) errors.name = 'Ingresá el nombre del servicio.';
-  const quantity = Number(draft.quantity);
-  if (draft.quantity.trim() === '' || !Number.isFinite(quantity) || quantity <= 0)
-    errors.quantity = 'Ingresá una cantidad mayor a cero.';
-  const unitPrice = Number(draft.unitPrice);
-  if (draft.unitPrice.trim() === '' || !Number.isFinite(unitPrice) || unitPrice < 0)
-    errors.unitPrice = 'Ingresá un precio unitario igual o mayor a cero.';
+  const quantity = parseLocaleNumber(draft.quantity);
+  if (quantity === null || quantity <= 0)
+    errors.quantity = 'Ingresá una cantidad mayor a cero, por ejemplo 12,5.';
+  const unitPrice = parseLocaleNumber(draft.unitPrice);
+  if (unitPrice === null || unitPrice < 0)
+    errors.unitPrice = 'Ingresá un precio válido, por ejemplo 120.000 o 1.250,50.';
   return errors;
 }

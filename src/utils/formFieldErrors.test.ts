@@ -143,11 +143,25 @@ describe('getManualQuoteLineFieldErrors (SCRUM-107)', () => {
   it('reports name, quantity and price separately', () => {
     expect(getManualQuoteLineFieldErrors({ name: '', quantity: '0', unitPrice: '' })).toEqual({
       name: 'Ingresá el nombre del servicio.',
-      quantity: 'Ingresá una cantidad mayor a cero.',
-      unitPrice: 'Ingresá un precio unitario igual o mayor a cero.',
+      quantity: 'Ingresá una cantidad mayor a cero, por ejemplo 12,5.',
+      unitPrice: 'Ingresá un precio válido, por ejemplo 120.000 o 1.250,50.',
     });
     expect(
       getManualQuoteLineFieldErrors({ name: 'Pintura', quantity: '2', unitPrice: '0' }),
     ).toEqual({});
+  });
+
+  it('accepts Argentine number formats and rejects unclear ones (SCRUM-117)', () => {
+    expect(
+      getManualQuoteLineFieldErrors({ name: 'Pintura', quantity: '12,5', unitPrice: '120.000' }),
+    ).toEqual({});
+    expect(
+      getManualQuoteLineFieldErrors({ name: 'Pintura', quantity: '1,5', unitPrice: '1.250,50' }),
+    ).toEqual({});
+    expect(
+      Object.keys(
+        getManualQuoteLineFieldErrors({ name: 'Pintura', quantity: '12.34.5', unitPrice: 'abc' }),
+      ),
+    ).toEqual(['quantity', 'unitPrice']);
   });
 });

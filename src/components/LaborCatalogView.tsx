@@ -4,6 +4,7 @@ import type { CatalogJob, WorkUnit } from '../types/quote';
 import { filterCatalogJobs, type CatalogJobFilter } from '../utils/jobCatalogFilters';
 import type { LaborCatalogLoadIssue } from '../utils/jobCatalogStorage';
 import { validateCatalogJobInput } from '../utils/jobCatalogValidation';
+import { formatNumberInput, parseLocaleNumber } from '../utils/localeNumber';
 import { currencyFormatter } from '../utils/quoteFormatting';
 
 interface LaborCatalogViewProps {
@@ -51,7 +52,7 @@ export function LaborCatalogView({
     setName(job.name);
     setDescription(job.description ?? '');
     setUnit(job.unit);
-    setPrice(String(job.defaultPrice));
+    setPrice(formatNumberInput(job.defaultPrice));
     setFeedback(null);
   }
 
@@ -61,7 +62,7 @@ export function LaborCatalogView({
       name,
       description,
       unit,
-      defaultPrice: Number(price),
+      defaultPrice: parseLocaleNumber(price) ?? Number.NaN,
     });
 
     if (!validation.success || price.trim() === '') {
@@ -171,9 +172,9 @@ export function LaborCatalogView({
             <div className="money-input">
               <span>$</span>
               <input
-                type="number"
-                min="0.01"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 value={price}
                 onChange={(event) => setPrice(event.target.value)}
                 required

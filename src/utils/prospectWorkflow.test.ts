@@ -251,3 +251,45 @@ describe('prospect workflow', () => {
     ).toContain('fecha y hora');
   });
 });
+
+describe('next step and interested result (SCRUM-117)', () => {
+  it('keeps the chosen next step instead of a generic "Retomar contacto"', () => {
+    const updated = registerProspectAction(prospect, {
+      result: 'contacted',
+      channel: 'whatsapp',
+      note: '',
+      followUpAt: '2026-11-05T13:00:00.000Z',
+      nextAction: 'Enviar presupuesto',
+      author: 'David',
+    });
+    expect(updated.nextAction).toBe('Enviar presupuesto');
+    const activity = updated.activities.at(-1)!;
+    expect(activity.nextAction).toBe('Enviar presupuesto');
+    expect(getProspectActivityDisplay(activity).followUp).toContain('Enviar presupuesto · ');
+    expect(isProspect(updated)).toBe(true);
+  });
+
+  it('falls back to "Retomar contacto" when no step label is given', () => {
+    const updated = registerProspectAction(prospect, {
+      result: 'contacted',
+      channel: 'phone',
+      note: '',
+      followUpAt: '2026-11-05T13:00:00.000Z',
+    });
+    expect(updated.nextAction).toBe('Retomar contacto');
+  });
+
+  it('records an interested prospect with its own status', () => {
+    const updated = registerProspectAction(prospect, {
+      result: 'interested',
+      channel: 'phone',
+      note: 'Quiere presupuesto',
+    });
+    expect(updated.status).toBe('interested');
+    expect(updated.activities.at(-1)?.result).toBe('interested');
+    expect(getProspectActivityDisplay(updated.activities.at(-1)!).title).toBe(
+      'Llamada: Interesado.',
+    );
+    expect(isProspect(updated)).toBe(true);
+  });
+});

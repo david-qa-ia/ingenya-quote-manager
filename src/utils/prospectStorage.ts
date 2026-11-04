@@ -188,12 +188,13 @@ export function isProspect(value: unknown): value is Prospect {
         text(record.description) &&
         (record.author === undefined || text(record.author)) &&
         (record.result === undefined ||
-          ['contacted', 'noResponse', 'reschedule', 'discarded'].includes(
+          ['contacted', 'interested', 'noResponse', 'reschedule', 'discarded'].includes(
             record.result as string,
           )) &&
         (record.channel === undefined ||
           ['phone', 'whatsapp', 'email', 'instagram'].includes(record.channel as string)) &&
         (record.note === undefined || text(record.note)) &&
+        (record.nextAction === undefined || text(record.nextAction)) &&
         (record.followUpAt === undefined || text(record.followUpAt)) &&
         (record.previousFollowUpAt === undefined || text(record.previousFollowUpAt))
       );

@@ -6,6 +6,7 @@ import { getCircularFocusIndex } from '../utils/appNavigation';
 import { GlobalSearchPanel } from './GlobalSearchPanel';
 import type { GlobalSearchResult } from '../types/globalSearch';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
+import { searchShortcutLabel } from '../utils/searchShortcut';
 
 interface AppHeaderProps {
   activeSection: NavigationSection;
@@ -184,7 +185,7 @@ export function AppHeader({
               aria-controls="global-search-panel"
             >
               <UiIcon name="search" /> <span>Buscar</span>
-              <kbd>⌘ K</kbd>
+              <kbd>{searchShortcutLabel()}</kbd>
             </button>
             <button
               className="navigation-link"

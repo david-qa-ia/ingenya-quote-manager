@@ -9,7 +9,8 @@ export type ProspectStatus =
 
 export type ProspectPriority = 'high' | 'medium' | 'low';
 export type ProspectChannel = 'phone' | 'whatsapp' | 'email' | 'instagram';
-export type ProspectContactResult = 'contacted' | 'noResponse' | 'reschedule' | 'discarded';
+export type ProspectContactResult =
+  'contacted' | 'interested' | 'noResponse' | 'reschedule' | 'discarded';
 
 export interface ProspectConversionDraft {
   clientId: string;
@@ -52,6 +53,8 @@ export interface ProspectActivity {
   channel?: ProspectChannel;
   note?: string;
   followUpAt?: string;
+  /** What the scheduled next step is, e.g. "Enviar presupuesto" (SCRUM-117). */
+  nextAction?: string;
   /** Follow-up date that this action replaced, when the next step was rescheduled. */
   previousFollowUpAt?: string;
 }

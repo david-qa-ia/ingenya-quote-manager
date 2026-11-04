@@ -84,7 +84,18 @@ function ContactAction({ item }: { item: FollowUpInboxItem }) {
 }
 
 export function DailyWorkDashboard({ items, onShowFollowUp, onOpen }: Props) {
-  const [selectedBucket, setSelectedBucket] = useState<FollowUpBucket | 'all'>('today');
+  // SCRUM-117: open on the first bucket with work (overdue, then today, then upcoming), so the
+  // dashboard never says "al día" while there is a pending action in another tab.
+  const [selectedBucket, setSelectedBucket] = useState<FollowUpBucket | 'all'>(
+    () =>
+      (['overdue', 'today', 'upcoming'] as const).find((bucket) =>
+        items.some((item) => item.bucket === bucket),
+      ) ?? 'today',
+  );
+  const pendingElsewhere = (['overdue', 'today', 'upcoming'] as const)
+    .filter((bucket) => bucket !== selectedBucket)
+    .map((bucket) => ({ bucket, count: items.filter((item) => item.bucket === bucket).length }))
+    .filter((entry) => entry.count > 0);
   const date = new Intl.DateTimeFormat('es-AR', {
     weekday: 'long',
     day: 'numeric',
@@ -183,12 +194,42 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen }: Props) {
               <UiIcon name="check-circle" />
             </span>
             <div>
-              <p>Tu bandeja está al día</p>
-              <small>No hay acciones de seguimiento pendientes en esta vista.</small>
+              {pendingElsewhere.length ? (
+                <>
+                  <p>
+                    Nada en{' '}
+                    {selectedBucket in labels
+                      ? labels[selectedBucket as keyof typeof labels].toLowerCase()
+                      : 'esta vista'}
+                  </p>
+                  <small>
+                    Tenés{' '}
+                    {pendingElsewhere
+                      .map(({ bucket, count }) => `${count} en ${labels[bucket].toLowerCase()}`)
+                      .join(' y ')}
+                    .
+                  </small>
+                </>
+              ) : (
+                <>
+                  <p>Tu bandeja está al día</p>
+                  <small>No hay acciones de seguimiento pendientes.</small>
+                </>
+              )}
             </div>
-            <button className="button button-secondary" type="button" onClick={onShowFollowUp}>
-              Ver seguimiento completo
-            </button>
+            {pendingElsewhere.length ? (
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={() => setSelectedBucket(pendingElsewhere[0].bucket)}
+              >
+                Ver {labels[pendingElsewhere[0].bucket].toLowerCase()}
+              </button>
+            ) : (
+              <button className="button button-secondary" type="button" onClick={onShowFollowUp}>
+                Ver seguimiento completo
+              </button>
+            )}
           </div>
         )}
       </section>
