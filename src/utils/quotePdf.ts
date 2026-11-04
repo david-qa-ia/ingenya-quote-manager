@@ -1,5 +1,4 @@
 import type { jsPDF as JsPdf } from 'jspdf';
-import { deploymentBrand } from '../config/deploymentBrand';
 import type { DeploymentBrandConfig } from '../types/branding';
 import type { Quote } from '../types/quote';
 import { formatCurrency, formatQuantity } from './quoteFormatting';
@@ -16,18 +15,25 @@ import {
   type QuotePdfPagePlan,
 } from './quotePdfLayout';
 import { prepareQuotePdfModel, type QuotePdfModel } from './quotePdfModel';
+import { loadCompanyBrand } from './companyProfileStorage';
 
 type JsPdfConstructor = (typeof import('jspdf'))['jsPDF'];
 type JsPdfLoader = () => Promise<JsPdfConstructor>;
 
 const FONT_NAME = 'Lato';
 const CONTENT_WIDTH = PDF_PAGE_WIDTH - PDF_MARGIN * 2;
-const BODY_COLOR = [35, 43, 39] as const;
-const MUTED_COLOR = [91, 101, 96] as const;
-const ACCENT_COLOR = [50, 82, 68] as const;
-const LIGHT_FILL = [235, 240, 237] as const;
-const BORDER_COLOR = [205, 214, 209] as const;
-const ACTION_MESSAGE = 'Confirmá el presupuesto por WhatsApp para coordinar la fecha de inicio.';
+// SCRUM-119: Ventro palette (ink, muted gray, Ventro blue, blue tint, warm line).
+const BODY_COLOR = [17, 18, 22] as const;
+const MUTED_COLOR = [92, 95, 102] as const;
+const ACCENT_COLOR = [47, 107, 255] as const;
+const LIGHT_FILL = [237, 241, 250] as const;
+const BORDER_COLOR = [227, 227, 224] as const;
+const ZEBRA_FILL = [247, 247, 245] as const;
+const ACTION_MESSAGE_WHATSAPP = 'Confirmá el presupuesto por WhatsApp para coordinar el inicio.';
+const ACTION_MESSAGE = 'Confirmá el presupuesto respondiendo este envío para coordinar el inicio.';
+
+const whatsappLabel = (brand: DeploymentBrandConfig) =>
+  brand.whatsapp.display.trim() ? `WhatsApp ${brand.whatsapp.display.trim()}` : '';
 
 async function loadJsPdf(): Promise<JsPdfConstructor> {
   return (await import('jspdf')).jsPDF;
@@ -91,7 +97,14 @@ function drawBrandHeader(document: JsPdf, model: QuotePdfModel): void {
   }
   setTextColor(document, MUTED_COLOR);
   document.setFontSize(8.2);
-  document.text(`${model.brand.email}  |  WhatsApp ${model.brand.whatsapp.display}`, textX, 32);
+  const contact = [
+    model.brand.email.trim(),
+    whatsappLabel(model.brand),
+    model.brand.website?.trim(),
+  ]
+    .filter(Boolean)
+    .join('  |  ');
+  if (contact) document.text(contact, textX, 32);
 
   document.setDrawColor(...BORDER_COLOR);
   document.line(PDF_MARGIN, 38, PDF_PAGE_WIDTH - PDF_MARGIN, 38);
@@ -118,10 +131,10 @@ function drawStatus(document: JsPdf, model: QuotePdfModel): void {
     document.roundedRect(132, 43, 64, 9, 1.5, 1.5, 'FD');
     document.setTextColor(111, 76, 17);
   } else {
-    document.setFillColor(232, 240, 235);
-    document.setDrawColor(168, 191, 178);
+    document.setFillColor(...LIGHT_FILL);
+    document.setDrawColor(201, 214, 245);
     document.roundedRect(158, 43, 38, 9, 1.5, 1.5, 'FD');
-    document.setTextColor(43, 91, 66);
+    document.setTextColor(31, 84, 224);
   }
   document.text(label, 194, 48.8, { align: 'right' });
 }
@@ -135,7 +148,11 @@ function drawFirstPageHeader(document: JsPdf, model: QuotePdfModel): number {
   document.setFont(FONT_NAME, 'normal');
   document.setFontSize(8.2);
   setTextColor(document, MUTED_COLOR);
-  document.text(`ID ${model.id}`, PDF_MARGIN, 56);
+  document.text(
+    `ID ${model.id}  ·  Emitido el ${model.issuedOn}  ·  Válido hasta el ${model.validUntil}`,
+    PDF_MARGIN,
+    56,
+  );
   drawStatus(document, model);
 
   setTextColor(document, ACCENT_COLOR);
@@ -151,7 +168,7 @@ function drawFirstPageHeader(document: JsPdf, model: QuotePdfModel): number {
   document.setFontSize(7.4);
   setTextColor(document, MUTED_COLOR);
   document.text('CLIENTE', PDF_MARGIN, detailsTop);
-  document.text('OBRA', 108, detailsTop);
+  document.text('PROYECTO', 108, detailsTop);
   document.setFont(FONT_NAME, 'normal');
   document.setFontSize(8.8);
   setTextColor(document, BODY_COLOR);
@@ -212,11 +229,11 @@ function drawRows(document: JsPdf, page: QuotePdfPagePlan): void {
 
   page.rows.forEach((row, rowIndex) => {
     let x = PDF_MARGIN;
-    if (rowIndex % 2 === 1) document.setFillColor(249, 250, 249);
+    if (rowIndex % 2 === 1) document.setFillColor(...ZEBRA_FILL);
 
     PDF_COLUMN_WIDTHS.forEach((width, cellIndex) => {
       document.setDrawColor(...BORDER_COLOR);
-      if (rowIndex % 2 === 1) document.setFillColor(249, 250, 249);
+      if (rowIndex % 2 === 1) document.setFillColor(...ZEBRA_FILL);
       document.rect(x, y, width, row.height, rowIndex % 2 === 1 ? 'FD' : 'S');
       const isNumeric = cellIndex >= 2;
       document.text(
@@ -249,19 +266,25 @@ function drawClosingBlock(document: JsPdf, model: QuotePdfModel): void {
 
   document.setFont(FONT_NAME, 'normal');
   document.setFontSize(8.5);
-  const messageLines = splitText(document, ACTION_MESSAGE, 135);
+  const whatsapp = whatsappLabel(model.brand);
+  const messageLines = splitText(
+    document,
+    whatsapp ? ACTION_MESSAGE_WHATSAPP : ACTION_MESSAGE,
+    135,
+  );
   document.text(messageLines, PDF_MARGIN, y + 21);
-  document.setFont(FONT_NAME, 'bold');
-  document.text(`WhatsApp ${model.brand.whatsapp.display}`, PDF_PAGE_WIDTH - PDF_MARGIN, y + 21, {
-    align: 'right',
-  });
+  if (whatsapp) {
+    document.setFont(FONT_NAME, 'bold');
+    document.text(whatsapp, PDF_PAGE_WIDTH - PDF_MARGIN, y + 21, { align: 'right' });
+  }
 }
 
 function footerItems(brand: DeploymentBrandConfig): string[] {
   return [
     brand.footerBusinessText.trim(),
     brand.email.trim(),
-    `WhatsApp ${brand.whatsapp.display.trim()}`,
+    whatsappLabel(brand),
+    brand.website?.trim(),
     brand.instagram?.trim(),
   ].filter((item): item is string => Boolean(item));
 }
@@ -317,7 +340,7 @@ async function renderQuote(document: JsPdf, model: QuotePdfModel): Promise<void>
 
 export async function createQuotePdfDocument(
   quote: Readonly<Quote>,
-  brand: DeploymentBrandConfig = deploymentBrand,
+  brand: DeploymentBrandConfig = loadCompanyBrand(),
   jsPdfLoader: JsPdfLoader = loadJsPdf,
 ): Promise<JsPdf> {
   const model = prepareQuotePdfModel(quote, brand);

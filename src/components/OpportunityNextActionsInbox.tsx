@@ -9,7 +9,6 @@ interface Props {
   items: readonly FollowUpInboxItem[];
   issues: readonly string[];
   onOpen: (item: FollowUpInboxItem) => void;
-  onPrepareContact: (item: FollowUpInboxItem) => void;
   onRegisterResult: (item: FollowUpInboxItem) => void;
   onShowCadences: () => void;
 }
@@ -56,7 +55,6 @@ export function OpportunityNextActionsInbox({
   items,
   issues,
   onOpen,
-  onPrepareContact,
   onRegisterResult,
   onShowCadences,
 }: Props) {
@@ -115,7 +113,7 @@ export function OpportunityNextActionsInbox({
           <input
             value={filters.search}
             onChange={(event) => set('search', event.target.value)}
-            placeholder="Contacto, obra o trabajo, o presupuesto"
+            placeholder="Contacto, proyecto o presupuesto"
           />
         </label>
         <label className="field">
@@ -292,15 +290,6 @@ export function OpportunityNextActionsInbox({
                       </button>
                       {item.action && !item.contactRestricted && (
                         <>
-                          {(item.channel === 'call' || item.channel === 'whatsapp') && (
-                            <button
-                              className="button button-line"
-                              type="button"
-                              onClick={() => onPrepareContact(item)}
-                            >
-                              Preparar contacto
-                            </button>
-                          )}
                           <button
                             className="button button-primary"
                             type="button"

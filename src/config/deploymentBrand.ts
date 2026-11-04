@@ -1,12 +1,21 @@
 import type { DeploymentBrandConfig } from '../types/branding';
 
+/** Name of the application itself, shown in the navigation (always Ventro). */
+export const APP_NAME = 'ventro';
+
+/**
+ * SCRUM-119: fallback company data for the quote PDF. Each workspace overrides it from
+ * Configuración > Datos de la empresa (stored in Supabase), so another company using the app
+ * prints its own data. These are Ventro's own details.
+ */
 export const deploymentBrand: DeploymentBrandConfig = {
-  companyName: 'ventro',
-  experienceMessage: 'GESTIÓN COMERCIAL',
-  email: 'alef.tau.contacto@gmail.com',
+  companyName: 'Ventro',
+  email: 'david@somosventro.com',
   whatsapp: {
-    display: '341 616-4761',
-    value: '3416164761',
+    display: '341 779-3657',
+    value: '3417793657',
   },
-  footerBusinessText: 'Alef-Tau - Construcciones',
+  website: 'www.somosventro.com',
+  footerBusinessText: 'Ventro',
+  quoteValidityDays: 15,
 };

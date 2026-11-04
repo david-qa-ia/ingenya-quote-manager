@@ -10,6 +10,7 @@ import { isWorkspaceUuid } from '../utils/workspaceStorage';
 import { getSystemHealthCards, getSystemHealthOperations } from '../utils/systemHealth';
 import { UiIcon, type UiIconName } from './UiIcon';
 import { ResponsiblesSettings } from './ResponsiblesSettings';
+import { CompanyProfileSettings } from './CompanyProfileSettings';
 
 interface Props {
   membership: WorkspaceMembership;
@@ -51,7 +52,7 @@ export function SettingsView({ membership, onRetryConnection, onShowServices }: 
     hasSession: Boolean(session),
     recovery,
   });
-  const operations = getSystemHealthOperations(validWorkspace);
+  const operations = getSystemHealthOperations(validWorkspace, backendConfigured);
 
   function recover() {
     if (!recovery) return;
@@ -105,6 +106,8 @@ export function SettingsView({ membership, onRetryConnection, onShowServices }: 
           </div>
         ))}
       </section>
+
+      <CompanyProfileSettings workspaceId={membership.workspace.id} />
 
       <ResponsiblesSettings workspaceId={membership.workspace.id} />
 

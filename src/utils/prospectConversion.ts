@@ -53,7 +53,7 @@ export function getProspectConversionFieldErrors(
 ): ProspectConversionFieldErrors {
   const errors: ProspectConversionFieldErrors = {};
   if (!input.opportunityName.trim())
-    errors.opportunityName = 'Ingresá el nombre de la oportunidad u obra.';
+    errors.opportunityName = 'Ingresá el nombre de la oportunidad o proyecto.';
   if (!input.serviceOfInterest.trim()) errors.serviceOfInterest = 'Ingresá el servicio de interés.';
   if (!['high', 'medium', 'low'].includes(input.interestLevel))
     errors.interestLevel = 'Elegí el nivel de interés.';

@@ -42,7 +42,7 @@ describe('prepareQuotePdfModel', () => {
     expect(prepareQuotePdfModel(input)).toMatchObject({
       id: draft.id,
       clientName: 'Sin cliente',
-      projectName: 'Sin obra',
+      projectName: 'Sin proyecto',
       status: 'Borrador',
       total: 187500,
       fileName: 'presupuesto-PRES-2026-0001.pdf',
@@ -96,17 +96,41 @@ describe('prepareQuotePdfModel', () => {
     expect(prepareQuotePdfModel(draft, brand).brand).toEqual(brand);
   });
 
-  it('rejects incomplete required deployment branding', () => {
-    const brand: DeploymentBrandConfig = {
+  it('only requires the company name; missing contact data is left out (SCRUM-119)', () => {
+    const withoutEmail: DeploymentBrandConfig = {
       companyName: 'Otra empresa',
       email: '',
-      whatsapp: { display: '123', value: '123' },
+      whatsapp: { display: '', value: '' },
       footerBusinessText: 'Otra empresa - Servicios',
     };
-
-    expect(() => prepareQuotePdfModel(draft, brand)).toThrow(
+    expect(prepareQuotePdfModel(draft, withoutEmail).brand.email).toBe('');
+    expect(() => prepareQuotePdfModel(draft, { ...withoutEmail, companyName: ' ' })).toThrow(
       'No se puede generar el PDF porque la configuración comercial está incompleta.',
     );
+  });
+
+  it('dates the quote and adds the validity from the company data (SCRUM-119)', () => {
+    const brand: DeploymentBrandConfig = {
+      companyName: 'Ventro',
+      email: '',
+      whatsapp: { display: '', value: '' },
+      footerBusinessText: 'Ventro',
+      quoteValidityDays: 15,
+    };
+    const now = new Date('2026-11-04T15:00:00.000Z');
+    expect(prepareQuotePdfModel(draft, brand, now)).toMatchObject({
+      issuedOn: '04/11/2026',
+      validUntil: '19/11/2026',
+    });
+    const finalized = {
+      ...draft,
+      status: 'finalized' as const,
+      savedAt: '2026-10-01T15:00:00.000Z',
+    };
+    expect(prepareQuotePdfModel(finalized, brand, now)).toMatchObject({
+      issuedOn: '01/10/2026',
+      validUntil: '16/10/2026',
+    });
   });
 
   it.each([

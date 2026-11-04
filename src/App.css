@@ -1477,9 +1477,9 @@
     border-top-color: rgba(216, 225, 247, 0.1);
   }
 
-  .app-sidebar-header + main,
-  .app-sidebar-header + .prospecting-view,
-  .app-sidebar-header + .metrics-dashboard {
+  .app-sidebar-header ~ main,
+  .app-sidebar-header ~ .prospecting-view,
+  .app-sidebar-header ~ .metrics-dashboard {
     margin-left: 232px;
     width: calc(100% - 232px);
   }
@@ -4046,9 +4046,9 @@ button.opportunity-nav-item:hover {
     width: 19px;
     height: 19px;
   }
-  .app-sidebar-header + main,
-  .app-sidebar-header + .prospecting-view,
-  .app-sidebar-header + .metrics-dashboard {
+  .app-sidebar-header ~ main,
+  .app-sidebar-header ~ .prospecting-view,
+  .app-sidebar-header ~ .metrics-dashboard {
     box-sizing: border-box;
     margin-left: 212px;
     min-height: 100vh;
@@ -5767,9 +5767,9 @@ body,
     flex: 0 0 46px;
     margin-top: -58px;
   }
-  .app-sidebar-header + main,
-  .app-sidebar-header + .prospecting-view,
-  .app-sidebar-header + .metrics-dashboard {
+  .app-sidebar-header ~ main,
+  .app-sidebar-header ~ .prospecting-view,
+  .app-sidebar-header ~ .metrics-dashboard {
     box-sizing: border-box;
     margin-left: 0;
     max-width: 100%;
@@ -6718,9 +6718,9 @@ tr:last-child td {
     margin: 20px 0 0;
   }
 
-  .app-sidebar-header + main,
-  .app-sidebar-header + .prospecting-view,
-  .app-sidebar-header + .metrics-dashboard {
+  .app-sidebar-header ~ main,
+  .app-sidebar-header ~ .prospecting-view,
+  .app-sidebar-header ~ .metrics-dashboard {
     margin-left: 224px;
     padding: 52px 44px 76px;
     width: calc(100% - 224px);
@@ -6742,7 +6742,7 @@ tr:last-child td {
 /* SCRUM-92: high-visibility layout polish for the daily operational views. */
 .prospecting-view,
 .metrics-dashboard,
-.app-sidebar-header + main {
+.app-sidebar-header ~ main {
   background: transparent;
 }
 
@@ -7978,9 +7978,9 @@ tr:last-child td {
     width: calc(100% - 8px);
   }
 
-  .app-sidebar-header + main,
-  .app-sidebar-header + .prospecting-view,
-  .app-sidebar-header + .metrics-dashboard {
+  .app-sidebar-header ~ main,
+  .app-sidebar-header ~ .prospecting-view,
+  .app-sidebar-header ~ .metrics-dashboard {
     margin-left: 232px;
     width: calc(100% - 232px);
   }
@@ -8333,4 +8333,144 @@ tr:last-child td {
 .prospect-row-actions .ui-icon {
   width: 16px;
   height: 16px;
+}
+
+/* SCRUM-119: the contact in "Mi trabajo de hoy" opens its context. */
+.daily-row-context {
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.daily-row-context strong {
+  color: var(--text-heading);
+}
+
+.daily-row-context:hover strong,
+.daily-row-context:focus-visible strong {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* SCRUM-119: the content is placed with "~" (any later sibling), not "+": a notice shown
+   between the navigation and the page (recovery, sync error) used to push the page under the
+   navigation and block every click on it. */
+/* SCRUM-119: on short screens (or zoomed in) the navigation used to slide over the workspace
+   selector. The rail now stacks its parts without shrinking them and scrolls when needed. */
+@media (min-width: 801px) {
+  .app-sidebar-header {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .app-sidebar-header .main-header-content {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100%;
+  }
+
+  .app-sidebar-header .primary-navigation {
+    flex: 1 0 auto;
+  }
+
+  .app-sidebar-header .workspace-switcher {
+    align-self: stretch;
+    width: auto;
+    max-width: none;
+  }
+}
+
+/* SCRUM-119: "Miércoles, 4 de noviembre de 2026", not "4 De Noviembre De 2026". */
+.prospect-daily-date,
+.daily-dashboard-header .page-description {
+  text-transform: none;
+}
+
+.prospect-daily-date::first-letter,
+.daily-dashboard-header .page-description::first-letter {
+  text-transform: uppercase;
+}
+
+/* SCRUM-119: Configuración > Datos de la empresa */
+.company-profile-settings {
+  display: grid;
+  gap: 18px;
+}
+
+.company-profile-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px 18px;
+}
+
+.company-profile-form .field {
+  margin: 0;
+}
+
+.company-profile-form small {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.company-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 12px;
+  align-items: center;
+}
+
+.company-profile-actions .button {
+  width: auto;
+  min-height: 46px;
+  padding: 0 22px;
+}
+
+.company-profile-actions .settings-feedback {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--text-muted);
+  background: none;
+}
+
+/* SCRUM-119: the selected tab keeps its colors on hover (white text was on a light hover). */
+.service-entry-toggle .is-selected:hover,
+.service-entry-toggle .is-selected:focus-visible {
+  color: #fff;
+  background: var(--accent-dark);
+}
+
+/* SCRUM-119: the open menu shows an X to close it. */
+.mobile-menu-button span {
+  transition:
+    transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.mobile-menu-button[aria-expanded='true'] span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.mobile-menu-button[aria-expanded='true'] span:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-menu-button[aria-expanded='true'] span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu-button span {
+    transition: none;
+  }
 }

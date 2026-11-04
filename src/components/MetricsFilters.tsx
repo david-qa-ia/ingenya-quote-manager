@@ -79,7 +79,7 @@ export function MetricsFilters({
         </label>
       </div>
       <details className="metrics-context-filters">
-        <summary>Más filtros: cliente, obra o presupuesto</summary>
+        <summary>Más filtros: cliente, proyecto o presupuesto</summary>
         <div className="metrics-context-filter-grid">
           <label className="field">
             <span>Cliente</span>
@@ -97,7 +97,7 @@ export function MetricsFilters({
             </select>
           </label>
           <label className="field">
-            <span>Obra o trabajo</span>
+            <span>Proyecto</span>
             <select
               value={filters.opportunityId}
               onChange={(event) => set('opportunityId', event.target.value)}

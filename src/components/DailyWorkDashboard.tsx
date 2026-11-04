@@ -8,6 +8,8 @@ interface Props {
   items: readonly FollowUpInboxItem[];
   onShowFollowUp: () => void;
   onOpen: (item: FollowUpInboxItem) => void;
+  /** SCRUM-119: clicking the contact opens its context (prospect, opportunity or quote). */
+  onOpenContext: (item: FollowUpInboxItem) => void;
 }
 
 const labels = { overdue: 'Vencidos', today: 'Hoy', upcoming: 'Próximos' } as const;
@@ -83,7 +85,7 @@ function ContactAction({ item }: { item: FollowUpInboxItem }) {
   );
 }
 
-export function DailyWorkDashboard({ items, onShowFollowUp, onOpen }: Props) {
+export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, onOpenContext }: Props) {
   // SCRUM-117: open on the first bucket with work (overdue, then today, then upcoming), so the
   // dashboard never says "al día" while there is a pending action in another tab.
   const [selectedBucket, setSelectedBucket] = useState<FollowUpBucket | 'all'>(
@@ -146,12 +148,19 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen }: Props) {
             </div>
             {visible.map((item) => (
               <article className="daily-dashboard-row" key={item.id}>
-                <div>
+                <button
+                  className="daily-row-context"
+                  type="button"
+                  onClick={() => onOpenContext(item)}
+                  aria-label={`Abrir el contexto de ${item.clientName}`}
+                >
                   <strong>{item.clientName}</strong>
                   <small>
-                    {item.opportunityName ?? item.quoteName ?? 'Sin contexto disponible'}
+                    {item.opportunityName ??
+                      item.quoteName ??
+                      (item.subjectType === 'prospect' ? 'Prospecto' : 'Sin contexto disponible')}
                   </small>
-                </div>
+                </button>
                 <span className="daily-type-badge">
                   {item.subjectType === 'prospect'
                     ? 'Prospecto'

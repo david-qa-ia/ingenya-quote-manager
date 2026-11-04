@@ -12,6 +12,10 @@ export interface DeploymentBrandConfig {
     readonly value: string;
   };
   readonly instagram?: string;
+  /** SCRUM-119: optional website shown in the PDF header. */
+  readonly website?: string;
   readonly footerBusinessText: string;
+  /** SCRUM-119: days a quote stays valid; the PDF shows the resulting date. */
+  readonly quoteValidityDays?: number;
   readonly logo?: DeploymentLogoConfig;
 }

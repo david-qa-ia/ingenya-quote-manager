@@ -54,7 +54,13 @@ import {
 } from './utils/jobCatalogStorage';
 import { createCatalogQuoteLine } from './utils/quoteLineFactory';
 import { addQuickService } from './utils/quickServiceAddition';
-import { resolveActiveNavigationSection, type AppView } from './utils/appNavigation';
+import {
+  hashForView,
+  initialViewFromHash,
+  resolveActiveNavigationSection,
+  viewFromHash,
+  type AppView,
+} from './utils/appNavigation';
 import {
   ACTIVITIES_STORAGE_KEY,
   loadActivities,
@@ -94,6 +100,7 @@ import {
 } from './components/RegisterResultDrawer';
 import { resultNextStepLabels } from './utils/resultNextStep';
 import { syncResponsibles } from './utils/responsibleSync';
+import { syncCompanyProfile } from './utils/companyProfileSync';
 import {
   clearQuoteRecovery,
   isQuoteRecoveryUseful,
@@ -256,7 +263,33 @@ function App() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>('dailyDashboard');
+  const [currentView, setCurrentView] = useState<AppView>(() =>
+    initialViewFromHash(typeof window === 'undefined' ? '' : window.location.hash),
+  );
+  // SCRUM-119: "Prospectos" in the menu goes back to the list even from a prospect detail.
+  const [prospectsResetToken, setProspectsResetToken] = useState(0);
+  const navigatingFromHistoryRef = useRef(false);
+
+  // SCRUM-119: keep the address in step with the section, so back/forward and reload work.
+  useEffect(() => {
+    const hash = hashForView(currentView);
+    const fromHistory = navigatingFromHistoryRef.current;
+    navigatingFromHistoryRef.current = false;
+    if (window.location.hash === hash) return;
+    if (fromHistory || !window.location.hash) window.history.replaceState(null, '', hash);
+    else window.history.pushState(null, '', hash);
+  }, [currentView]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const view = viewFromHash(window.location.hash);
+      if (!view) return;
+      navigatingFromHistoryRef.current = true;
+      setCurrentView(view);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
   const [prospects, setProspects] = useState(() => loadProspects().items);
   const [prospectFilters, setProspectFilters] = useState(loadProspectFilters);
   const [requestedProspectId, setRequestedProspectId] = useState<string | null>(null);
@@ -335,7 +368,7 @@ function App() {
   const [serviceEntryMode, setServiceEntryMode] = useState<'catalog' | 'manual'>('catalog');
   const [manualName, setManualName] = useState('');
   const [manualDescription, setManualDescription] = useState('');
-  const [manualUnit, setManualUnit] = useState<WorkUnit>('squareMeter');
+  const [manualUnit, setManualUnit] = useState<WorkUnit>('unit');
   const [manualQuantity, setManualQuantity] = useState('1');
   const [manualUnitPrice, setManualUnitPrice] = useState('');
   const [saveManualToCatalog, setSaveManualToCatalog] = useState(false);
@@ -468,6 +501,10 @@ function App() {
     ];
     syncResponsibles(workspaceId ?? undefined, names).catch(() => {
       // The browser copy of the list keeps working while Supabase is unavailable.
+    });
+    // SCRUM-119: the company data printed on quotes comes from Supabase too.
+    syncCompanyProfile(workspaceId ?? undefined).catch(() => {
+      // The PDF keeps using the browser copy (or Ventro's data) while Supabase is unavailable.
     });
   }, [workspaceContext.session?.activeWorkspaceId, remoteDataRevision]);
 
@@ -712,7 +749,7 @@ function App() {
     setQuoteLines((currentLines) => [...currentLines, addition.line]);
     setManualName('');
     setManualDescription('');
-    setManualUnit('squareMeter');
+    setManualUnit('unit');
     setManualQuantity('1');
     setManualUnitPrice('');
     setSaveManualToCatalog(false);
@@ -955,7 +992,7 @@ function App() {
     setSaveFeedback({
       type: 'error',
       message:
-        'No hay un presupuesto asociado para abrir este contexto. La obra o trabajo sigue disponible en el seguimiento.',
+        'No hay un presupuesto asociado para abrir este contexto. El proyecto sigue disponible en el seguimiento.',
     });
   }
 
@@ -1873,7 +1910,10 @@ function App() {
       onShowSavedQuotes={() => setCurrentView('savedQuotes')}
       onShowNextActions={() => setCurrentView('dailyDashboard')}
       onShowMetrics={() => setCurrentView('metrics')}
-      onShowProspects={() => setCurrentView('prospects')}
+      onShowProspects={() => {
+        setCurrentView('prospects');
+        setProspectsResetToken((value) => value + 1);
+      }}
       onShowSettings={() => setCurrentView('settings')}
       searchQuery={searchQuery}
       searchResults={globalSearchResults}
@@ -2048,6 +2088,7 @@ function App() {
           items={followUpItems}
           onShowFollowUp={() => setCurrentView('nextActions')}
           onOpen={setDrawerItem}
+          onOpenContext={handleFollowUpOpen}
         />
         {resultDrawer}
       </>
@@ -2059,6 +2100,7 @@ function App() {
       <>
         {appHeader}
         <ProspectingView
+          resetToken={prospectsResetToken}
           initialFilters={prospectFilters}
           onFiltersChange={(filters) => {
             setProspectFilters(filters);
@@ -2125,7 +2167,6 @@ function App() {
             ) as string[]
           }
           onOpen={handleFollowUpOpen}
-          onPrepareContact={setInboxContact}
           onRegisterResult={setDrawerItem}
           onShowCadences={() => setCurrentView('cadences')}
         />
@@ -2494,7 +2535,7 @@ function App() {
                     <tr>
                       <th>ID</th>
                       <th>Cliente</th>
-                      <th>Obra / trabajo en seguimiento</th>
+                      <th>Proyecto en seguimiento</th>
                       <th>Estado</th>
                       <th>Estado comercial</th>
                       <th>Fecha</th>
@@ -2511,11 +2552,11 @@ function App() {
                         <td data-label="Cliente">
                           {savedQuote.clientName.trim() || 'Sin cliente'}
                         </td>
-                        <td data-label="Obra / trabajo en seguimiento">
-                          {savedQuote.projectName.trim() || 'Sin obra'}
+                        <td data-label="Proyecto en seguimiento">
+                          {savedQuote.projectName.trim() || 'Sin proyecto'}
                           {savedQuote.opportunityId && (
                             <small>
-                              Obra o trabajo:{' '}
+                              Proyecto:{' '}
                               {opportunities.find(
                                 (item) =>
                                   item.id === savedQuote.opportunityId &&
@@ -2734,7 +2775,7 @@ function App() {
                       <dd>{clientName.trim() || 'Sin especificar'}</dd>
                     </div>
                     <div>
-                      <dt>Obra / referencia</dt>
+                      <dt>Proyecto / referencia</dt>
                       <dd>{projectName.trim() || 'Sin especificar'}</dd>
                     </div>
                   </dl>
@@ -2762,12 +2803,12 @@ function App() {
                         <small>Podés dejar este campo vacío.</small>
                       </label>
                       <label className="field">
-                        <span>Obra / referencia</span>
+                        <span>Proyecto / referencia</span>
                         <input
                           type="text"
                           value={projectName}
                           onChange={(event) => setProjectName(event.target.value)}
-                          placeholder="Nombre o ubicación de la obra"
+                          placeholder="Nombre o ubicación del proyecto"
                         />
                         <small>Podés dejar este campo vacío.</small>
                       </label>

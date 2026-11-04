@@ -123,7 +123,7 @@ export function DirectClientQuotePanel({
           aria-pressed={mode === 'opportunity'}
         >
           <strong>Oportunidad existente</strong>
-          <span>Elegí una obra o trabajo ya creado.</span>
+          <span>Elegí un proyecto ya creado.</span>
         </button>
         <button
           type="button"
@@ -135,7 +135,7 @@ export function DirectClientQuotePanel({
           aria-pressed={mode === 'direct'}
         >
           <strong>Crear contacto y oportunidad</strong>
-          <span>Creá el contacto, la obra o trabajo y su próximo paso.</span>
+          <span>Creá el contacto, el proyecto y su próximo paso.</span>
         </button>
       </div>
       {mode === 'opportunity' && (
@@ -151,7 +151,7 @@ export function DirectClientQuotePanel({
                   setOpportunityQuery(event.target.value);
                   setIsOpportunityMenuOpen(true);
                 }}
-                placeholder="Cliente, empresa u obra"
+                placeholder="Cliente, empresa o proyecto"
                 aria-expanded={isOpportunityMenuOpen}
                 aria-controls="opportunity-search-results"
               />
@@ -335,7 +335,7 @@ export function DirectClientQuotePanel({
               <h3 id="opportunity-details-title">Datos de la oportunidad</h3>
               <div className="form-grid">
                 <label className="field">
-                  <span>Obra o trabajo</span>
+                  <span>Proyecto</span>
                   <input
                     value={input.projectName}
                     onChange={(event) => updateInput({ ...input, projectName: event.target.value })}

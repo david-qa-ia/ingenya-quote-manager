@@ -159,14 +159,14 @@ export function QuoteCommercialContext({
       updatedAt: now,
     };
     if (!saveOpportunity(next))
-      return 'No se pudo guardar la obra o trabajo. Revisá el contacto y el almacenamiento.';
+      return 'No se pudo guardar el proyecto. Revisá el contacto y el almacenamiento.';
     const nextActionChanged =
       JSON.stringify(existing?.nextAction) !== JSON.stringify(next.nextAction);
     const activitySaved = !existing
       ? recordAutomaticActivity(
           { kind: 'opportunity', opportunityId: next.id },
           'created',
-          'Obra o trabajo creado.',
+          'Proyecto creado.',
         )
       : !nextActionChanged ||
         recordAutomaticActivity(
@@ -178,8 +178,8 @@ export function QuoteCommercialContext({
     if (!existing) onAssociate(client, next);
     setFeedback(
       activitySaved
-        ? 'Obra o trabajo guardado. Los presupuestos anteriores se conservan.'
-        : 'Obra o trabajo guardado, pero no se pudo registrar la actividad.',
+        ? 'Proyecto guardado. Los presupuestos anteriores se conservan.'
+        : 'Proyecto guardado, pero no se pudo registrar la actividad.',
     );
     return null;
   }
@@ -243,9 +243,9 @@ export function QuoteCommercialContext({
     return true;
   }
   function recordCommercialOutcome(outcome: CommercialOutcome, closeAsWon: boolean): string | null {
-    if (!opportunity) return 'Vinculá una obra o trabajo antes de registrar el resultado.';
+    if (!opportunity) return 'Vinculá un proyecto antes de registrar el resultado.';
     if (!appendCommercialOutcome(outcome))
-      return 'No se pudo guardar el resultado. No se modificó la obra o trabajo.';
+      return 'No se pudo guardar el resultado. No se modificó el proyecto.';
     const reason = outcome.note?.trim() || commercialOutcomeLabels[outcome.type];
     if (outcome.type === 'accepted' || outcome.type === 'rejected') {
       const quoteError = onQuoteResult(outcome.type, {
@@ -281,7 +281,7 @@ export function QuoteCommercialContext({
         return 'El resultado se conservó, pero no se pudo registrar la cancelación de la acción.';
     }
     if (!saveOpportunity(next))
-      return 'El resultado se conservó, pero no se pudo actualizar la obra o trabajo.';
+      return 'El resultado se conservó, pero no se pudo actualizar el proyecto.';
     if (outcome.type === 'lost' || (outcome.type === 'accepted' && closeAsWon)) {
       const quoteIds =
         outcome.type === 'lost' ? opportunityQuotes.map((item) => item.id) : [quote.id];
@@ -320,19 +320,20 @@ export function QuoteCommercialContext({
       )}
       <section
         className="summary-panel commercial-context"
-        aria-label="Ficha de contacto y obra en seguimiento"
+        aria-label="Ficha de contacto y proyecto en seguimiento"
       >
         <div className="summary-panel-heading">
           <p className="eyebrow">Seguimiento comercial</p>
-          <h2>Ficha de contacto y obra en seguimiento</h2>
+          <h2>Ficha de contacto y proyecto en seguimiento</h2>
         </div>
         <p className="commercial-note">
-          Datos para gestionar el seguimiento. No cambian el nombre ni la obra del presupuesto/PDF.
+          Datos para gestionar el seguimiento. No cambian el nombre ni el proyecto del
+          presupuesto/PDF.
         </p>
         {(clientLoad.issue || opportunityLoad.issue) && (
           <p className="commercial-warning" role="alert">
-            No se pudieron recuperar todos los datos de contactos u obras o trabajos. Los
-            presupuestos conservan su información histórica.
+            No se pudieron recuperar todos los datos de contactos o proyectos. Los presupuestos
+            conservan su información histórica.
           </p>
         )}
         {((quote.clientId && !client) || (quote.opportunityId && !opportunity)) && (
@@ -396,7 +397,7 @@ export function QuoteCommercialContext({
             </section>
             <section className="commercial-context-column" aria-labelledby="opportunity-title">
               <div className="commercial-context-column-heading">
-                <h3 id="opportunity-title">Obra o trabajo en seguimiento</h3>
+                <h3 id="opportunity-title">Proyecto en seguimiento</h3>
                 {!readOnly && opportunity && (
                   <button
                     className="button button-link compact-context-action"
@@ -408,7 +409,7 @@ export function QuoteCommercialContext({
                 )}
               </div>
               <strong className="context-name">
-                {opportunity?.name || 'Este presupuesto no está vinculado a una obra'}
+                {opportunity?.name || 'Este presupuesto no está vinculado a un proyecto'}
               </strong>
               <dl className="context-key-data">
                 <div>
@@ -442,14 +443,14 @@ export function QuoteCommercialContext({
                         type="button"
                         onClick={() => openWorkManagement()}
                       >
-                        Vincular obra o trabajo
+                        Vincular proyecto
                       </button>
                       <button
                         className="button button-line"
                         type="button"
                         onClick={() => openWorkManagement('newOpportunity')}
                       >
-                        Crear obra o trabajo
+                        Crear proyecto
                       </button>
                     </div>
                   )}
@@ -553,11 +554,11 @@ export function QuoteCommercialContext({
             open={isWorkManagementOpen}
             onToggle={(event) => setIsWorkManagementOpen(event.currentTarget.open)}
           >
-            <summary>Administrar obra o trabajo</summary>
+            <summary>Administrar proyecto</summary>
             {!readOnly && (
               <div className="commercial-management-actions">
                 <label className="field">
-                  <span>Vincular obra o trabajo</span>
+                  <span>Vincular proyecto</span>
                   <select
                     value={quote.opportunityId ?? ''}
                     onChange={(event) => {
@@ -569,9 +570,9 @@ export function QuoteCommercialContext({
                       );
                     }}
                   >
-                    <option value="">Sin obra o trabajo vinculado</option>
+                    <option value="">Sin proyecto vinculado</option>
                     {quote.opportunityId && !opportunity && (
-                      <option value={quote.opportunityId}>Obra o trabajo no disponible</option>
+                      <option value={quote.opportunityId}>Proyecto no disponible</option>
                     )}
                     {availableOpportunities.map((item) => (
                       <option key={item.id} value={item.id}>
@@ -586,7 +587,7 @@ export function QuoteCommercialContext({
                     type="button"
                     onClick={() => setForm('newOpportunity')}
                   >
-                    Crear obra o trabajo
+                    Crear proyecto
                   </button>
                   {opportunity && (
                     <button
@@ -594,7 +595,7 @@ export function QuoteCommercialContext({
                       type="button"
                       onClick={() => setForm('editOpportunity')}
                     >
-                      Editar obra o trabajo
+                      Editar proyecto
                     </button>
                   )}
                 </div>
@@ -632,8 +633,8 @@ export function QuoteCommercialContext({
             )}
             {!readOnly && (
               <p className="commercial-note">
-                Guardá el borrador o finalizalo para conservar la asociación. Editar una obra o
-                trabajo no cambia los textos del documento.
+                Guardá el borrador o finalizalo para conservar la asociación. Editar un proyecto no
+                cambia los textos del documento.
               </p>
             )}
           </details>

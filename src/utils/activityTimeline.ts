@@ -4,7 +4,7 @@ export type ActivityFilter = 'all' | ActivityType;
 
 export interface TimelineSubject {
   subject: ActivitySubject;
-  label: 'Presupuesto' | 'Cliente' | 'Obra o trabajo';
+  label: 'Presupuesto' | 'Cliente' | 'Proyecto';
 }
 
 function hasSubject(activity: Activity, subject: ActivitySubject): boolean {

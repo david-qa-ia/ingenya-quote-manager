@@ -25,6 +25,34 @@ interface SystemHealthInput {
 }
 
 export function getSystemHealthCards(input: SystemHealthInput): SystemHealthCardState[] {
+  // SCRUM-119: without Supabase the app works in this browser on purpose; that is not a fault.
+  if (!input.backendConfigured)
+    return [
+      {
+        label: 'Espacio activo',
+        title: input.workspaceName,
+        detail: 'Modo local: los datos quedan en este navegador.',
+        tone: 'good',
+      },
+      {
+        label: 'Backend',
+        title: 'Modo local',
+        detail: 'Sin Supabase configurado. Funciona todo, pero solo en este dispositivo.',
+        tone: 'neutral',
+      },
+      {
+        label: 'Sincronización',
+        title: 'No aplica',
+        detail: 'En modo local no hay datos para sincronizar con otros dispositivos.',
+        tone: 'neutral',
+      },
+      {
+        label: 'Importaciones',
+        title: input.recovery ? 'Necesita recuperación' : 'Sin recuperaciones',
+        detail: input.recovery ? 'Hay un lote pendiente de revisar.' : 'No hay lotes pendientes.',
+        tone: input.recovery ? 'attention' : 'good',
+      },
+    ];
   return [
     {
       label: 'Espacio activo',
@@ -63,8 +91,33 @@ export function getSystemHealthCards(input: SystemHealthInput): SystemHealthCard
   ];
 }
 
-export function getSystemHealthOperations(validWorkspace: boolean): SystemHealthOperation[] {
+export function getSystemHealthOperations(
+  validWorkspace: boolean,
+  backendConfigured = true,
+): SystemHealthOperation[] {
   const unavailableDetail = 'El espacio necesita atención.';
+  // SCRUM-119: in local mode these operations work in this browser.
+  if (!backendConfigured)
+    return [
+      {
+        icon: 'users',
+        title: 'Prospectos e importación CSV',
+        detail: 'Disponible en este navegador.',
+        available: true,
+      },
+      {
+        icon: 'document',
+        title: 'Presupuestos y envíos',
+        detail: 'Disponible en este navegador.',
+        available: true,
+      },
+      {
+        icon: 'activity',
+        title: 'Archivos adjuntos',
+        detail: 'La carga de archivos estará disponible próximamente.',
+        available: false,
+      },
+    ];
   return [
     {
       icon: 'users',
