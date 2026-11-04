@@ -139,3 +139,26 @@ export async function signInWithPassword(email: string, password: string): Promi
 export function signOut(): void {
   persistSession(null);
 }
+
+/**
+ * SCRUM-124: ends the session in Supabase too, so the refresh token stops working. Best effort:
+ * the browser copy of the session is removed anyway.
+ */
+export async function revokeRemoteSession(): Promise<void> {
+  const config = getSupabaseConfig();
+  const session = loadAuthSession();
+  if (!config || !session) return;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 5000);
+  try {
+    await fetch(`${config.url}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { apikey: config.anonKey, Authorization: `Bearer ${session.accessToken}` },
+      signal: controller.signal,
+    });
+  } catch {
+    // Offline: the access token expires on its own; the local copy is still removed.
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}

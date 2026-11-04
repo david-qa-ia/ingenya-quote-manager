@@ -320,6 +320,12 @@ function App() {
   // Bumped after remote data is copied into the browser so views that read it re-render.
   const [remoteDataRevision, setRemoteDataRevision] = useState(0);
   const [remoteSyncError, setRemoteSyncError] = useState('');
+  // SCRUM-124: sign-out waits when some change has not reached Supabase yet.
+  const [logoutPending, setLogoutPending] = useState(false);
+  async function handleLogout(discardPending = false) {
+    const result = await workspaceContext.logout({ discardPending });
+    setLogoutPending(result === 'pending-changes');
+  }
   // SCRUM-118: a quote left unsaved by a reload or a closed tab, offered back to the user.
   const [pendingQuoteRecovery, setPendingQuoteRecovery] = useState<SavedQuote | null>(() => {
     const recovery = loadQuoteRecovery();
@@ -1981,13 +1987,47 @@ function App() {
       }}
       hasUnsavedChanges={hasUnsavedWorkspaceChanges}
       onResetWorkspaceContext={resetWorkspaceContext}
-      onLogout={workspaceContext.logout}
+      onLogout={() => void handleLogout()}
     />
   );
   // Rendered with the header so the question appears on every view (SCRUM-97).
   const appHeader = (
     <>
       {appHeaderBar}
+      {logoutPending && (
+        <div className="modal-backdrop">
+          <section
+            className="confirmation-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="logout-pending-title"
+            aria-describedby="logout-pending-description"
+          >
+            <h2 id="logout-pending-title">Hay cambios sin guardar en Supabase</h2>
+            <p id="logout-pending-description">
+              Al cerrar sesión se borran los datos de este navegador. Si cerrás ahora, se pierde el
+              último cambio que no llegó a guardarse. Revisá la conexión y volvé a intentar.
+            </p>
+            <div className="confirmation-actions">
+              <button
+                className="button button-line"
+                type="button"
+                autoFocus
+                onClick={() => setLogoutPending(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={() => void handleLogout(true)}
+              >
+                Cerrar sesión igual
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       {remoteSyncError && (
         <div className="remote-sync-error form-error" role="alert">
           <span>{remoteSyncError}</span>

@@ -335,3 +335,12 @@ journal retains only the conversion provenance and the prospect history records 
   existed in the browser are uploaded the first time the workspace opens.
 - New key `ingenya.documentVersions.v1` (workspace-namespaced): confirmed version per document.
 - Local mode (no Supabase) is unchanged: the browser is still the only copy.
+
+## SCRUM-124 Sign-out
+
+- With Supabase, "Cerrar sesión" first sends pending changes. If something is still not
+  confirmed, it asks before continuing. Then it revokes the session (`/auth/v1/logout`), removes
+  every `ingenya.*` and `<workspace>::ingenya.*` key plus the session storage, and reloads the
+  page so nothing stays in memory either.
+- Before signing in, the starter catalog is shown but not stored.
+- Local mode is unchanged: the browser is the only copy, so sign-out keeps the data.

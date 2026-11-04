@@ -261,6 +261,19 @@ export async function startRemoteCommercialSync(workspaceId: string): Promise<vo
   if (workspace === workspaceId) confirmed = takeSnapshot();
 }
 
+/** True while some change is not confirmed by Supabase yet (used before signing out). */
+export function hasPendingCommercialChanges(): boolean {
+  if (!isActive()) return false;
+  const current = takeSnapshot();
+  const before = confirmed!;
+  const differs = (now: Map<string, string>, then: Map<string, string>) =>
+    now.size !== then.size || [...now].some(([id, json]) => then.get(id) !== json);
+  return (
+    differs(current.opportunities, before.opportunities) ||
+    differs(current.activities, before.activities)
+  );
+}
+
 /** Test helper: forget the sync state. */
 export function resetRemoteCommercialSync(): void {
   workspace = null;
