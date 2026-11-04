@@ -8117,3 +8117,15 @@ tr:last-child td {
     content: '';
   }
 }
+
+/* SCRUM-117: explain why "Agregar servicio" is not available yet. */
+.field-hint {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.service-entry-card .button-secondary:disabled {
+  opacity: 1;
+  border-style: dashed;
+}

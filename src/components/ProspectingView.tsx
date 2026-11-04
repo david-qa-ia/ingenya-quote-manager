@@ -2230,9 +2230,9 @@ function ProspectConversionModal({
         <label className="field">
           <span>Valor estimado (opcional)</span>
           <input
-            type="number"
-            min="0"
-            step="any"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
             value={input.estimatedValue}
             onChange={(e) => set('estimatedValue', e.target.value)}
             {...validation.fieldProps('estimatedValue')}

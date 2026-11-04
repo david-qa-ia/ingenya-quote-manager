@@ -93,6 +93,7 @@ import {
   type RegisterResultSubmitResult,
 } from './components/RegisterResultDrawer';
 import { QuoteDetailView } from './components/QuoteDetailView';
+import { formatNumberInput, parseLocaleNumber } from './utils/localeNumber';
 import { RegisterQuoteSendDrawer, type QuoteSendInput } from './components/RegisterQuoteSendDrawer';
 import {
   defaultProspectFilters,
@@ -311,15 +312,13 @@ function App() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-  const [selectedJobId, setSelectedJobId] = useState(
-    initialCatalogLoad.jobs.find((job) => job.isActive)?.id ?? '',
-  );
+  // SCRUM-117: nothing is preselected. A hidden first service made "Agregar servicio"
+  // add a service the user never chose while the search field looked empty.
+  const [selectedJobId, setSelectedJobId] = useState('');
   const [catalogSearch, setCatalogSearch] = useState('');
   const [isCatalogMenuOpen, setIsCatalogMenuOpen] = useState(false);
   const [catalogQuantity, setCatalogQuantity] = useState('1');
-  const [catalogUnitPrice, setCatalogUnitPrice] = useState(
-    String(initialCatalogLoad.jobs.find((job) => job.isActive)?.defaultPrice ?? ''),
-  );
+  const [catalogUnitPrice, setCatalogUnitPrice] = useState('');
   const [serviceEntryMode, setServiceEntryMode] = useState<'catalog' | 'manual'>('catalog');
   const [manualName, setManualName] = useState('');
   const [manualDescription, setManualDescription] = useState('');
@@ -392,10 +391,10 @@ function App() {
     const catalog = loadLaborCatalog();
     setCatalogJobs(catalog.jobs);
     setCatalogLoadIssue(catalog.issue);
-    setSelectedJobId(catalog.jobs.find((job) => job.isActive)?.id ?? '');
+    setSelectedJobId('');
     setCatalogSearch('');
     setCatalogQuantity('1');
-    setCatalogUnitPrice(String(catalog.jobs.find((job) => job.isActive)?.defaultPrice ?? ''));
+    setCatalogUnitPrice('');
   }
   useEffect(() => {
     if (isFinalizationConfirmationOpen) {
@@ -558,7 +557,7 @@ function App() {
     if (!nextJob) return;
 
     setSelectedJobId(nextJob.id);
-    setCatalogUnitPrice(String(nextJob.defaultPrice));
+    setCatalogUnitPrice(formatNumberInput(nextJob.defaultPrice));
     setCatalogError('');
   }
 
@@ -590,8 +589,8 @@ function App() {
       setCatalogError('Seleccioná un servicio activo del catálogo.');
       return;
     }
-    const quantity = Number(catalogQuantity);
-    const unitPrice = Number(catalogUnitPrice);
+    const quantity = parseLocaleNumber(catalogQuantity) ?? Number.NaN;
+    const unitPrice = parseLocaleNumber(catalogUnitPrice) ?? Number.NaN;
 
     if (
       !Number.isFinite(quantity) ||
@@ -609,15 +608,15 @@ function App() {
       createCatalogQuoteLine(selectedVisibleJob, createLineId(), quantity, unitPrice),
     ]);
     setCatalogQuantity('1');
-    setCatalogUnitPrice(String(selectedVisibleJob.defaultPrice));
+    setCatalogUnitPrice(formatNumberInput(selectedVisibleJob.defaultPrice));
     setCatalogError('');
   }
 
   function handleManualSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = manualName.trim();
-    const quantity = Number(manualQuantity);
-    const unitPrice = Number(manualUnitPrice);
+    const quantity = parseLocaleNumber(manualQuantity) ?? Number.NaN;
+    const unitPrice = parseLocaleNumber(manualUnitPrice) ?? Number.NaN;
 
     if (!manualValidation.validateForSubmit()) {
       setManualError('');
@@ -663,11 +662,10 @@ function App() {
     if (!saveLaborCatalog(nextJobs)) return 'No se pudo guardar el catálogo. Intentá nuevamente.';
     setCatalogJobs(nextJobs);
     setCatalogLoadIssue(null);
-    const nextSelectedJob =
-      nextJobs.find((job) => job.id === selectedJobId && job.isActive) ??
-      nextJobs.find((job) => job.isActive);
+    const nextSelectedJob = nextJobs.find((job) => job.id === selectedJobId && job.isActive);
     setSelectedJobId(nextSelectedJob?.id ?? '');
-    setCatalogUnitPrice(nextSelectedJob ? String(nextSelectedJob.defaultPrice) : '');
+    if (!nextSelectedJob) setCatalogSearch('');
+    setCatalogUnitPrice(nextSelectedJob ? formatNumberInput(nextSelectedJob.defaultPrice) : '');
     return null;
   }
 
@@ -687,8 +685,8 @@ function App() {
 
   function handleEditStart(line: QuoteLine) {
     setEditingLineId(line.id);
-    setEditQuantity(String(line.quantity));
-    setEditUnitPrice(String(line.unitPrice));
+    setEditQuantity(formatNumberInput(line.quantity));
+    setEditUnitPrice(formatNumberInput(line.unitPrice));
     setEditError('');
   }
 
@@ -700,8 +698,8 @@ function App() {
   }
 
   function handleEditSave(lineId: string) {
-    const quantity = Number(editQuantity);
-    const unitPrice = Number(editUnitPrice);
+    const quantity = parseLocaleNumber(editQuantity) ?? Number.NaN;
+    const unitPrice = parseLocaleNumber(editUnitPrice) ?? Number.NaN;
 
     if (
       !Number.isFinite(quantity) ||
@@ -2959,9 +2957,9 @@ function App() {
                   <label className="field">
                     <span>Cantidad</span>
                     <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
                       value={catalogQuantity}
                       onChange={(event) => setCatalogQuantity(event.target.value)}
                       required
@@ -2972,9 +2970,9 @@ function App() {
                     <div className="money-input">
                       <span>$</span>
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
                         value={catalogUnitPrice}
                         onChange={(event) => setCatalogUnitPrice(event.target.value)}
                         required
@@ -2989,9 +2987,15 @@ function App() {
                   className="button button-secondary"
                   type="submit"
                   disabled={!selectedVisibleJob}
+                  aria-describedby={selectedVisibleJob ? undefined : 'catalog-add-hint'}
                 >
                   Agregar servicio
                 </button>
+                {!selectedVisibleJob && (
+                  <p className="field-hint" id="catalog-add-hint">
+                    Elegí un servicio de la lista para agregarlo.
+                  </p>
+                )}
               </form>
             ) : (
               <form onSubmit={handleManualSubmit} noValidate>
@@ -3038,9 +3042,9 @@ function App() {
                   <label className="field">
                     <span>Cantidad</span>
                     <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
                       value={manualQuantity}
                       onChange={(event) => setManualQuantity(event.target.value)}
                       required
@@ -3056,9 +3060,9 @@ function App() {
                     <div className="money-input">
                       <span>$</span>
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
                         value={manualUnitPrice}
                         onChange={(event) => setManualUnitPrice(event.target.value)}
                         placeholder="0"
@@ -3141,9 +3145,9 @@ function App() {
                           {isEditing ? (
                             <input
                               className="line-edit-input"
-                              type="number"
-                              min="0"
-                              step="0.01"
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
                               value={editQuantity}
                               onChange={(event) => setEditQuantity(event.target.value)}
                               aria-label={`Cantidad de ${line.name}`}
@@ -3156,9 +3160,9 @@ function App() {
                           {isEditing ? (
                             <input
                               className="line-edit-input line-edit-price"
-                              type="number"
-                              min="0.01"
-                              step="0.01"
+                              type="text"
+                              inputMode="decimal"
+                              autoComplete="off"
                               value={editUnitPrice}
                               onChange={(event) => setEditUnitPrice(event.target.value)}
                               aria-label={`Precio unitario de ${line.name}`}

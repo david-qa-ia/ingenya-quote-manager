@@ -1,3 +1,4 @@
+import { formatNumberInput, parseLocaleNumber } from '../utils/localeNumber';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityTimeline } from './ActivityTimeline';
 import { ClientForm } from './ClientForm';
@@ -94,7 +95,7 @@ export function OpportunityDetailView({
   const [dataDraft, setDataDraft] = useState<OpportunityDataDraft>(() => ({
     address: opportunity.address,
     serviceOfInterest: opportunity.qualification?.serviceOfInterest ?? '',
-    estimatedValue: opportunity.qualification?.estimatedValue?.toString() ?? '',
+    estimatedValue: formatNumberInput(opportunity.qualification?.estimatedValue),
     closingProbability: opportunity.closingProbability?.toString() ?? '',
     estimatedCloseDate: opportunity.estimatedCloseDate?.slice(0, 10) ?? '',
     origin: opportunity.origin ?? '',
@@ -191,7 +192,7 @@ export function OpportunityDetailView({
       return;
     }
     const estimatedValue = dataDraft.estimatedValue.trim()
-      ? Number(dataDraft.estimatedValue)
+      ? (parseLocaleNumber(dataDraft.estimatedValue) ?? Number.NaN)
       : undefined;
     const closingProbability = dataDraft.closingProbability.trim()
       ? Number(dataDraft.closingProbability)
