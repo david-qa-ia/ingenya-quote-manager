@@ -34,6 +34,7 @@ export function ResponsiblesSettings({ workspaceId }: Props) {
       setFeedback({ type: 'error', text: change.error });
       return false;
     }
+    setNameError('');
     setSaving(true);
     try {
       const saved = await persistResponsibles(workspaceId, change.list);

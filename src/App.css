@@ -8239,3 +8239,12 @@ tr:last-child td {
   width: auto;
   min-height: 48px;
 }
+
+.responsibles-settings .settings-feedback {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--text-muted);
+  background: none;
+  font-size: 0.88rem;
+}

@@ -260,3 +260,20 @@ only resumed after the user explicitly selects retry. Client, then opportunity, 
 prospect are written independently. A later write failure leaves the journal pending and never
 claims conversion success; retry upserts the same IDs instead of creating duplicates. A completed
 journal retains only the conversion provenance and the prospect history records the completion.
+
+## SCRUM-117 Compatible Extension
+
+- `ingenya.responsibles.v1` (workspace-namespaced): the team list shown in every "Responsable"
+  field, as `{ id, name, isPrimary, active }`. Exactly one active person is the primary (the
+  default). Removing someone sets `active: false`; records keep the name they were saved with.
+- `ingenya.responsiblesVersion.v1`: the remote list version last seen on this device, sent as
+  `p_expected_version`. A conflict reloads the remote list instead of overwriting it.
+- With Supabase configured, the source of truth is `public.workspace_responsibles` plus
+  `public.workspace_responsible_lists` (version), written only through
+  `save_workspace_responsibles` (migration `202611040001`). The first time a workspace has no
+  list, names already present in prospects, their history and opportunities seed it.
+- Prospect activities may carry `nextAction` (for example "Enviar presupuesto"), and prospect
+  results accept `interested`. `register_prospect_result` receives `p_next_action`; without it
+  the next action stays "Retomar contacto", so older clients keep working.
+- Quote amounts are typed as text and read with `parseLocaleNumber` (`12,5`, `120.000`,
+  `1.250,50`); stored values are still plain numbers.
