@@ -91,3 +91,17 @@ describe('activity display helpers', () => {
     expect(formatActivityDateTime('2026-10-29T00:17:14.000Z')).toBe('28/10/2026, 21:17');
   });
 });
+
+describe('SCRUM-121 quote result labels', () => {
+  it('shows quote status codes in Spanish', () => {
+    expect(getActivityResultLabel({ type: 'whatsapp', result: 'sent' } as Activity)).toBe(
+      'Presupuesto enviado',
+    );
+    expect(getActivityResultLabel({ type: 'note', result: 'accepted' } as Activity)).toBe(
+      'Presupuesto aceptado',
+    );
+    expect(getActivityResultLabel({ type: 'note', result: 'Interesado' } as Activity)).toBe(
+      'Interesado',
+    );
+  });
+});

@@ -1,4 +1,5 @@
 import { formatNumberInput, parseLocaleNumber } from '../utils/localeNumber';
+import { currencyFormatter } from '../utils/quoteFormatting';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityTimeline } from './ActivityTimeline';
 import { ClientForm, type ContactProspectExtras } from './ClientForm';
@@ -15,6 +16,7 @@ import { mirrorProspectActivitiesToOpportunity } from '../utils/prospectConversi
 import { loadProspects } from '../utils/prospectStorage';
 import { getOpportunityQuoteAction } from '../utils/opportunityQuoteAction';
 import { canCreateQuoteVersion } from '../utils/quoteVersioning';
+import { proposalStatusLabel, quoteStatusLabel } from '../utils/quoteCommercialStatus';
 
 type DetailTab = 'summary' | 'activity' | 'quotes' | 'notes' | 'files';
 type OpportunityDataDraft = {
@@ -53,7 +55,7 @@ const tabLabels: Record<DetailTab, string> = {
   notes: 'Notas',
   files: 'Archivos',
 };
-const money = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
+const money = currencyFormatter;
 const preferredChannelLabels = {
   phone: 'Teléfono',
   whatsapp: 'WhatsApp',
@@ -65,13 +67,24 @@ const preferredChannelLabels = {
 const fullDateTime = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'full',
   timeStyle: 'short',
+  hourCycle: 'h23',
   timeZone: businessTimeZone,
 });
+
+const shortDateFormatter = new Intl.DateTimeFormat('es-AR', {
+  day: '2-digit',
+  month: '2-digit',
+  timeZone: businessTimeZone,
+});
+
+/** SCRUM-121: "04/11" fits next to the activity; the full date is in the Actividad tab. */
+const shortDate = (iso: string) => shortDateFormatter.format(new Date(iso));
 
 function dateTime(iso: string) {
   return new Intl.DateTimeFormat('es-AR', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    hourCycle: 'h23',
     timeZone: businessTimeZone,
   }).format(new Date(iso));
 }
@@ -288,7 +301,11 @@ export function OpportunityDetailView({
 
   return (
     <main className="app-shell opportunity-detail-view">
-      <button className="button button-link opportunity-back" type="button" onClick={onBack}>
+      <button
+        className="button button-link opportunity-back back-link"
+        type="button"
+        onClick={onBack}
+      >
         ← Volver a seguimiento
       </button>
       <header className="opportunity-detail-header">
@@ -366,8 +383,7 @@ export function OpportunityDetailView({
               </span>
             </div>
             <span className="opportunity-sent-chip">
-              <UiIcon name="whatsapp" />{' '}
-              {currentQuote.commercialStatus === 'sent' ? 'Enviada' : currentQuote.commercialStatus}
+              <UiIcon name="whatsapp" /> {proposalStatusLabel(currentQuote.commercialStatus)}
             </span>
             <button className="button button-line" type="button" onClick={() => setTab('quotes')}>
               <UiIcon name="document" /> Ver versiones ({relatedQuotes.length})
@@ -444,10 +460,7 @@ export function OpportunityDetailView({
                     </span>
                   </div>
                   <span className="opportunity-sent-chip">
-                    <UiIcon name="whatsapp" />{' '}
-                    {currentQuote.commercialStatus === 'sent'
-                      ? 'Enviada'
-                      : currentQuote.commercialStatus}
+                    <UiIcon name="whatsapp" /> {proposalStatusLabel(currentQuote.commercialStatus)}
                   </span>
                   <button
                     className="button button-line"
@@ -530,8 +543,7 @@ export function OpportunityDetailView({
                           V{quote.version ?? 1} · {quote.projectName || quote.id}
                         </strong>
                         <small>
-                          {quote.commercialStatus === 'sent' ? 'Enviada' : quote.commercialStatus} ·{' '}
-                          {dateTime(quote.savedAt)}
+                          {proposalStatusLabel(quote.commercialStatus)} · {dateTime(quote.savedAt)}
                         </small>
                         {quote.basedOnQuoteId && (
                           <small>
@@ -864,7 +876,7 @@ export function OpportunityDetailView({
                         <strong>{getActivityResultLabel(activity)}</strong>
                         <small>{activity.note || 'Actividad registrada'}</small>
                       </div>
-                      <time>{new Date(activity.occurredAt).toLocaleDateString('es-AR')}</time>
+                      <time dateTime={activity.occurredAt}>{shortDate(activity.occurredAt)}</time>
                     </li>
                   ))}
                 </ol>
@@ -872,7 +884,7 @@ export function OpportunityDetailView({
                 <p className="commercial-note">Todavía no hay actividades para esta oportunidad.</p>
               )}
               <button
-                className="button button-line"
+                className="button button-line opportunity-activity-all"
                 type="button"
                 onClick={() => setTab('activity')}
               >
@@ -930,7 +942,7 @@ export function OpportunityDetailView({
                 <li key={quote.id}>
                   <div>
                     <strong>{quote.projectName || quote.id}</strong>
-                    <small>{quote.commercialStatus}</small>
+                    <small>{quoteStatusLabel(quote.commercialStatus)}</small>
                   </div>
                   <button
                     className="button button-line"

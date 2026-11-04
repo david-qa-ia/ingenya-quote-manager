@@ -23,6 +23,7 @@ import {
   getTimelineSubjectLabel,
   type ActivityFilter,
   type TimelineSubject,
+  formatActivityDateTime,
 } from '../utils/activityTimeline';
 
 const typeLabels: Record<ActivityType, string> = {
@@ -332,8 +333,7 @@ export function ActivityTimeline({
             <span>Próximo paso agendado</span>
             <strong>{nextAction.description}</strong>
             <small>
-              {new Date(nextAction.dueAt).toLocaleString('es-AR')} · Responsable:{' '}
-              {nextAction.responsible}
+              {formatActivityDateTime(nextAction.dueAt)} · Responsable: {nextAction.responsible}
             </small>
           </div>
         </section>
@@ -348,8 +348,7 @@ export function ActivityTimeline({
               <div>
                 <strong>{activitySummary(activity)}</strong>
                 <small>
-                  {activityAuthorLabel(activity)} ·{' '}
-                  {new Date(activity.occurredAt).toLocaleString('es-AR')}
+                  {activityAuthorLabel(activity)} · {formatActivityDateTime(activity.occurredAt)}
                 </small>
               </div>
               <span className="activity-source">{getTimelineSubjectLabel(activity, subjects)}</span>
@@ -395,7 +394,7 @@ export function ActivityTimeline({
                 const revision = activity.noteRevisions.at(-1)!;
                 return (
                   <small className="activity-entry-edited">
-                    Nota editada el {new Date(revision.editedAt).toLocaleString('es-AR')} por{' '}
+                    Nota editada el {formatActivityDateTime(revision.editedAt)} por{' '}
                     {revision.editedBy}.
                   </small>
                 );

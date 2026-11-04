@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatActivityDateTime } from '../utils/activityTimeline';
 import { loadActivities } from '../utils/activityStorage';
 import { UiIcon } from './UiIcon';
 import { canCreateQuoteVersion } from '../utils/quoteVersioning';
@@ -13,6 +14,8 @@ import {
   getCommercialTransitionTargets,
 } from '../utils/quoteCommercialStatus';
 import { ResponsibleSelect } from './ResponsibleSelect';
+import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
+import { quoteStatusLabel } from '../utils/quoteCommercialStatus';
 
 interface Props {
   quote: SavedQuote;
@@ -58,6 +61,14 @@ export function QuoteDetailView({
   const targets = getCommercialTransitionTargets(quote.commercialStatus, quote.status);
   const displayName = opportunity?.name || quote.projectName || 'Presupuesto';
   const isDraft = quote.status === 'draft';
+  // SCRUM-121: a disabled "Registrar envío" always says why.
+  const sendDisabledReason = targets.includes('sent')
+    ? undefined
+    : isDraft
+      ? 'Finalizá el presupuesto para poder registrar su envío.'
+      : quote.commercialStatus === 'paused'
+        ? 'El presupuesto está pausado. Reactivalo para registrar el envío.'
+        : `El envío ya está registrado. Estado: ${quoteStatusLabel(quote.commercialStatus)}.`;
   const canCreateVersion = canCreateQuoteVersion(quote, opportunity);
 
   async function pdf() {
@@ -98,7 +109,11 @@ export function QuoteDetailView({
       <p className="quote-breadcrumb">
         Seguimiento / Oportunidades / <strong>Presupuestos</strong>
       </p>
-      <button className="button button-link quote-detail-back" type="button" onClick={onBack}>
+      <button
+        className="button button-link quote-detail-back back-link"
+        type="button"
+        onClick={onBack}
+      >
         ← Volver a oportunidad
       </button>
       <header className="quote-detail-header">
@@ -131,7 +146,7 @@ export function QuoteDetailView({
                 <table className="quote-detail-table">
                   <thead>
                     <tr>
-                      <th>Servicio / Material</th>
+                      <th>Servicio</th>
                       <th>Cantidad</th>
                       <th>Precio unitario</th>
                       <th>Total</th>
@@ -218,13 +233,19 @@ export function QuoteDetailView({
                 type="button"
                 onClick={() => onRegisterSend(quote)}
                 disabled={!targets.includes('sent')}
-                title={
-                  isDraft ? 'Finalizá el presupuesto para poder registrar su envío.' : undefined
+                title={sendDisabledReason}
+                aria-describedby={
+                  sendDisabledReason && !isDraft ? 'quote-send-disabled' : undefined
                 }
               >
                 <UiIcon name="send" /> Registrar envío
               </button>
             </div>
+            {sendDisabledReason && !isDraft && (
+              <p className="quote-detail-feedback" id="quote-send-disabled">
+                {sendDisabledReason}
+              </p>
+            )}
             {isDraft && (
               <p className="quote-detail-feedback" role="status">
                 Este presupuesto está listo para revisar, pero todavía es un borrador. Completalo y
@@ -295,10 +316,7 @@ export function QuoteDetailView({
               >
                 <strong>
                   {quote.commercialStatus === 'accepted' ? 'Aceptado' : 'Perdido'} ·{' '}
-                  {new Date(quote.commercialStatusAudit.changedAt).toLocaleString('es-AR', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                  })}
+                  {formatActivityDateTime(quote.commercialStatusAudit.changedAt)}
                   {quote.commercialStatusAudit.changedBy
                     ? ` · ${quote.commercialStatusAudit.changedBy}`
                     : ''}
@@ -355,8 +373,14 @@ export function QuoteDetailView({
               <br />
               {client?.company || 'Sin empresa'}
             </p>
-            <p>☎ {client?.phone || 'Teléfono pendiente'}</p>
-            <p>✉ {client?.email || 'Email pendiente'}</p>
+            <p className="quote-contact-line">
+              <UiIcon name="phone" />
+              {client?.phone && !isPendingPhone(client.phone) ? client.phone : 'Sin teléfono'}
+            </p>
+            <p className="quote-contact-line">
+              <UiIcon name="email" />
+              {client?.email && !isPendingEmail(client.email) ? client.email : 'Sin email'}
+            </p>
           </section>
           <section className="quote-detail-card">
             <h2>Contexto operativo</h2>
@@ -385,7 +409,7 @@ export function QuoteDetailView({
                 )
                 .map((activity) => (
                   <p className="commercial-note" key={activity.id}>
-                    {new Date(activity.occurredAt).toLocaleString('es-AR')} ·{' '}
+                    {formatActivityDateTime(activity.occurredAt)} ·{' '}
                     {activity.note || activity.result}
                   </p>
                 ))

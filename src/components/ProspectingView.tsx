@@ -1,3 +1,4 @@
+import { formatCurrency } from '../utils/quoteFormatting';
 import {
   useCallback,
   useEffect,
@@ -1182,6 +1183,7 @@ export function ProspectingView({
                 onCopy={copyContact}
                 onToast={setToast}
                 onRegister={() => onOpenResult(prospectToInboxItem(prospect))}
+                onOpenOpportunity={onOpenOpportunity}
               />
             ))}
           </div>
@@ -1256,6 +1258,7 @@ function ProspectRow({
   onCopy,
   onToast,
   onRegister,
+  onOpenOpportunity,
 }: {
   prospect: Prospect;
   isInboxSelected?: boolean;
@@ -1264,7 +1267,12 @@ function ProspectRow({
   onCopy: (value: string, label: string) => void;
   onToast: (message: string) => void;
   onRegister: () => void;
+  onOpenOpportunity?: (id: string) => void;
 }) {
+  const convertedOpportunityId =
+    prospect.conversion?.state === 'completed'
+      ? prospect.conversion.draft.opportunityId
+      : undefined;
   const whatsappUrl = createProspectWhatsAppUrl(prospect.phone);
   const instagramUrl = createProspectInstagramUrl(prospect.instagram);
   const initials = prospect.name
@@ -1362,9 +1370,19 @@ function ProspectRow({
               <UiIcon name="instagram" /> Abrir Instagram
             </a>
           )}
-          <button className="button button-line" type="button" onClick={onRegister}>
-            <span aria-hidden="true">✓</span> Registrar acción
-          </button>
+          {convertedOpportunityId && onOpenOpportunity ? (
+            <button
+              className="button button-primary"
+              type="button"
+              onClick={() => onOpenOpportunity(convertedOpportunityId)}
+            >
+              Ir a la oportunidad
+            </button>
+          ) : (
+            <button className="button button-line" type="button" onClick={onRegister}>
+              <span aria-hidden="true">✓</span> Registrar acción
+            </button>
+          )}
         </div>
       )}
       <button className="button button-link prospect-detail-link" type="button" onClick={onOpen}>
@@ -1435,15 +1453,13 @@ export function ProspectQueueRow({
         </strong>
         <small>
           {lastAction
-            ? new Date(lastAction.occurredAt).toLocaleString('es-AR')
+            ? formatActivityDateTime(lastAction.occurredAt)
             : 'Todavía no se realizó un intento'}
         </small>
       </div>
       <div className="prospect-queue-follow-up">
         <span className={`status-badge prospect-status-${prospect.status}`}>{dueLabel}</span>
-        {prospect.nextActionAt && (
-          <small>{new Date(prospect.nextActionAt).toLocaleString('es-AR')}</small>
-        )}
+        {prospect.nextActionAt && <small>{formatActivityDateTime(prospect.nextActionAt)}</small>}
       </div>
       <div className="prospect-queue-actions">
         {whatsAppUrl ? (
@@ -1486,6 +1502,10 @@ export function ProspectInboxDetail({
   onQualify: () => void;
   onOpenOpportunity: (id: string) => void;
 }) {
+  const convertedOpportunityId =
+    prospect.conversion?.state === 'completed'
+      ? prospect.conversion.draft.opportunityId
+      : undefined;
   const initials = prospect.name
     .split(/\s+/)
     .filter(Boolean)
@@ -1555,9 +1575,20 @@ export function ProspectInboxDetail({
             Calificar oportunidad
           </button>
         )}
-        <button className="button button-line" type="button" onClick={() => onRegister()}>
-          <span aria-hidden="true">✓</span> Registrar acción
-        </button>
+        {/* SCRUM-121: a converted prospect is followed up in its opportunity. */}
+        {convertedOpportunityId ? (
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={() => onOpenOpportunity(convertedOpportunityId)}
+          >
+            Ir a la oportunidad
+          </button>
+        ) : (
+          <button className="button button-line" type="button" onClick={() => onRegister()}>
+            <span aria-hidden="true">✓</span> Registrar acción
+          </button>
+        )}
         <button className="button button-link prospect-detail-link" type="button" onClick={onOpen}>
           Ver ficha completa <span aria-hidden="true">→</span>
         </button>
@@ -1582,18 +1613,9 @@ export function ProspectInboxDetail({
           {prospect.conversion.draft.estimatedValue !== undefined && (
             <p>
               <strong>Valor estimado:</strong>{' '}
-              {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
-                prospect.conversion.draft.estimatedValue,
-              )}
+              {formatCurrency(prospect.conversion.draft.estimatedValue)}
             </p>
           )}
-          <button
-            className="button button-line"
-            type="button"
-            onClick={() => onOpenOpportunity(prospect.conversion!.draft.opportunityId)}
-          >
-            Ir a seguimiento de oportunidad
-          </button>
         </section>
       )}
       <section className="prospect-panel-section">
@@ -1614,21 +1636,23 @@ export function ProspectInboxDetail({
           <p className="empty-inline">Todavía no hay acciones registradas.</p>
         )}
       </section>
-      <section className="prospect-panel-section prospect-panel-follow-up">
-        <h3>Próximo seguimiento</h3>
-        {prospect.nextActionAt ? (
-          <p>{new Date(prospect.nextActionAt).toLocaleString('es-AR')}</p>
-        ) : (
-          <p className="empty-inline">Sin seguimiento programado.</p>
-        )}
-        <button
-          className="button button-line"
-          type="button"
-          onClick={() => onRegister('reschedule')}
-        >
-          Reprogramar
-        </button>
-      </section>
+      {!convertedOpportunityId && (
+        <section className="prospect-panel-section prospect-panel-follow-up">
+          <h3>Próximo seguimiento</h3>
+          {prospect.nextActionAt ? (
+            <p>{formatActivityDateTime(prospect.nextActionAt)}</p>
+          ) : (
+            <p className="empty-inline">Sin seguimiento programado.</p>
+          )}
+          <button
+            className="button button-line"
+            type="button"
+            onClick={() => onRegister('reschedule')}
+          >
+            Reprogramar
+          </button>
+        </section>
+      )}
     </aside>
   );
 }
@@ -1669,6 +1693,10 @@ function ProspectDetail({
   onDirtyChange?: (dirty: boolean) => void;
   onRegisterResult?: () => void;
 }) {
+  const convertedOpportunityId =
+    prospect.conversion?.state === 'completed'
+      ? prospect.conversion.draft.opportunityId
+      : undefined;
   const workspaceContext = useWorkspace();
   const responsibles = useResponsibles();
   const [draft, setDraft] = useState(prospect);
@@ -1840,7 +1868,7 @@ function ProspectDetail({
     noResponse: 'Todavía no hubo respuesta al contacto.',
     interested: 'El prospecto mostró interés; mantené el seguimiento.',
     notInterested: 'El prospecto indicó que no tiene interés por ahora.',
-    converted: 'Estado reservado para una conversión posterior.',
+    converted: 'Se convirtió en oportunidad; el seguimiento continúa ahí.',
   };
   const channelUnavailable = !isProspectContactAvailable(draft, scriptChannel);
   const instagramUrl = createProspectInstagramUrl(draft.instagram);
@@ -1858,7 +1886,7 @@ function ProspectDetail({
   return (
     <main className="app-shell prospecting-shell">
       {!isNew && (
-        <button className="button button-link" type="button" onClick={onBack}>
+        <button className="button button-link back-link" type="button" onClick={onBack}>
           ← Volver a prospectos
         </button>
       )}
@@ -1878,10 +1906,22 @@ function ProspectDetail({
             </>
           )}
         </div>
-        {!isNew && !isArchived && onRegisterResult && (
-          <button className="button button-primary" type="button" onClick={onRegisterResult}>
-            Registrar resultado
+        {!isNew && convertedOpportunityId ? (
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={() => onOpenOpportunity(convertedOpportunityId)}
+          >
+            Ir a la oportunidad
           </button>
+        ) : (
+          !isNew &&
+          !isArchived &&
+          onRegisterResult && (
+            <button className="button button-primary" type="button" onClick={onRegisterResult}>
+              Registrar resultado
+            </button>
+          )
         )}
       </header>
       {feedback &&
@@ -2096,22 +2136,13 @@ function ProspectDetail({
               {prospect.conversion.draft.estimatedValue !== undefined && (
                 <p>
                   <strong>Valor estimado:</strong>{' '}
-                  {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
-                    prospect.conversion.draft.estimatedValue,
-                  )}
+                  {formatCurrency(prospect.conversion.draft.estimatedValue)}
                 </p>
               )}
               <p>
                 <strong>Próximo paso:</strong> {prospect.conversion.draft.nextStep} ·{' '}
-                {new Date(prospect.conversion.draft.nextStepAt).toLocaleString('es-AR')}
+                {formatActivityDateTime(prospect.conversion.draft.nextStepAt)}
               </p>
-              <button
-                className="button button-line"
-                type="button"
-                onClick={() => onOpenOpportunity(prospect.conversion!.draft.opportunityId)}
-              >
-                Ir a seguimiento de oportunidad
-              </button>
             </section>
           )}
           {conversionFeedback && (
@@ -2125,7 +2156,7 @@ function ProspectDetail({
             </p>
           )}
         </section>
-        {!isNew && !isArchived && (
+        {!isNew && !isArchived && !convertedOpportunityId && (
           <section className="quote-card prospect-contact-card">
             {/* SCRUM-118: the block follows the stage; after a contact it is about the next one. */}
             <h2>

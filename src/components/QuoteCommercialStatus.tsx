@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatActivityDateTime } from '../utils/activityTimeline';
 import type { CommercialStatus, CommercialStatusAudit, QuoteDocumentStatus } from '../types/quote';
 import {
   commercialStatusLabels,
@@ -64,7 +65,7 @@ export function QuoteCommercialStatus({
       <dl className="summary-read-only-data">
         <div>
           <dt>Último cambio</dt>
-          <dd>{new Date(commercialStatusAudit.changedAt).toLocaleString('es-AR')}</dd>
+          <dd>{formatActivityDateTime(commercialStatusAudit.changedAt)}</dd>
         </div>
         <div>
           <dt>Registrado por</dt>
@@ -78,7 +79,7 @@ export function QuoteCommercialStatus({
           <div>
             <dt>Envío registrado</dt>
             <dd>
-              {new Date(sentAudit.changedAt).toLocaleString('es-AR')}
+              {formatActivityDateTime(sentAudit.changedAt)}
               {sentAudit.channel && ` · ${sentAudit.channel === 'whatsapp' ? 'WhatsApp' : 'email'}`}
               {sentAudit.recipient && ` · ${sentAudit.recipient}`}
             </dd>

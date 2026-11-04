@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { formatActivityDateTime } from '../utils/activityTimeline';
 import type { CommercialOutcome, CommercialOutcomeType } from '../types/commercialOutcome';
 import type { Opportunity } from '../types/opportunity';
 import type { Quote, SavedQuote } from '../types/quote';
@@ -172,7 +173,7 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
           {outcomes.map((item) => (
             <li key={item.id}>
               <strong>{commercialOutcomeLabels[item.type]}</strong> ·{' '}
-              {new Date(item.occurredAt).toLocaleString('es-AR')} · {item.author}
+              {formatActivityDateTime(item.occurredAt)} · {item.author}
               {item.reasonCode ? ` · ${commercialReasonLabels[item.reasonCode]}` : ''}
               {item.note ? ` · ${item.note}` : ''}
             </li>

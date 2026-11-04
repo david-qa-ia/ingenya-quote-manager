@@ -104,6 +104,7 @@ export function NextActionCard({ opportunity, onSave, onPrepareContact, embedded
             {new Intl.DateTimeFormat('es-AR', {
               dateStyle: 'short',
               timeStyle: 'short',
+              hourCycle: 'h23',
               timeZone: businessTimeZone,
             }).format(new Date(action.dueAt))}
           </p>
@@ -214,6 +215,7 @@ export function NextActionCard({ opportunity, onSave, onPrepareContact, embedded
                   {new Intl.DateTimeFormat('es-AR', {
                     dateStyle: 'short',
                     timeStyle: 'short',
+                    hourCycle: 'h23',
                     timeZone: businessTimeZone,
                   }).format(new Date(item.previousDueAt!))}{' '}
                   · {item.reason}
