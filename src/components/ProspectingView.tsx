@@ -418,7 +418,11 @@ export function ProspectingView({
     }
     refresh();
     setSelectedId(next.id);
-    setFeedback('Prospecto guardado localmente.');
+    setFeedback(
+      isAuthConfigured()
+        ? 'Prospecto guardado en el espacio activo.'
+        : 'Prospecto guardado localmente.',
+    );
     return true;
   }
   function convertFromPanel(input: ProspectConversionInput) {

@@ -1,4 +1,5 @@
 import { hasRecordId, readCollection } from './localCollectionStorage';
+import { emitLocalWrite } from './localWriteEvents';
 import { workspaceStorageKey } from './workspaceStorage';
 import type {
   CommercialStatus,
@@ -192,6 +193,8 @@ export function saveQuote(quote: Quote): boolean {
       workspaceStorageKey(SAVED_QUOTES_STORAGE_KEY),
       JSON.stringify(savedQuotes),
     );
+
+    emitLocalWrite();
     return true;
   } catch {
     return false;
@@ -211,6 +214,7 @@ export function linkQuoteToOpportunity(quoteId: string, opportunityId: string): 
       workspaceStorageKey(SAVED_QUOTES_STORAGE_KEY),
       JSON.stringify(savedQuotes),
     );
+    emitLocalWrite();
     return true;
   } catch {
     return false;
@@ -245,6 +249,7 @@ export function saveFinalizedQuoteCommercialState(
       workspaceStorageKey(SAVED_QUOTES_STORAGE_KEY),
       JSON.stringify(savedQuotes),
     );
+    emitLocalWrite();
     return true;
   } catch {
     return false;

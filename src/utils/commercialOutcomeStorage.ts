@@ -1,4 +1,5 @@
 import type { CommercialOutcome } from '../types/commercialOutcome';
+import { emitLocalWrite } from './localWriteEvents';
 import { loadCollection, readCollection, hasRecordId } from './localCollectionStorage';
 import { isCommercialOutcome } from './commercialOutcome';
 import { workspaceStorageKey } from './workspaceStorage';
@@ -19,6 +20,7 @@ export function appendCommercialOutcome(outcome: CommercialOutcome): boolean {
       workspaceStorageKey(COMMERCIAL_OUTCOMES_STORAGE_KEY),
       JSON.stringify(records),
     );
+    emitLocalWrite();
     return true;
   } catch {
     return false;
