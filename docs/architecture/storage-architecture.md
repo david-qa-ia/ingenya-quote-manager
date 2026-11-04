@@ -320,3 +320,18 @@ journal retains only the conversion provenance and the prospect history records 
   opportunity history. Registering a send completes the pending "Enviar presupuesto" step locally.
 - Contact consent no longer blocks contact actions; `doNotContact` still does. Existing stored
   values are kept, but the contact form no longer edits them.
+
+## SCRUM-123 Supabase Documents
+
+- Migration `202611040004_workspace_documents.sql`: table `workspace_documents` (workspace,
+  collection, id, `data`, version, `deleted_at` tombstone) and RPC `sync_workspace_documents`
+  (expected version, idempotency, audit, all or nothing).
+- Collections: `savedQuotes`, `laborCatalog`, `contactScripts`, `cadenceTemplates`,
+  `cadenceExecutions`, `commercialOutcomes` and `quoteActivities` (activities whose subject is a
+  quote; contact and opportunity activity stay in `sync_commercial_records`).
+- `src/utils/remoteDocumentSync.ts` keeps the browser copy (same keys as before) and sends the
+  diff against the state Supabase confirmed after every write, plus a 4-second safety check.
+  A failed call restores the confirmed state and shows the sync banner. Records that only
+  existed in the browser are uploaded the first time the workspace opens.
+- New key `ingenya.documentVersions.v1` (workspace-namespaced): confirmed version per document.
+- Local mode (no Supabase) is unchanged: the browser is still the only copy.

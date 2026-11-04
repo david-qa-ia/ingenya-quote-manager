@@ -1,4 +1,5 @@
 import { initialJobCatalog } from '../data/jobCatalog';
+import { emitLocalWrite } from './localWriteEvents';
 import type { CatalogJob } from '../types/quote';
 import { isCatalogJob } from './jobCatalogValidation';
 import { workspaceStorageKey } from './workspaceStorage';
@@ -49,6 +50,7 @@ export function loadLaborCatalog(): LaborCatalogLoadResult {
 export function saveLaborCatalog(jobs: readonly CatalogJob[]): boolean {
   try {
     localStorage.setItem(workspaceStorageKey(LABOR_CATALOG_STORAGE_KEY), JSON.stringify(jobs));
+    emitLocalWrite();
     return true;
   } catch {
     return false;

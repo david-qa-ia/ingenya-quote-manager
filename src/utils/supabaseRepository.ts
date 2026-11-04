@@ -1107,3 +1107,77 @@ export async function saveRemoteCompanyProfile(
     message: result.message ?? 'No se pudieron guardar los datos de la empresa.',
   };
 }
+
+/** SCRUM-123: collections kept as documents in Supabase (`workspace_documents`). */
+export type DocumentCollection =
+  | 'savedQuotes'
+  | 'laborCatalog'
+  | 'contactScripts'
+  | 'cadenceTemplates'
+  | 'cadenceExecutions'
+  | 'commercialOutcomes'
+  | 'quoteActivities';
+
+export interface RemoteDocumentRow {
+  collection: DocumentCollection;
+  id: string;
+  data: unknown;
+  version: number;
+  deleted_at: string | null;
+}
+
+/** Every document of the workspace, deleted ones included (their id must leave every browser). */
+export async function loadRemoteDocuments(workspaceId: string): Promise<RemoteDocumentRow[]> {
+  const rows: RemoteDocumentRow[] = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const query = new URLSearchParams({
+      select: 'collection,id,data,version,deleted_at',
+      workspace_id: `eq.${workspaceId}`,
+      order: 'collection.asc,id.asc',
+      limit: String(pageSize),
+      offset: String(offset),
+    });
+    const page = await request<RemoteDocumentRow[]>(
+      `/rest/v1/workspace_documents?${query.toString()}`,
+    );
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+  }
+}
+
+export interface RemoteDocumentChange {
+  collection: DocumentCollection;
+  id: string;
+  expectedVersion: number | null;
+  /** null deletes the document. */
+  data: unknown;
+}
+
+export type RemoteDocumentSyncResult =
+  { ok: true; versions: Record<string, number> } | { ok: false; code: 'CONFLICT' | 'VALIDATION' };
+
+/** Sends changed documents in one atomic call: all are saved or none is. */
+export async function syncRemoteDocuments(
+  workspaceId: string,
+  changes: RemoteDocumentChange[],
+): Promise<RemoteDocumentSyncResult> {
+  const requestId = crypto.randomUUID();
+  const result = await request<{ code?: string; versions?: Record<string, number> }>(
+    '/rest/v1/rpc/sync_workspace_documents',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_workspace_id: workspaceId,
+        p_changes: changes,
+        p_idempotency_key: `sync-documents:${requestId}`,
+        p_request_id: requestId,
+      }),
+    },
+  );
+  if (result.code === 'CONFLICT' || result.code === 'VALIDATION')
+    return { ok: false, code: result.code };
+  if (result.code !== 'OK')
+    throw new SupabaseRepositoryError('server', 'Supabase no confirmó los cambios.');
+  return { ok: true, versions: result.versions ?? {} };
+}

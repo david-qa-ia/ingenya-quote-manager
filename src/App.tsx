@@ -85,6 +85,11 @@ import {
   REMOTE_SYNC_FAILED_EVENT,
   startRemoteCommercialSync,
 } from './utils/remoteCommercialSync';
+import {
+  notifyLocalDocumentWrite,
+  REMOTE_DOCUMENTS_LOADED_EVENT,
+  startRemoteDocumentSync,
+} from './utils/remoteDocumentSync';
 import { useFieldValidation } from './components/useFieldValidation';
 import {
   getManualQuoteLineFieldErrors,
@@ -322,6 +327,7 @@ function App() {
   });
   useEffect(() => {
     const stopListening = onLocalWrite(notifyLocalCommercialWrite);
+    const stopDocumentListening = onLocalWrite(notifyLocalDocumentWrite);
     const handleFailure = (event: Event) => {
       // SCRUM-114: the browser copy was restored; show the restored data and why.
       setRemoteSyncError((event as CustomEvent<string>).detail);
@@ -329,12 +335,23 @@ function App() {
       setRemoteDataRevision((value) => value + 1);
     };
     const handleApplied = () => setRemoteSyncError('');
+    // SCRUM-123: quotes and the catalog changed in the browser copy (loaded or restored).
+    const handleDocuments = () => {
+      setSavedQuotes(loadSavedQuotes());
+      const catalog = loadLaborCatalog();
+      setCatalogJobs(catalog.jobs);
+      setCatalogLoadIssue(catalog.issue);
+      setRemoteDataRevision((value) => value + 1);
+    };
     window.addEventListener(REMOTE_SYNC_FAILED_EVENT, handleFailure);
     window.addEventListener(REMOTE_SYNC_APPLIED_EVENT, handleApplied);
+    window.addEventListener(REMOTE_DOCUMENTS_LOADED_EVENT, handleDocuments);
     return () => {
       stopListening();
+      stopDocumentListening();
       window.removeEventListener(REMOTE_SYNC_FAILED_EVENT, handleFailure);
       window.removeEventListener(REMOTE_SYNC_APPLIED_EVENT, handleApplied);
+      window.removeEventListener(REMOTE_DOCUMENTS_LOADED_EVENT, handleDocuments);
     };
   }, []);
   const [clientName, setClientName] = useState('');
@@ -481,6 +498,8 @@ function App() {
         // Same fallback: keep showing the browser copy.
       })
       .then(() => startRemoteCommercialSync(workspaceId))
+      // SCRUM-123: quotes, catalog, scripts, cadences and quote activity.
+      .then(() => startRemoteDocumentSync(workspaceId))
       .then(() => {
         if (cancelled) return;
         setOpportunities(loadOpportunities().items);
@@ -2473,7 +2492,11 @@ function App() {
           <section className="quote-card" aria-labelledby="saved-quotes-title">
             <div className="quote-heading">
               <div>
-                <p className="eyebrow">Guardados localmente</p>
+                <p className="eyebrow">
+                  {isAuthConfigured()
+                    ? 'Guardados en el espacio de trabajo'
+                    : 'Guardados en este navegador'}
+                </p>
                 <h2 id="saved-quotes-title">Tus presupuestos</h2>
               </div>
               <span className="line-count">

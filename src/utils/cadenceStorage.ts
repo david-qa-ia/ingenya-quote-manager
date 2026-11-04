@@ -1,4 +1,5 @@
 import type { CadenceExecution, CadenceTemplate } from '../types/cadence';
+import { emitLocalWrite } from './localWriteEvents';
 import { loadCollection, saveCollectionItem } from './localCollectionStorage';
 import { updateCadenceAction } from './cadenceTransitions';
 import { loadOpportunities, saveOpportunity } from './opportunityStorage';
@@ -144,6 +145,7 @@ export function removeCadenceTemplate(id: string): boolean {
       workspaceStorageKey(CADENCE_TEMPLATES_STORAGE_KEY),
       JSON.stringify(loaded.items.filter((item) => item.id !== id)),
     );
+    emitLocalWrite();
     return true;
   } catch {
     return false;
