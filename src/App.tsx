@@ -94,6 +94,12 @@ import {
 } from './components/RegisterResultDrawer';
 import { resultNextStepLabels } from './utils/resultNextStep';
 import { syncResponsibles } from './utils/responsibleSync';
+import {
+  clearQuoteRecovery,
+  isQuoteRecoveryUseful,
+  loadQuoteRecovery,
+  saveQuoteRecovery,
+} from './utils/quoteRecoveryStorage';
 import { QuoteDetailView } from './components/QuoteDetailView';
 import { formatNumberInput, parseLocaleNumber } from './utils/localeNumber';
 import { RegisterQuoteSendDrawer, type QuoteSendInput } from './components/RegisterQuoteSendDrawer';
@@ -272,6 +278,11 @@ function App() {
   // Bumped after remote data is copied into the browser so views that read it re-render.
   const [remoteDataRevision, setRemoteDataRevision] = useState(0);
   const [remoteSyncError, setRemoteSyncError] = useState('');
+  // SCRUM-118: a quote left unsaved by a reload or a closed tab, offered back to the user.
+  const [pendingQuoteRecovery, setPendingQuoteRecovery] = useState<SavedQuote | null>(() => {
+    const recovery = loadQuoteRecovery();
+    return isQuoteRecoveryUseful(recovery, loadSavedQuotes()) ? recovery : null;
+  });
   useEffect(() => {
     const stopListening = onLocalWrite(notifyLocalCommercialWrite);
     const handleFailure = (event: Event) => {
@@ -519,6 +530,41 @@ function App() {
     savedQuotes.find((quote) => quote.id === quoteId),
   );
   const hasUnsavedWorkspaceChanges = quoteHasUnsavedChanges || prospectHasUnsavedChanges;
+
+  // SCRUM-118: keep a recovery copy of the quote while it has unsaved changes. While an older
+  // copy is waiting for the user's decision, it is not overwritten.
+  const currentQuoteSnapshot = JSON.stringify(getCurrentQuote());
+  useEffect(() => {
+    if (pendingQuoteRecovery) return;
+    const current = JSON.parse(currentQuoteSnapshot) as Quote;
+    if (quoteHasUnsavedChanges) saveQuoteRecovery(current);
+    else if (loadQuoteRecovery()?.id === current.id) clearQuoteRecovery();
+  }, [currentQuoteSnapshot, quoteHasUnsavedChanges, pendingQuoteRecovery]);
+
+  // SCRUM-118: the browser asks before a reload or close would drop unsaved work.
+  useEffect(() => {
+    if (!hasUnsavedWorkspaceChanges) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasUnsavedWorkspaceChanges]);
+
+  function recoverPendingQuote() {
+    const recovery = pendingQuoteRecovery;
+    if (!recovery) return;
+    if (deferQuoteReplacement(recoverPendingQuote)) return;
+    loadSavedQuoteIntoState(recovery);
+    setPendingQuoteRecovery(null);
+    setCurrentView('editor');
+  }
+
+  function discardPendingQuote() {
+    clearQuoteRecovery();
+    setPendingQuoteRecovery(null);
+  }
 
   /**
    * Defers an action that replaces the quote in the editor while it has unsaved changes and
@@ -821,8 +867,14 @@ function App() {
 
   function handleSavedQuoteOpen(savedQuote: SavedQuote) {
     if (deferQuoteReplacement(() => handleSavedQuoteOpen(savedQuote))) return;
+    // SCRUM-118: a finalized quote opens its commercial detail (register send, status, PDF),
+    // not the read-only review, so a quote without an opportunity is no longer stuck.
+    if (savedQuote.status === 'finalized') {
+      handleQuoteDetailOpen(savedQuote);
+      return;
+    }
     loadSavedQuoteIntoState(savedQuote);
-    setCurrentView(savedQuote.status === 'draft' ? 'editor' : 'summary');
+    setCurrentView('editor');
   }
 
   function handleSavedQuoteReview(savedQuote: SavedQuote) {
@@ -1854,6 +1906,27 @@ function App() {
           </button>
         </div>
       )}
+      {pendingQuoteRecovery && (
+        <div className="quote-recovery-banner" role="status">
+          <UiIcon name="document" />
+          <div>
+            <strong>Tenés un presupuesto sin guardar</strong>
+            <span>
+              {pendingQuoteRecovery.clientName || 'Sin cliente'} ·{' '}
+              {pendingQuoteRecovery.lines.length}{' '}
+              {pendingQuoteRecovery.lines.length === 1 ? 'servicio' : 'servicios'} ·{' '}
+              {currencyFormatter.format(calculateQuoteTotal(pendingQuoteRecovery.lines))} · quedó
+              abierto el {dateFormatter.format(new Date(pendingQuoteRecovery.savedAt))}
+            </span>
+          </div>
+          <button className="button button-primary" type="button" onClick={recoverPendingQuote}>
+            Recuperar
+          </button>
+          <button className="button button-line" type="button" onClick={discardPendingQuote}>
+            Descartar
+          </button>
+        </div>
+      )}
       {pendingQuoteReplacement && (
         <UnsavedQuoteDialog
           saveError={quoteReplacementError}
@@ -2592,6 +2665,19 @@ function App() {
                       disabled={isFinalizing}
                     >
                       Finalizar presupuesto
+                    </button>
+                  )}
+                  {quoteStatus === 'finalized' && (
+                    <button
+                      className="button button-primary"
+                      type="button"
+                      onClick={() => {
+                        // SCRUM-118: from here the user can register the send and follow it up.
+                        const saved = savedQuotes.find((quote) => quote.id === quoteId);
+                        if (saved) handleQuoteDetailOpen(saved);
+                      }}
+                    >
+                      Registrar envío y seguimiento
                     </button>
                   )}
                   {quoteStatus === 'finalized' && (
