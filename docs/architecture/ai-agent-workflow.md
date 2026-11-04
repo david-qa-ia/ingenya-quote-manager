@@ -1,6 +1,6 @@
 # AI Agent Workflow
 
-This document defines how AI agents should work in Ingenya Quote Manager.
+This document defines how AI agents should work in the Ventro app.
 
 ## Goal
 

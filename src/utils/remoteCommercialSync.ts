@@ -22,13 +22,13 @@ import { getActiveWorkspaceId, isWorkspaceUuid, workspaceStorageKey } from './wo
  * The app writes these records to the browser copy from many places. After each write this
  * module compares the copy with the last state confirmed by Supabase and sends the changed
  * records in one atomic call. If Supabase rejects them or cannot be reached, the browser copy is
- * restored to the confirmed state and `ingenya:remote-sync-failed` is dispatched, so nothing
+ * restored to the confirmed state and `ventro:remote-sync-failed` is dispatched, so nothing
  * stays saved without Supabase (decision of 30/10/2026: no offline queue).
  */
 
 export const REMOTE_VERSIONS_STORAGE_KEY = 'ingenya.remoteVersions.v1';
-export const REMOTE_SYNC_FAILED_EVENT = 'ingenya:remote-sync-failed';
-export const REMOTE_SYNC_APPLIED_EVENT = 'ingenya:remote-sync-applied';
+export const REMOTE_SYNC_FAILED_EVENT = 'ventro:remote-sync-failed';
+export const REMOTE_SYNC_APPLIED_EVENT = 'ventro:remote-sync-applied';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (value: string | undefined): value is string =>

@@ -1,6 +1,6 @@
 # Storage Architecture
 
-This document defines how Ingenya Quote Manager stores data in the browser.
+This document defines how the Ventro app stores data in the browser.
 
 ## Storage Scope
 

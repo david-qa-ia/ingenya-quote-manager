@@ -1,10 +1,10 @@
 # Product Rules
 
-This document defines the product boundaries for Ingenya Quote Manager.
+This document defines the product boundaries for the Ventro app.
 
 ## Product Purpose
 
-Ingenya Quote Manager helps Daniel create clear construction service quotes for his clients.
+The Ventro app helps Daniel create clear construction service quotes for his clients.
 
 The first version focuses on charging labor/services, not managing workers.
 

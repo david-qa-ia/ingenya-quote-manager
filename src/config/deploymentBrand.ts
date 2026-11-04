@@ -1,8 +1,8 @@
 import type { DeploymentBrandConfig } from '../types/branding';
 
 export const deploymentBrand: DeploymentBrandConfig = {
-  companyName: 'ingenya',
-  experienceMessage: 'CONSTRUYE RELACIONES',
+  companyName: 'ventro',
+  experienceMessage: 'GESTIÓN COMERCIAL',
   email: 'alef.tau.contacto@gmail.com',
   whatsapp: {
     display: '341 616-4761',

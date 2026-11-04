@@ -87,7 +87,7 @@ export function GlobalSearchPanel({
           }}
           onKeyDown={handleKeyDown}
           placeholder="Buscar contactos, oportunidades..."
-          aria-label="Buscar en Ingenya"
+          aria-label="Buscar en Ventro"
         />
         {query && (
           <button

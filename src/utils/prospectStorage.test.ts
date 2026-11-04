@@ -45,7 +45,7 @@ describe('prospect storage', () => {
     expect(loadProspects().items).toEqual([{ ...prospect, instagram: '', address: '' }]);
     expect(isProspectContactAvailable(prospect, 'phone')).toBe(false);
     expect(isProspectContactAvailable(prospect, 'email')).toBe(false);
-    expect(isProspectContactAvailable({ ...prospect, instagram: '@ingenya' }, 'instagram')).toBe(
+    expect(isProspectContactAvailable({ ...prospect, instagram: '@ventro' }, 'instagram')).toBe(
       true,
     );
     expect(stored.get(PROSPECTS_STORAGE_KEY)).toContain('prospect');

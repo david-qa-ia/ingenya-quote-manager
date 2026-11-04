@@ -1,6 +1,6 @@
 # Testing Rules
 
-This document defines testing expectations for Ingenya Quote Manager.
+This document defines testing expectations for the Ventro app.
 
 ## Testing Purpose
 

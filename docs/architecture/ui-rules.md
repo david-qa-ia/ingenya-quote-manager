@@ -1,6 +1,6 @@
 # UI Rules
 
-This document defines UI rules for Ingenya Quote Manager.
+This document defines UI rules for the Ventro app.
 
 ## UI Language
 
@@ -74,13 +74,17 @@ are the ones in this file.
 
 ### Foundations
 
-- Desktop is the primary workspace. Use a permanent dark-green navigation rail with a clear
+- Desktop is the primary workspace. Use a permanent near-black navigation rail with a clear
   active state, a distinct workspace selector and a single prominent primary action.
 - Keep the main workspace light, calm and information-led. Use white or very light surfaces,
   subtle borders, restrained shadows and generous spacing to group related information.
-- Use green for product identity, success and primary actions. The sign-in welcome may use a
-  soft blue sky background; that blue is an entry-screen accent, not a replacement for the
-  product's green identity.
+- The app follows the Ventro brand (somosventro.com), updated in SCRUM-116: Ventro blue
+  `#2F6BFF` (hover `#1F54E0`) for identity, links, focus and primary actions; near-black
+  `#0B0B0D`/`#16171B` for the navigation rail; ink `#111216`, muted `#5C5F66`, paper `#F5F5F3`,
+  line `#E3E3E0` and blue tint `#EDF1FA`/`#C9D6F5` for the workspace. The brand mark is the
+  white V on a blue rounded square, and the name is written in lowercase: "ventro".
+- Green is reserved for success and positive states (accepted, completed, system healthy). It
+  is not a brand color anymore, so do not use it for primary actions or navigation.
 - Prefer a small number of strong visual groups over many boxed-in controls. Cards must have a
   clear purpose: summary, action, form, list or status.
 - Typography must establish an obvious reading order: page purpose first, concise guidance
@@ -90,7 +94,7 @@ are the ones in this file.
 
 - Reuse the shared visual tokens and patterns in `src/index.css` and `src/App.css`. Do not add
   one-off colors, radii, shadows or button styles when an existing pattern fits.
-- Primary actions are filled green buttons. Secondary actions are quiet outlined or text
+- Primary actions are filled Ventro blue buttons. Secondary actions are quiet outlined or text
   actions. Destructive actions must remain visually distinct and never look primary.
 - Inputs, filters and searchable selectors must have a visible label, calm resting state,
   obvious keyboard focus and clear selected, disabled and error states.
@@ -128,7 +132,7 @@ When a new icon is needed:
 3. Size and color it through the consuming component's CSS, not by changing the path geometry.
 4. Validate the real screen against the approved visual reference before opening a pull request.
 
-The approved Ingenya visual language uses outline icons with a 1.8px stroke, rounded joins and
+The approved Ventro visual language uses outline icons with a 1.8px stroke, rounded joins and
 semantic accent colors. The icon system is intentionally local so the application can keep a
 stable, auditable visual vocabulary without feature-by-feature icon drift.
 ```

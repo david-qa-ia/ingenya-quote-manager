@@ -945,7 +945,7 @@ function App() {
     if (synced) {
       mirrorProspectActivitiesToOpportunity(synced.prospect, synced.prospect.conversion!.draft);
       setProspects(loadProspects().items);
-      window.dispatchEvent(new Event('ingenya:prospects-updated'));
+      window.dispatchEvent(new Event('ventro:prospects-updated'));
       void syncProspectContextRemotely(synced.prospect);
     }
     if (event === 'edited') setOpportunities(loadOpportunities().items);
@@ -985,7 +985,7 @@ function App() {
     if (synced) {
       mirrorProspectActivitiesToOpportunity(synced.prospect, synced.prospect.conversion!.draft);
       setProspects(loadProspects().items);
-      window.dispatchEvent(new Event('ingenya:prospects-updated'));
+      window.dispatchEvent(new Event('ventro:prospects-updated'));
       void syncProspectContextRemotely(synced.prospect);
     }
     if (next.doNotContact) {
@@ -1029,7 +1029,7 @@ function App() {
       if (current?.updatedAt !== prospect.updatedAt) return;
       if (saveProspectWithResult({ ...current, version: remote.version }).ok) {
         setProspects(loadProspects().items);
-        window.dispatchEvent(new Event('ingenya:prospects-updated'));
+        window.dispatchEvent(new Event('ventro:prospects-updated'));
       }
     } catch (error) {
       setSaveFeedback({
@@ -1106,7 +1106,7 @@ function App() {
         }
         clearProspectResultRecovery();
         setProspects(loadProspects().items);
-        window.dispatchEvent(new Event('ingenya:prospects-updated'));
+        window.dispatchEvent(new Event('ventro:prospects-updated'));
         return { ok: true };
       }
       if (item.cadenceStep) {
@@ -1900,7 +1900,7 @@ function App() {
       };
     clearProspectResultRecovery();
     setProspects(loadProspects().items);
-    window.dispatchEvent(new Event('ingenya:prospects-updated'));
+    window.dispatchEvent(new Event('ventro:prospects-updated'));
     return { ok: true };
   }
 
@@ -2282,7 +2282,7 @@ function App() {
         <main className="app-shell saved-quotes-shell">
           <header className="saved-quotes-header">
             <div>
-              <p className="eyebrow">Ingenya · Presupuestos</p>
+              <p className="eyebrow">Ventro · Presupuestos</p>
               <h1>Mis presupuestos</h1>
               <p className="page-description">
                 Continuá un borrador o consultá un presupuesto finalizado.
@@ -2496,7 +2496,7 @@ function App() {
         <main className="app-shell summary-shell">
           <header className="summary-header">
             <div>
-              <p className="eyebrow">Ingenya · Presupuestos</p>
+              <p className="eyebrow">Ventro · Presupuestos</p>
               <h1>
                 {quoteStatus === 'draft' ? 'Revisá el presupuesto' : 'Presupuesto finalizado'}
               </h1>
@@ -2762,7 +2762,7 @@ function App() {
       <main className="app-shell quote-editor-shell">
         <header className="page-header quote-editor-header">
           <div>
-            <p className="eyebrow">INGENYA · PRESUPUESTOS</p>
+            <p className="eyebrow">VENTRO · PRESUPUESTOS</p>
             <h1>
               {isContextualOpportunityQuote
                 ? `Presupuesto para ${associatedOpportunity!.name}`

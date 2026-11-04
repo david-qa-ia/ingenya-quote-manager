@@ -210,7 +210,7 @@ describe('prospect workflow', () => {
   it('builds a direct WhatsApp URL only for confirmed phones', () => {
     expect(createProspectWhatsAppUrl('341 555-0101')).toBe('https://wa.me/3415550101');
     expect(createProspectWhatsAppUrl('1111111111')).toBeNull();
-    expect(createProspectInstagramUrl('@ingenya')).toBe('https://www.instagram.com/ingenya/');
+    expect(createProspectInstagramUrl('@ventro')).toBe('https://www.instagram.com/ventro/');
     expect(createProspectInstagramUrl('not a profile')).toBeNull();
   });
   it('groups only active prospects by the saved follow-up date', () => {

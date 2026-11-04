@@ -1,6 +1,6 @@
 # Agent Instructions
 
-This repository is the Ingenya Quote Manager project.
+This repository is the Ventro commercial management app (repository name: `ingenya-quote-manager`).
 
 AI agents are allowed to help with implementation, refactoring, tests, documentation, and quality checks, but they must follow the project rules before changing code.
 
@@ -26,7 +26,7 @@ If the ticket touches workspaces, sign-in or the active workspace, agents must a
 
 ## Product Boundaries
 
-- The app (Brio / Ingenya Quote Manager) helps Daniel manage commercial work for construction
+- The app (Ventro, formerly Brio / Ingenya Quote Manager) helps Daniel manage commercial work for construction
   services: prospects, clients, opportunities, quotes and their follow-up.
 - "Labor" means services charged to the final client, not workers, wages, salaries, unions, UOCRA, or construction chamber labor tables.
 - Current scope (updated 2026-10-29, SCRUM-108):

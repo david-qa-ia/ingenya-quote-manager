@@ -5,7 +5,7 @@ Supabase Auth con email y contraseña: el email identifica al usuario y la contr
 guarda en tablas propias, `localStorage`, React ni commits. No hay registro público, invitaciones
 automáticas ni enlace mágico; las cuentas iniciales se crean mediante administración o seed seguro.
 
-Una identidad puede pertenecer a Ingenya, Alef-Tau y Negocio familiar. El espacio activo es solo
+Una identidad puede pertenecer a Ventro (antes Ingenya), Alef-Tau y Negocio familiar. El espacio activo es solo
 contexto de UI: RLS y las RPC validan membresía, rol y `workspace_id` en servidor.
 
 ## Mutaciones y conflictos

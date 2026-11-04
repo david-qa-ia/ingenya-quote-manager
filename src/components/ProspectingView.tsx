@@ -283,8 +283,8 @@ export function ProspectingView({
   }, [refresh]);
   useEffect(() => {
     const handleProspectsUpdated = () => void refresh();
-    window.addEventListener('ingenya:prospects-updated', handleProspectsUpdated);
-    return () => window.removeEventListener('ingenya:prospects-updated', handleProspectsUpdated);
+    window.addEventListener('ventro:prospects-updated', handleProspectsUpdated);
+    return () => window.removeEventListener('ventro:prospects-updated', handleProspectsUpdated);
   }, [refresh]);
   function updateFilters(next: ProspectFilters) {
     setFilters(next);
@@ -734,7 +734,7 @@ export function ProspectingView({
       )}
       <header className="page-header">
         <div>
-          <p className="eyebrow">Ingenya · Prospección comercial</p>
+          <p className="eyebrow">Ventro · Prospección comercial</p>
           <h1>Prospectos</h1>
           <p className="page-description">
             Un prospecto todavía no es cliente ni una obra o trabajo en seguimiento.
