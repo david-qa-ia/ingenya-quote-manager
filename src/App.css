@@ -8574,3 +8574,41 @@ tr:last-child td {
   height: 16px;
   color: var(--accent-dark);
 }
+
+/* SCRUM-126: secondary links of the sign-in card ("¿Olvidaste tu contraseña?"). */
+.login-card .login-secondary-link {
+  justify-self: center;
+  width: auto;
+  margin-top: 4px;
+  font-size: 0.9rem;
+}
+/* The new-password screen has only the card, centered. */
+.workspace-access-state.login-experience.password-reset-experience {
+  grid-template-columns: minmax(0, 440px);
+}
+/* SCRUM-126: requirements of the new password, checked while typing. */
+.password-requirements {
+  display: grid;
+  gap: 4px;
+  margin: -4px 0 4px;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+.password-requirements li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.password-requirements .ui-icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.45;
+}
+.password-requirements .password-requirement-met {
+  color: var(--success, #1f7a4d);
+}
+.password-requirements .password-requirement-met .ui-icon {
+  opacity: 1;
+}

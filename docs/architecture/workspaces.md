@@ -51,3 +51,19 @@ deactivates the membership (history keeps it); owners cannot be removed from the
 
 RPCs: `list_workspace_members`, `add_workspace_member` and `remove_workspace_member` (owner only,
 idempotent, audited). Migration: `202611040005_workspace_members.sql`.
+
+## Password recovery (SCRUM-126)
+
+"¿Olvidaste tu contraseña?" on the sign-in card calls Supabase `/auth/v1/recover` with
+`redirect_to` = the app's own address. The emailed link opens the app with the recovery tokens in
+the URL fragment; `src/main.tsx` reads them once, removes them from the address bar and shows
+"Elegí una contraseña nueva" (`PUT /auth/v1/user`). Saving signs the person in. An expired or used
+link shows a message on the sign-in card. The screen never says whether an email has a user
+(every answer but a server error reads "sent", rate limits included). The new password follows
+the Supabase rule: 8+ characters with a lowercase, an uppercase, a digit and a symbol, shown as a
+checklist while typing.
+
+Supabase settings (Authentication > URL Configuration): Site URL = the published address (for
+example `https://gestion.somosventro.com`) and Redirect URLs including `https://gestion.somosventro.com/**`
+(plus `http://localhost:5173/**` for development). Supabase's built-in mailer sends only a few
+emails per hour; configure custom SMTP before many companies use it.
