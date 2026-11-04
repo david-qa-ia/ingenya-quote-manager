@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FieldError } from './FieldError';
+import { resultNextStepLabels } from '../utils/resultNextStep';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 import type { FollowUpResultSaveResult } from '../utils/followUpResultTransaction';
 import {
@@ -7,6 +8,7 @@ import {
   getRegisterResultFieldErrors,
   type RegisterResultField,
 } from '../utils/registerResultValidation';
+import { ResponsibleSelect } from './ResponsibleSelect';
 
 export type ResultChannel = 'call' | 'whatsapp' | 'email' | 'instagram' | 'meeting';
 export type ResultNextStep =
@@ -37,6 +39,8 @@ interface Props {
 
 const resultOptions = [
   ['effectiveContact', 'Contactado', 'contacted'],
+  // SCRUM-117: only prospects have an "interested" stage before becoming an opportunity.
+  ['interested', 'Interesado', 'interested'],
   ['noAnswer', 'No respondió', 'noAnswer'],
   ['notInterested', 'No interesado', 'notInterested'],
   ['invalidNumber', 'Dato inválido', 'invalidNumber'],
@@ -67,6 +71,12 @@ function OptionIcon({ icon }: { icon: string }) {
       <svg {...common}>
         <path d="M6 8h12v10H6zM9 8V5h6v3M4 11h16" />
         <path d="m9 14 6 0" />
+      </svg>
+    );
+  if (icon === 'interested')
+    return (
+      <svg {...common}>
+        <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" />
       </svg>
     );
   if (icon === 'invalidNumber')
@@ -163,7 +173,8 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
   );
   const [nextStep, setNextStep] = useState<ResultNextStep>('none');
   const [dueAt, setDueAt] = useState('');
-  const [actor, setActor] = useState(item.responsible === 'Sin asignar' ? '' : item.responsible);
+  // SCRUM-117: starts with the primary responsible from Configuración (filled by the select).
+  const [actor, setActor] = useState('');
   const [note, setNote] = useState('');
   const [quoteMode, setQuoteMode] = useState<'new' | 'existing'>('new');
   const [error, setError] = useState('');
@@ -188,7 +199,9 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
       target instanceof HTMLFieldSetElement
         ? target.querySelector<HTMLElement>('button:not(:disabled)')
         : target;
-    focusable?.focus();
+    // SCRUM-117: the first error can be below the fold; bring it into view, not only focus it.
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    focusable?.focus({ preventScroll: true });
   };
   const unavailableChannelReason = (value: ResultChannel | ResultNextStep) => {
     if (value === 'whatsapp' && !item.phone) return 'Falta un teléfono válido para WhatsApp.';
@@ -242,7 +255,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
     const firstInvalid = getFirstInvalidRegisterResultField(errors);
     if (firstInvalid) {
       setShowFieldErrors(true);
-      setError('');
+      setError('Faltan datos para guardar. Revisá los campos marcados.');
       // Wait for the error messages to render before moving the focus.
       window.requestAnimationFrame(() => focusField(firstInvalid));
       return;
@@ -297,7 +310,11 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
           <div>
             <p className="eyebrow">Registrar resultado</p>
             <h2 id="result-drawer-title">{item.clientName}</h2>
-            <p>{item.opportunityName ?? item.quoteName ?? 'Sin contexto disponible'}</p>
+            <p>
+              {item.opportunityName ??
+                item.quoteName ??
+                (item.prospectId ? 'Prospecto' : 'Sin contexto disponible')}
+            </p>
           </div>
           <button
             ref={closeRef}
@@ -324,15 +341,17 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
           >
             <legend>Resultado del contacto</legend>
             <div className="result-option-grid result-option-grid-four">
-              {resultOptions.map(([value, label, icon]) => (
-                <OptionCard
-                  key={value}
-                  selected={result === value}
-                  label={label}
-                  icon={icon}
-                  onClick={() => setResult(value)}
-                />
-              ))}
+              {resultOptions
+                .filter(([value]) => value !== 'interested' || Boolean(item.prospectId))
+                .map(([value, label, icon]) => (
+                  <OptionCard
+                    key={value}
+                    selected={result === value}
+                    label={label}
+                    icon={icon}
+                    onClick={() => setResult(value)}
+                  />
+                ))}
             </div>
             <FieldError id={fieldErrorId('result')} message={fieldErrors.result} />
           </fieldset>
@@ -369,27 +388,19 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
           >
             <legend>Próximo paso</legend>
             <div className="result-option-grid result-option-grid-six">
-              {(
-                [
-                  ['call', 'Llamar'],
-                  ['sendQuote', 'Enviar presupuesto'],
-                  ['email', 'Enviar email'],
-                  ['whatsapp', 'Enviar WhatsApp'],
-                  ['instagram', 'Enviar Instagram'],
-                  ['meeting', 'Reunión'],
-                  ['none', 'Sin próximo paso'],
-                ] as const
-              ).map(([value, label]) => (
-                <OptionCard
-                  key={value}
-                  selected={nextStep === value}
-                  label={label}
-                  icon={value}
-                  disabled={Boolean(unavailableChannelReason(value))}
-                  unavailableReason={unavailableChannelReason(value)}
-                  onClick={() => setNextStep(value)}
-                />
-              ))}
+              {(['call', 'sendQuote', 'email', 'whatsapp', 'instagram', 'meeting', 'none'] as const)
+                .map((value) => [value, resultNextStepLabels[value]] as const)
+                .map(([value, label]) => (
+                  <OptionCard
+                    key={value}
+                    selected={nextStep === value}
+                    label={label}
+                    icon={value}
+                    disabled={Boolean(unavailableChannelReason(value))}
+                    unavailableReason={unavailableChannelReason(value)}
+                    onClick={() => setNextStep(value)}
+                  />
+                ))}
             </div>
             <FieldError id={fieldErrorId('nextStep')} message={fieldErrors.nextStep} />
           </fieldset>
@@ -432,12 +443,12 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
           )}
           <label className="field">
             <span>Responsable</span>
-            <input
+            <ResponsibleSelect
               ref={(element) => {
                 fieldRefs.current.actor = element;
               }}
               value={actor}
-              onChange={(event) => setActor(event.target.value)}
+              onChange={setActor}
               aria-invalid={fieldErrors.actor ? true : undefined}
               aria-describedby={fieldErrors.actor ? fieldErrorId('actor') : undefined}
             />

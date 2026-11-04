@@ -12,6 +12,7 @@ import {
   commercialStatusLabels,
   getCommercialTransitionTargets,
 } from '../utils/quoteCommercialStatus';
+import { ResponsibleSelect } from './ResponsibleSelect';
 
 interface Props {
   quote: SavedQuote;
@@ -379,7 +380,7 @@ export function QuoteDetailView({
             <p>Este cambio se auditará; no se cerrará si el guardado falla.</p>
             <label className="field">
               <span>Responsable</span>
-              <input value={author} onChange={(event) => setAuthor(event.target.value)} />
+              <ResponsibleSelect value={author} onChange={setAuthor} />
             </label>
             <label className="field">
               <span>Motivo</span>
@@ -405,10 +406,7 @@ export function QuoteDetailView({
             </p>
             <label className="field">
               <span>Responsable</span>
-              <input
-                value={changeResponsible}
-                onChange={(event) => setChangeResponsible(event.target.value)}
-              />
+              <ResponsibleSelect value={changeResponsible} onChange={setChangeResponsible} />
             </label>
             <label className="field">
               <span>Pedido de cambio</span>

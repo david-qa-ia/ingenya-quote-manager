@@ -32,6 +32,7 @@ export const prospectPriorityLabels: Record<ProspectPriority, string> = {
 export const priorityWeight: Record<ProspectPriority, number> = { high: 0, medium: 1, low: 2 };
 export const prospectContactResultLabels: Record<ProspectContactResult, string> = {
   contacted: 'Contactado',
+  interested: 'Interesado',
   noResponse: 'No respondió',
   reschedule: 'Reagendar',
   discarded: 'Descartar',
@@ -143,10 +144,11 @@ export function getProspectActivityDisplay(activity: ProspectActivity): Prospect
   const note = activity.note?.trim();
   if (note && note !== title && !internalResultCodes.has(note)) display.note = note;
   if (activity.followUpAt) {
+    const step = activity.nextAction ? `${activity.nextAction} · ` : '';
     display.followUp =
       activity.previousFollowUpAt && activity.previousFollowUpAt !== activity.followUpAt
-        ? `Próximo paso reprogramado: ${formatActivityDateTime(activity.previousFollowUpAt)} → ${formatActivityDateTime(activity.followUpAt)}`
-        : `Próximo paso: ${formatActivityDateTime(activity.followUpAt)}`;
+        ? `Próximo paso reprogramado: ${step}${formatActivityDateTime(activity.previousFollowUpAt)} → ${formatActivityDateTime(activity.followUpAt)}`
+        : `Próximo paso: ${step}${formatActivityDateTime(activity.followUpAt)}`;
   } else if (activity.previousFollowUpAt) {
     display.followUp = `Próximo paso cerrado (estaba agendado para ${formatActivityDateTime(activity.previousFollowUpAt)}).`;
   }
@@ -352,6 +354,8 @@ export interface ProspectActionInput {
   channel: ProspectChannel;
   note: string;
   followUpAt?: string;
+  /** Label of the chosen next step; defaults to "Retomar contacto" (SCRUM-117). */
+  nextAction?: string;
   author?: string;
 }
 
@@ -383,7 +387,9 @@ export function registerProspectAction(prospect: Prospect, input: ProspectAction
       ? 'noResponse'
       : input.result === 'discarded'
         ? 'notInterested'
-        : 'contacted';
+        : input.result === 'interested'
+          ? 'interested'
+          : 'contacted';
   let followUpAt = '';
   if (input.followUpAt?.trim()) {
     const normalizedFollowUp = normalizeFollowUpAt(input.followUpAt?.trim() ?? '');
@@ -396,7 +402,7 @@ export function registerProspectAction(prospect: Prospect, input: ProspectAction
   return {
     ...prospect,
     status,
-    nextAction: followUpAt ? 'Retomar contacto' : '',
+    nextAction: followUpAt ? input.nextAction?.trim() || 'Retomar contacto' : '',
     nextActionAt: followUpAt,
     updatedAt: now,
     activities: [
@@ -417,6 +423,7 @@ export function registerProspectAction(prospect: Prospect, input: ProspectAction
         ...(input.note.trim() ? { note: input.note.trim() } : {}),
         ...(input.author?.trim() ? { author: input.author.trim() } : {}),
         ...(followUpAt ? { followUpAt } : {}),
+        ...(followUpAt && input.nextAction?.trim() ? { nextAction: input.nextAction.trim() } : {}),
       },
     ],
   };

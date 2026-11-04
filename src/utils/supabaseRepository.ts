@@ -5,6 +5,7 @@ import type { Opportunity } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
 import type { PreparedProspectImport } from './prospectImportTransaction';
 import { getSupabaseConfig, getValidAuthSession, refreshAuthSession } from './authService';
+import type { Responsible } from './responsibleStorage';
 
 export type RemoteQuoteSendResult =
   | {
@@ -158,6 +159,7 @@ export async function registerRemoteProspectResult(input: {
   channel: 'phone' | 'whatsapp' | 'email' | 'instagram';
   note: string;
   followUpAt?: string;
+  nextAction?: string;
   responsible: string;
   idempotencyKey: string;
 }): Promise<RemoteProspectResult> {
@@ -173,6 +175,7 @@ export async function registerRemoteProspectResult(input: {
         p_channel: toSupabaseProspectChannel(input.channel),
         p_note: input.note,
         p_follow_up_at: input.followUpAt || null,
+        p_next_action: input.followUpAt ? input.nextAction || null : null,
         p_responsible: input.responsible,
         p_idempotency_key: input.idempotencyKey,
         p_request_id: crypto.randomUUID(),
@@ -441,6 +444,7 @@ export interface SupabaseProspectActivityRow {
   communication: {
     channel?: SupabaseProspectChannel;
     followUpAt?: string;
+    nextAction?: string;
     previousFollowUpAt?: string;
     responsible?: string;
   } | null;
@@ -472,6 +476,7 @@ export function mapRemoteProspectActivity(row: SupabaseProspectActivityRow): Pro
     ...(channel ? { channel } : {}),
     ...(row.note ? { note: row.note } : {}),
     ...(row.communication?.followUpAt ? { followUpAt: row.communication.followUpAt } : {}),
+    ...(row.communication?.nextAction ? { nextAction: row.communication.nextAction } : {}),
     ...(row.communication?.previousFollowUpAt
       ? { previousFollowUpAt: row.communication.previousFollowUpAt }
       : {}),
@@ -941,4 +946,89 @@ export async function importRemoteProspects(
       'Supabase confirmó un conteo distinto al lote preparado. No se completó la importación.',
     );
   return { importedCount: result.importedCount, idempotent: Boolean(result.idempotent) };
+}
+
+// SCRUM-117: team responsibles shared by everyone in the workspace.
+export interface SupabaseResponsibleRow {
+  id: string;
+  name: string;
+  is_primary: boolean;
+  active: boolean;
+}
+
+export interface RemoteResponsibleList {
+  list: Responsible[];
+  /** null when the workspace never saved a list (the first save sends no expected version). */
+  version: number | null;
+}
+
+export async function loadRemoteResponsibles(workspaceId: string): Promise<RemoteResponsibleList> {
+  const query = new URLSearchParams({
+    select: 'id,name,is_primary,active',
+    workspace_id: `eq.${workspaceId}`,
+    order: 'created_at.asc',
+  });
+  const versionQuery = new URLSearchParams({
+    select: 'version',
+    workspace_id: `eq.${workspaceId}`,
+  });
+  const [rows, versions] = await Promise.all([
+    request<SupabaseResponsibleRow[]>(`/rest/v1/workspace_responsibles?${query.toString()}`),
+    request<{ version: number }[]>(
+      `/rest/v1/workspace_responsible_lists?${versionQuery.toString()}`,
+    ),
+  ]);
+  return {
+    list: rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      isPrimary: row.is_primary,
+      active: row.active,
+    })),
+    version: versions[0]?.version ?? null,
+  };
+}
+
+export type RemoteResponsibleSaveResult =
+  { ok: true; version: number } | { ok: false; reason: 'conflict' | 'validation'; message: string };
+
+export async function saveRemoteResponsibles(
+  workspaceId: string,
+  list: readonly Responsible[],
+  expectedVersion: number | null,
+): Promise<RemoteResponsibleSaveResult> {
+  const active = list.filter((item) => item.active);
+  const fingerprint = active
+    .map((item) => `${item.id}:${item.isPrimary ? 1 : 0}:${item.name}`)
+    .join('|');
+  const result = await request<{ code?: string; message?: string; version?: number }>(
+    '/rest/v1/rpc/save_workspace_responsibles',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_workspace_id: workspaceId,
+        p_expected_version: expectedVersion,
+        p_responsibles: active.map((item) => ({
+          id: item.id,
+          name: item.name,
+          isPrimary: item.isPrimary,
+        })),
+        p_idempotency_key: `save-responsibles:${expectedVersion ?? 0}:${fingerprint}`,
+        p_request_id: crypto.randomUUID(),
+      }),
+    },
+  );
+  if (result.code === 'OK' && typeof result.version === 'number')
+    return { ok: true, version: result.version };
+  if (result.code === 'CONFLICT')
+    return {
+      ok: false,
+      reason: 'conflict',
+      message: 'La lista cambió en otro dispositivo. Se actualizó; revisala y volvé a guardar.',
+    };
+  return {
+    ok: false,
+    reason: 'validation',
+    message: result.message ?? 'No se pudo guardar la lista de responsables.',
+  };
 }

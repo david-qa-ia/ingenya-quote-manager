@@ -64,6 +64,7 @@ import {
   sortProspectsForContact,
   type ProspectFilters,
 } from '../utils/prospectWorkflow';
+import { ResponsibleSelect } from './ResponsibleSelect';
 import { formatActivityDateTime } from '../utils/activityTimeline';
 import {
   canQualifyProspect,
@@ -933,10 +934,11 @@ export function ProspectingView({
                   </label>
                   <label className="field">
                     <span>Responsable</span>
-                    <input
+                    <ResponsibleSelect
                       value={firstContactResponsible}
-                      onChange={(event) => {
-                        setFirstContactResponsible(event.target.value);
+                      defaultToPrimary={false}
+                      onChange={(value) => {
+                        setFirstContactResponsible(value);
                         setPreparedImport(null);
                       }}
                       disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
@@ -2279,9 +2281,9 @@ function ProspectConversionModal({
         </label>
         <label className="field">
           <span>Responsable</span>
-          <input
+          <ResponsibleSelect
             value={input.responsible}
-            onChange={(e) => set('responsible', e.target.value)}
+            onChange={(value) => set('responsible', value)}
             {...validation.fieldProps('responsible')}
           />
           {fieldError('responsible')}

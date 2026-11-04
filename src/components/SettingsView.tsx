@@ -9,6 +9,7 @@ import {
 import { isWorkspaceUuid } from '../utils/workspaceStorage';
 import { getSystemHealthCards, getSystemHealthOperations } from '../utils/systemHealth';
 import { UiIcon, type UiIconName } from './UiIcon';
+import { ResponsiblesSettings } from './ResponsiblesSettings';
 
 interface Props {
   membership: WorkspaceMembership;
@@ -104,6 +105,8 @@ export function SettingsView({ membership, onRetryConnection, onShowServices }: 
           </div>
         ))}
       </section>
+
+      <ResponsiblesSettings workspaceId={membership.workspace.id} />
 
       <section className="settings-card system-health-services">
         <button

@@ -84,7 +84,7 @@ function getProspectMetricEvents(
           occurredAt: activity.occurredAt,
           author,
           isContact: true,
-          isEffective: activity.result === 'contacted',
+          isEffective: activity.result === 'contacted' || activity.result === 'interested',
           isNote: false,
         });
         if (activity.previousFollowUpAt)

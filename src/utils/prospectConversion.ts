@@ -231,7 +231,7 @@ function toOpportunityActivity(
           ? 'email'
           : 'relevantChange';
   const callResult =
-    activity.result === 'contacted'
+    activity.result === 'contacted' || activity.result === 'interested'
       ? 'effectiveContact'
       : activity.result === 'noResponse'
         ? 'noAnswer'
@@ -243,15 +243,17 @@ function toOpportunityActivity(
       ? callResult
       : activity.result === 'contacted'
         ? 'Contacto registrado'
-        : activity.result === 'noResponse'
-          ? 'Sin respuesta'
-          : activity.result === 'reschedule'
-            ? 'Seguimiento reprogramado'
-            : activity.result === 'discarded'
-              ? 'Contacto descartado'
-              : activity.type === 'conversionCompleted'
-                ? 'Conversión completada'
-                : 'Actividad de prospecto';
+        : activity.result === 'interested'
+          ? 'Prospecto interesado'
+          : activity.result === 'noResponse'
+            ? 'Sin respuesta'
+            : activity.result === 'reschedule'
+              ? 'Seguimiento reprogramado'
+              : activity.result === 'discarded'
+                ? 'Contacto descartado'
+                : activity.type === 'conversionCompleted'
+                  ? 'Conversión completada'
+                  : 'Actividad de prospecto';
   const channelLabel =
     channel === 'phone'
       ? 'Llamada'

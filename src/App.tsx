@@ -92,6 +92,8 @@ import {
   RegisterResultDrawer,
   type RegisterResultSubmitResult,
 } from './components/RegisterResultDrawer';
+import { resultNextStepLabels } from './utils/resultNextStep';
+import { syncResponsibles } from './utils/responsibleSync';
 import { QuoteDetailView } from './components/QuoteDetailView';
 import { formatNumberInput, parseLocaleNumber } from './utils/localeNumber';
 import { RegisterQuoteSendDrawer, type QuoteSendInput } from './components/RegisterQuoteSendDrawer';
@@ -268,7 +270,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [opportunities, setOpportunities] = useState(loadOpportunitiesWithAcceptedQuoteRepair);
   // Bumped after remote data is copied into the browser so views that read it re-render.
-  const [, setRemoteDataRevision] = useState(0);
+  const [remoteDataRevision, setRemoteDataRevision] = useState(0);
   const [remoteSyncError, setRemoteSyncError] = useState('');
   useEffect(() => {
     const stopListening = onLocalWrite(notifyLocalCommercialWrite);
@@ -441,6 +443,22 @@ function App() {
       cancelled = true;
     };
   }, [workspaceContext.session?.activeWorkspaceId]);
+
+  // SCRUM-117: the team list of responsibles, shared through Supabase. The first time, names
+  // already typed in prospects, their history and opportunities become the initial list.
+  useEffect(() => {
+    const workspaceId = workspaceContext.session?.activeWorkspaceId;
+    const names = [
+      ...loadProspects().items.flatMap((prospect) => [
+        prospect.responsible,
+        ...prospect.activities.map((activity) => activity.author ?? ''),
+      ]),
+      ...loadOpportunities().items.map((opportunity) => opportunity.responsibleSeller ?? ''),
+    ];
+    syncResponsibles(workspaceId ?? undefined, names).catch(() => {
+      // The browser copy of the list keeps working while Supabase is unavailable.
+    });
+  }, [workspaceContext.session?.activeWorkspaceId, remoteDataRevision]);
 
   useEffect(() => {
     if (!isFinalizationConfirmationOpen) return;
@@ -1062,7 +1080,14 @@ function App() {
             ? 'noResponse'
             : input.result === 'notInterested' || input.result === 'invalidNumber'
               ? 'discarded'
-              : 'contacted';
+              : input.result === 'interested'
+                ? 'interested'
+                : 'contacted';
+        // SCRUM-117: keep the next step that was chosen instead of a generic "Retomar contacto".
+        const nextAction =
+          input.nextStep && input.nextStep !== 'none' && input.dueAt
+            ? resultNextStepLabels[input.nextStep]
+            : undefined;
         const channel =
           input.channel === 'whatsapp' || input.channel === 'email' || input.channel === 'instagram'
             ? input.channel
@@ -1073,6 +1098,7 @@ function App() {
           note: manualNote,
           author: input.actor,
           ...(input.nextStep !== 'none' && input.dueAt ? { followUpAt: input.dueAt } : {}),
+          ...(nextAction ? { nextAction } : {}),
         });
         const workspaceId = workspaceContext.session?.activeWorkspaceId;
         if (isAuthConfigured() && !isWorkspaceUuid(workspaceId))
@@ -1090,6 +1116,7 @@ function App() {
             channel,
             note: manualNote,
             followUpAt: next.nextActionAt || undefined,
+            nextAction,
             responsible: input.actor,
             idempotencyKey: `prospect-result:${prospect.id}:${prospect.version ?? 1}:${result}:${channel}:${input.dueAt}`,
           });

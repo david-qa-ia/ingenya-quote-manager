@@ -5,6 +5,7 @@ import { getQuoteSendFieldErrors, quoteSendFieldOrder } from '../utils/quoteSend
 import { FieldError } from './FieldError';
 import { UiIcon } from './UiIcon';
 import { useFieldValidation } from './useFieldValidation';
+import { ResponsibleSelect } from './ResponsibleSelect';
 
 export type QuoteSendChannel = 'whatsapp' | 'email' | 'meeting' | 'other';
 export interface QuoteSendInput {
@@ -205,10 +206,10 @@ export function RegisterQuoteSendDrawer({
         </label>
         <label className="field">
           <span>Responsable</span>
-          <input
+          <ResponsibleSelect
             value={responsible}
             disabled={saving}
-            onChange={(event) => setResponsible(event.target.value)}
+            onChange={setResponsible}
             {...validation.fieldProps('responsible')}
           />
           <FieldError
