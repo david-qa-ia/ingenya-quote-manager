@@ -37,16 +37,16 @@ export function LoginView({ onAuthenticated }: Props) {
       <div className="login-cloud login-cloud-one" aria-hidden="true" />
       <div className="login-cloud login-cloud-two" aria-hidden="true" />
       <div className="login-cloud login-cloud-three" aria-hidden="true" />
-      <section className="login-welcome" aria-label="Bienvenida a Brio">
+      <section className="login-welcome" aria-label="Bienvenida a Ventro">
         <div className="login-brand-mark" aria-hidden="true">
-          <UiIcon name="building" />
+          <UiIcon name="ventro" />
         </div>
-        <p className="login-eyebrow">BRIO · GESTIÓN COMERCIAL</p>
+        <p className="login-eyebrow">VENTRO · GESTIÓN COMERCIAL</p>
         <h1>Tu día de trabajo, más claro.</h1>
         <p className="login-welcome-copy">
           Organizá oportunidades, presupuestos y próximos pasos desde un solo lugar.
         </p>
-        <div className="login-welcome-points" aria-label="Funciones de Brio">
+        <div className="login-welcome-points" aria-label="Funciones de Ventro">
           <span>
             <UiIcon name="check-circle" /> Seguimiento ordenado
           </span>
@@ -58,10 +58,10 @@ export function LoginView({ onAuthenticated }: Props) {
       <form className="workspace-access-card login-card" onSubmit={handleSubmit}>
         <div className="login-card-heading">
           <div className="login-card-icon">
-            <UiIcon name="building" />
+            <UiIcon name="ventro" />
           </div>
           <div>
-            <p className="login-card-overline">BIENVENIDO A BRIO</p>
+            <p className="login-card-overline">BIENVENIDO A VENTRO</p>
             <h2>Iniciá sesión</h2>
           </div>
         </div>
@@ -90,7 +90,7 @@ export function LoginView({ onAuthenticated }: Props) {
           </p>
         ) : null}
         <button className="button button-primary" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Ingresando…' : 'Ingresar a Brio'}
+          {isSubmitting ? 'Ingresando…' : 'Ingresar a Ventro'}
         </button>
       </form>
     </main>

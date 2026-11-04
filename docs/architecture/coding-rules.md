@@ -1,6 +1,6 @@
 # Coding Rules
 
-This document defines coding standards for Ingenya Quote Manager.
+This document defines coding standards for the Ventro app.
 
 ## Language
 

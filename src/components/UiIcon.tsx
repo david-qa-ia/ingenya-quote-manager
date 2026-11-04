@@ -34,6 +34,7 @@ export type UiIconName =
   | 'settings'
   | 'tag'
   | 'trophy'
+  | 'ventro'
   | 'users'
   | 'whatsapp'
   | 'x-circle';
@@ -43,6 +44,8 @@ interface Props extends SVGProps<SVGSVGElement> {
 }
 
 const paths: Record<UiIconName, ReactNode> = {
+  // Ventro brand mark: the V used in the logo of somosventro.com.
+  ventro: <path d="M5 5l7 14 7-14" />,
   person: (
     <>
       <circle cx="12" cy="8" r="3" />

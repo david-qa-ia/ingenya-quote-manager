@@ -14,7 +14,7 @@ import {
 const demoUserId = 'david-identity';
 const demoMemberships: WorkspaceMembership[] = [
   {
-    workspace: { id: 'workspace-ingenya', name: 'Ingenya', slug: 'ingenya', status: 'active' },
+    workspace: { id: 'workspace-ingenya', name: 'Ventro', slug: 'ingenya', status: 'active' },
     role: 'owner',
     status: 'active',
   },

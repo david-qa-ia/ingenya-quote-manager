@@ -7,30 +7,31 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  color: #39443f;
-  background: #f4f6f3;
+  color: #2a2c33;
+  background: #f5f5f3;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --text: #33413b;
-  --text-heading: #17261f;
-  --text-muted: #68776f;
-  --text-subtle: #89958f;
+  --text: #2a2c33;
+  --text-heading: #111216;
+  --text-muted: #5c5f66;
+  --text-subtle: #8a8d94;
   --surface: #fff;
-  --surface-subtle: #f6f8f6;
-  --border: #dde5df;
-  --border-strong: #bfcbc4;
-  --accent: #1e6855;
-  --accent-dark: #12483b;
-  --accent-soft: #e8f4ee;
-  --accent-soft-hover: #d9ebe2;
-  --accent-border: #aed4c4;
-  --accent-ring: rgba(30, 104, 85, 0.2);
+  --surface-subtle: #f5f5f3;
+  --surface-muted: #f0f0ee;
+  --border: #e3e3e0;
+  --border-strong: #c9cac6;
+  --accent: #2f6bff;
+  --accent-dark: #1f54e0;
+  --accent-soft: #edf1fa;
+  --accent-soft-hover: #dfe7f8;
+  --accent-border: #c9d6f5;
+  --accent-ring: rgba(47, 107, 255, 0.22);
   --danger: #a43b32;
-  --disabled-bg: #e5e9e6;
-  --shadow-sm: 0 10px 30px rgba(26, 52, 43, 0.065);
-  --shadow-lg: 0 22px 54px rgba(26, 52, 43, 0.1);
+  --disabled-bg: #e7e7e4;
+  --shadow-sm: 0 10px 30px rgba(17, 18, 22, 0.065);
+  --shadow-lg: 0 22px 54px rgba(17, 18, 22, 0.1);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
@@ -44,7 +45,7 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at 82% -12%, rgba(202, 231, 216, 0.55), transparent 30rem), #f5f7f5;
+    radial-gradient(circle at 82% -12%, rgba(201, 214, 245, 0.45), transparent 30rem), #f5f5f3;
 }
 button,
 input,

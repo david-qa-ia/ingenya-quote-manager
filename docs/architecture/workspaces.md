@@ -1,13 +1,14 @@
 # Workspaces and memberships (SCRUM-80)
 
-Ingenya uses one authenticated identity with memberships in multiple workspaces. The active
+Ventro uses one authenticated identity with memberships in multiple workspaces. The active
 workspace is a UI context, never an authorization boundary: the server validates the authenticated
 user's active membership on every operation.
 
 Workspace names come from the `workspaces` table. In the current Supabase environment they are
-Brio, Alef-Tau and Negocio familiar (Brio is the commercial brand shown on the sign-in screen).
-The local development adapter, used without Supabase variables, still names the first workspace
-Ingenya; the name is cosmetic and its ID is `workspace-ingenya`. _(Updated 2026-10-29, SCRUM-108;
+Brio, Alef-Tau and Negocio familiar. Since SCRUM-116 the app's brand is Ventro; the "Brio" row in
+the `workspaces` table is data and must be renamed in Supabase separately. The local development
+adapter, used without Supabase variables, names the first workspace Ventro; the name is cosmetic
+and its ID stays `workspace-ingenya` (and the slug `ingenya`) so existing local data keeps working. _(Updated 2026-10-29, SCRUM-108;
 the original text listed "Ingenya, Alef-Tau and Negocio familiar".)_ Roles are `owner` and `admin`;
 `collaborator` is reserved as a future model and does not add team permissions in this increment.
 
