@@ -287,6 +287,27 @@ export function QuoteDetailView({
           </section>
           <section className="quote-detail-card quote-status-card">
             <h2>Resultado comercial</h2>
+            {/* SCRUM-120: an accepted or rejected quote shows who decided, when and why. */}
+            {(quote.commercialStatus === 'accepted' || quote.commercialStatus === 'rejected') && (
+              <div
+                className={`quote-outcome-summary quote-outcome-${quote.commercialStatus}`}
+                role="status"
+              >
+                <strong>
+                  {quote.commercialStatus === 'accepted' ? 'Aceptado' : 'Perdido'} ·{' '}
+                  {new Date(quote.commercialStatusAudit.changedAt).toLocaleString('es-AR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                  })}
+                  {quote.commercialStatusAudit.changedBy
+                    ? ` · ${quote.commercialStatusAudit.changedBy}`
+                    : ''}
+                </strong>
+                {quote.commercialStatusAudit.reason?.trim() && (
+                  <p>{quote.commercialStatusAudit.reason.trim()}</p>
+                )}
+              </div>
+            )}
             <div className="quote-status-actions">
               {targets.includes('accepted') && (
                 <button
@@ -345,7 +366,10 @@ export function QuoteDetailView({
                 : 'El envío ya fue registrado para esta versión.'}
             </p>
             <p className="commercial-note">
-              Próximo paso: {opportunity?.nextAction?.description ?? 'Sin próximo paso programado.'}
+              Próximo paso:{' '}
+              {opportunity?.nextAction?.status === 'pending'
+                ? opportunity.nextAction.description
+                : 'Sin próximo paso programado.'}
             </p>
           </section>
           <section className="quote-detail-card">

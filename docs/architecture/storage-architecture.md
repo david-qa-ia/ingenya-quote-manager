@@ -308,3 +308,15 @@ journal retains only the conversion provenance and the prospect history records 
   after a reload.
 - The starter catalog for a new workspace uses generic services with the "Unidad" unit; existing
   catalogs are never replaced.
+
+## SCRUM-120 Compatible Extension
+
+- No new storage keys. Activities now carry the selected responsible as `author`; entries without
+  an author, or with the legacy `Sistema local`, are shown as `Automático`.
+- New prospects record a `note` activity "Prospecto cargado." with the principal responsible.
+  Migration `202611040003_prospect_created_activity.sql` makes `create_prospect` insert it only
+  when the row is really created, so idempotent retries do not duplicate it.
+- Quote events (created, finalized, PDF, sent, status change with reason) are shown in the
+  opportunity history. Registering a send completes the pending "Enviar presupuesto" step locally.
+- Contact consent no longer blocks contact actions; `doNotContact` still does. Existing stored
+  values are kept, but the contact form no longer edits them.

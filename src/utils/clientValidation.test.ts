@@ -45,8 +45,19 @@ describe('client validation', () => {
     for (const channel of ['phone', 'whatsapp', 'email'] as const)
       expect(canContactClient(pending, channel)).toBe(false);
   });
-  it('requires consent and evaluates the chosen real channel independently of the pending one', () => {
-    expect(canContactClient(input, 'email')).toBe(false);
+  it('evaluates the chosen real channel; consent no longer blocks (SCRUM-120)', () => {
+    expect(canContactClient({ ...input, contactConsent: false }, 'whatsapp')).toBe(
+      canContactClient({ ...input, contactConsent: true }, 'whatsapp'),
+    );
+    expect(
+      canContactClient(
+        {
+          ...input,
+          doNotContact: { reason: 'pedido', recordedAt: '2026-11-04T00:00:00Z', recordedBy: 'Ana' },
+        },
+        'whatsapp',
+      ),
+    ).toBe(false);
     expect(canContactClient({ ...input, contactConsent: true, phone: '1111111111' }, 'email')).toBe(
       true,
     );

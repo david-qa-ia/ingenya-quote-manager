@@ -346,6 +346,8 @@ export function resumeProspectConversion(
         createdAt: now,
         type: 'conversionCompleted',
         description: `Convertido en oportunidad: ${draft.opportunityName}.`,
+        // SCRUM-120: who converted it (the responsible chosen when qualifying).
+        ...(draft.responsible?.trim() ? { author: draft.responsible.trim() } : {}),
       },
     ],
   };

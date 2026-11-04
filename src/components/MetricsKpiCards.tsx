@@ -20,6 +20,7 @@ export function MetricsKpiCards({ metrics }: { metrics: CommercialMetrics }) {
       detail: `${metrics.contactEffectiveness.effective} de ${metrics.contactEffectiveness.registered} contactos avanzaron`,
     },
     { label: 'Presupuestos enviados', icon: 'document', metric: metrics.kpis.quotesSent },
+    { label: 'Presupuestos aceptados', icon: 'trophy', metric: metrics.kpis.quotesAccepted },
     {
       label: 'Seguimientos completados',
       icon: 'calendar-check',

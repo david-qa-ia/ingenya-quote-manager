@@ -54,7 +54,7 @@ describe('contact assistant rules', () => {
       }).missing,
     ).toEqual(['servicio']);
   });
-  it('blocks no-contact, consent and pending phones', () => {
+  it('blocks no-contact and pending phones; consent no longer blocks (SCRUM-120)', () => {
     expect(
       getContactEligibility(
         {
@@ -69,7 +69,7 @@ describe('contact assistant rules', () => {
     ).toMatch(/solicitó/);
     expect(
       getContactEligibility({ client: { ...client, contactConsent: false }, quote }, 'whatsapp'),
-    ).toMatch(/consentimiento/);
+    ).toBeNull();
     expect(
       getContactEligibility({ client: { ...client, phone: '1111111111' }, quote }, 'call'),
     ).toMatch(/pendiente/);

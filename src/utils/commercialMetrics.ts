@@ -319,6 +319,12 @@ export function calculateCommercialMetrics(
       responsibleMatches(item.sentAudit.changedBy),
   );
   quoteSends.forEach((item) => item.sentAudit && add(item.sentAudit.changedAt, { sent: 1 }));
+  // SCRUM-120: accepted quotes (won sales) count in the period they were accepted.
+  const quoteWins = quotes.filter(
+    (item) =>
+      item.commercialStatus === 'accepted' &&
+      responsibleMatches(item.commercialStatusAudit.changedBy),
+  );
   const kpis = {
     activitiesRegistered: metric(
       activities.filter((item) => current(item.occurredAt)).length,
@@ -340,6 +346,10 @@ export function calculateCommercialMetrics(
       quoteSends.filter((item) => item.sentAudit && current(item.sentAudit.changedAt)).length,
       quoteSends.filter((item) => item.sentAudit && prior(item.sentAudit.changedAt)).length,
     ),
+    quotesAccepted: metric(
+      quoteWins.filter((item) => current(item.commercialStatusAudit.changedAt)).length,
+      quoteWins.filter((item) => prior(item.commercialStatusAudit.changedAt)).length,
+    ),
     followUpsCompleted: metric(completed, completedPrevious),
     followUpsRescheduled: metric(rescheduled, rescheduledPrevious),
   };
@@ -356,7 +366,7 @@ export function calculateCommercialMetrics(
       ? 'registerContact'
       : currentEffectiveContacts === 0
         ? 'followUpContacts'
-        : completed === 0
+        : completed === 0 && kpis.quotesSent.value === 0 && kpis.quotesAccepted.value === 0
           ? 'defineNextStep'
           : 'keepMomentum';
   return {

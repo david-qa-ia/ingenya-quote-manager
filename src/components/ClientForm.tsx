@@ -1,43 +1,73 @@
 import { useState, type FormEvent } from 'react';
 import type { Client, ClientInput, PreferredChannel } from '../types/client';
+import type { Prospect } from '../types/prospect';
 import {
   clientFormFieldOrder,
   getClientFieldErrors,
   getClientValidationError,
+  isPendingEmail,
+  isPendingPhone,
   normalizeClientInput,
+  PENDING_EMAIL,
+  PENDING_PHONE,
   type ClientFormField,
 } from '../utils/clientValidation';
 import { FieldError } from './FieldError';
 import { useFieldValidation } from './useFieldValidation';
 
+/** Prospect data edited together with the contact (SCRUM-120). */
+export interface ContactProspectExtras {
+  instagram: string;
+  address: string;
+  source: string;
+  potentialService: string;
+  notes: string;
+}
+
 interface Props {
   client?: Client;
+  /** When the contact came from a prospect, its data is edited in the same form. */
+  prospect?: Prospect;
   /** Returns an error message, or null when saved. May be async (Supabase, SCRUM-113). */
-  onSave: (input: ClientInput) => string | null | Promise<string | null>;
+  onSave: (
+    input: ClientInput,
+    extras?: ContactProspectExtras,
+  ) => string | null | Promise<string | null>;
   onCancel: () => void;
 }
 
-export function ClientForm({ client, onSave, onCancel }: Props) {
-  const [input, setInput] = useState<ClientInput>(
-    client ?? { name: '', phone: '', email: '', preferredChannel: '', contactConsent: false },
-  );
+/**
+ * SCRUM-120: an empty phone or email is stored as the internal "pending" value, but the user
+ * never sees or types "1111111111" or "none". Consent and do-not-contact are no longer edited
+ * here: "No interesado" and the next step cover that; existing values are kept as they are.
+ */
+export function ClientForm({ client, prospect, onSave, onCancel }: Props) {
+  const [input, setInput] = useState<ClientInput>(() => {
+    const base = client ?? {
+      name: '',
+      phone: '',
+      email: '',
+      preferredChannel: '' as PreferredChannel,
+      contactConsent: false,
+    };
+    return {
+      ...base,
+      phone: isPendingPhone(base.phone) ? '' : base.phone,
+      email: isPendingEmail(base.email) ? '' : base.email,
+    };
+  });
+  const [extras, setExtras] = useState<ContactProspectExtras>({
+    instagram: prospect?.instagram ?? '',
+    address: prospect?.address ?? '',
+    source: prospect?.source ?? '',
+    potentialService: prospect?.potentialService ?? '',
+    notes: prospect?.notes ?? '',
+  });
   const [error, setError] = useState<string | null>(null);
-  const [doNotContact, setDoNotContact] = useState(Boolean(client?.doNotContact));
-  const [doNotContactReason, setDoNotContactReason] = useState(client?.doNotContact?.reason ?? '');
-  const [doNotContactAuthor, setDoNotContactAuthor] = useState(
-    client?.doNotContact?.recordedBy ?? '',
-  );
   const buildInput = (): ClientInput => ({
     ...input,
-    ...(doNotContact
-      ? {
-          doNotContact: {
-            reason: doNotContactReason,
-            recordedAt: new Date().toISOString(),
-            recordedBy: doNotContactAuthor,
-          },
-        }
-      : {}),
+    phone: input.phone.trim() ? input.phone : PENDING_PHONE,
+    email: input.email.trim() ? input.email : PENDING_EMAIL,
   });
   const validation = useFieldValidation(
     `client-${client?.id ?? 'new'}`,
@@ -58,16 +88,46 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
     if (stored) return setError(stored);
     setIsSaving(true);
     try {
-      setError(await onSave(normalizeClientInput(next)));
+      setError(
+        await onSave(
+          normalizeClientInput(next),
+          prospect
+            ? {
+                instagram: extras.instagram.trim(),
+                address: extras.address.trim(),
+                source: extras.source.trim(),
+                potentialService: extras.potentialService.trim(),
+                notes: extras.notes.trim(),
+              }
+            : undefined,
+        ),
+      );
     } finally {
       setIsSaving(false);
     }
   }
+  const extraField = (key: keyof ContactProspectExtras, label: string) => (
+    <label className="field">
+      <span>{label}</span>
+      {key === 'notes' ? (
+        <textarea
+          value={extras[key]}
+          rows={3}
+          onChange={(e) => setExtras({ ...extras, [key]: e.target.value })}
+        />
+      ) : (
+        <input
+          value={extras[key]}
+          onChange={(e) => setExtras({ ...extras, [key]: e.target.value })}
+        />
+      )}
+    </label>
+  );
   return (
     <form className="commercial-form" onSubmit={(event) => void submit(event)} noValidate>
-      <h3>{client ? 'Editar cliente' : 'Nuevo cliente'}</h3>
+      <h3>{client ? 'Editar contacto' : 'Nuevo contacto'}</h3>
       <label className="field">
-        <span>Nombre del cliente</span>
+        <span>Nombre</span>
         <input
           value={input.name}
           onChange={(e) => setInput({ ...input, name: e.target.value })}
@@ -84,30 +144,32 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
         />
       </label>
       <label className="field">
-        <span>Teléfono del cliente</span>
+        <span>Teléfono</span>
         <input
           type="tel"
           value={input.phone}
+          placeholder="Sin definir"
           onChange={(e) => setInput({ ...input, phone: e.target.value })}
-          required
           {...validation.fieldProps('phone')}
         />
-        <small>Si está pendiente de confirmar, ingresá 1111111111.</small>
         {fieldError('phone')}
       </label>
       <label className="field">
-        <span>Email del cliente</span>
+        <span>Email</span>
         <input
           type="text"
           inputMode="email"
           value={input.email}
+          placeholder="Sin definir"
           onChange={(e) => setInput({ ...input, email: e.target.value })}
-          required
           {...validation.fieldProps('email')}
         />
-        <small>Si está pendiente de confirmar, ingresá none.</small>
         {fieldError('email')}
       </label>
+      {prospect && extraField('instagram', 'Instagram')}
+      {prospect && extraField('address', 'Dirección')}
+      {prospect && extraField('source', 'Origen')}
+      {prospect && extraField('potentialService', 'Servicio potencial')}
       <label className="field">
         <span>Canal preferido</span>
         <select
@@ -124,52 +186,15 @@ export function ClientForm({ client, onSave, onCancel }: Props) {
         </select>
         {fieldError('preferredChannel')}
       </label>
-      <label className="commercial-consent">
-        <input
-          type="checkbox"
-          checked={input.contactConsent}
-          onChange={(e) => setInput({ ...input, contactConsent: e.target.checked })}
-        />
-        El cliente autorizó el contacto
-      </label>
-      <label className="commercial-consent">
-        <input
-          type="checkbox"
-          checked={doNotContact}
-          onChange={(event) => setDoNotContact(event.target.checked)}
-        />
-        El cliente solicitó no recibir más contactos
-      </label>
-      {doNotContact && (
-        <>
-          <label className="field">
-            <span>Motivo del no contacto</span>
-            <textarea
-              value={doNotContactReason}
-              onChange={(event) => setDoNotContactReason(event.target.value)}
-              {...validation.fieldProps('doNotContactReason')}
-            />
-            {fieldError('doNotContactReason')}
-          </label>
-          <label className="field">
-            <span>Registrado por</span>
-            <input
-              value={doNotContactAuthor}
-              onChange={(event) => setDoNotContactAuthor(event.target.value)}
-              {...validation.fieldProps('doNotContactAuthor')}
-            />
-            {fieldError('doNotContactAuthor')}
-          </label>
-        </>
-      )}
+      {prospect && extraField('notes', 'Observaciones')}
       {error && (
         <p className="form-error" role="alert">
           {error}
         </p>
       )}
       <div className="commercial-actions">
-        <button className="button button-line" type="submit" disabled={isSaving}>
-          {isSaving ? 'Guardando…' : 'Guardar cliente'}
+        <button className="button button-primary" type="submit" disabled={isSaving}>
+          {isSaving ? 'Guardando…' : 'Guardar contacto'}
         </button>
         <button className="button button-line" type="button" onClick={onCancel}>
           Cancelar

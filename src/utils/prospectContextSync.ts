@@ -34,19 +34,41 @@ function withHistory(
   };
 }
 
+/** Prospect-only data edited from the opportunity contact card (SCRUM-120). */
+export interface ProspectContactExtras {
+  instagram: string;
+  address: string;
+  source: string;
+  potentialService: string;
+  notes: string;
+}
+
 export function syncConvertedProspectContact(
   prospect: Prospect,
   input: ClientInput,
   author: string,
   now = new Date().toISOString(),
+  extras?: ProspectContactExtras,
 ): ProspectContextSync | null {
   if (!prospect.conversion) return null;
+  const next = {
+    instagram: extras?.instagram ?? prospect.instagram ?? '',
+    address: extras?.address ?? prospect.address ?? '',
+    source: extras?.source ?? prospect.source,
+    potentialService: extras?.potentialService ?? prospect.potentialService,
+    notes: extras?.notes ?? prospect.notes,
+  };
   const fields = [
     ['Nombre', prospect.name, input.name.trim()],
     ['Empresa', prospect.company, input.company?.trim() ?? ''],
     ['Teléfono', prospect.phone, input.phone.trim()],
     ['Email', prospect.email, input.email.trim()],
     ['Canal preferido', prospect.preferredChannel, input.preferredChannel],
+    ['Instagram', prospect.instagram ?? '', next.instagram],
+    ['Dirección', prospect.address ?? '', next.address],
+    ['Origen', prospect.source, next.source],
+    ['Servicio potencial', prospect.potentialService, next.potentialService],
+    ['Observaciones', prospect.notes, next.notes],
   ] as const;
   const changes = fields.filter(([, previous, next]) => previous !== next).map(([label]) => label);
   if (!changes.length) return null;
@@ -59,10 +81,13 @@ export function syncConvertedProspectContact(
       phone: input.phone.trim(),
       email: input.email.trim(),
       preferredChannel: input.preferredChannel,
+      ...next,
       conversion: {
         ...prospect.conversion,
         draft: {
           ...draft,
+          address: next.address,
+          serviceOfInterest: next.potentialService,
           clientName: input.name.trim(),
           clientCompany: input.company?.trim() ?? '',
           clientPhone: input.phone.trim(),
