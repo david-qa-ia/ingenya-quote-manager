@@ -31,7 +31,7 @@ export function LaborCatalogView({
   const [editingJob, setEditingJob] = useState<CatalogJob | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [unit, setUnit] = useState<WorkUnit>('squareMeter');
+  const [unit, setUnit] = useState<WorkUnit>('unit');
   const [price, setPrice] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
@@ -43,7 +43,7 @@ export function LaborCatalogView({
     setEditingJob(null);
     setName('');
     setDescription('');
-    setUnit('squareMeter');
+    setUnit('unit');
     setPrice('');
   }
 

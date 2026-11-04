@@ -105,7 +105,7 @@ export function QuoteCommercialStatus({
       ) : (
         <p className="commercial-note">
           {hasOpportunity && ['sent', 'followingUp'].includes(commercialStatus)
-            ? 'Registrá aceptación o rechazo desde Resultado comercial para conservar el historial de la obra o trabajo.'
+            ? 'Registrá aceptación o rechazo desde Resultado comercial para conservar el historial del proyecto.'
             : 'Este estado está cerrado. La reapertura se resolverá en una operación posterior auditada.'}
         </p>
       )}

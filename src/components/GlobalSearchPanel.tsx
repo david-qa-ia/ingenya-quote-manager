@@ -143,7 +143,7 @@ export function GlobalSearchPanel({
           </div>
         ) : (
           <p className="global-search-empty">
-            No encontramos resultados. Probá con otro nombre, teléfono, email u obra.
+            No encontramos resultados. Probá con otro nombre, teléfono, email o proyecto.
           </p>
         )
       ) : (

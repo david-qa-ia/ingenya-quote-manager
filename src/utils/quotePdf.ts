@@ -151,7 +151,7 @@ function drawFirstPageHeader(document: JsPdf, model: QuotePdfModel): number {
   document.setFontSize(7.4);
   setTextColor(document, MUTED_COLOR);
   document.text('CLIENTE', PDF_MARGIN, detailsTop);
-  document.text('OBRA', 108, detailsTop);
+  document.text('PROYECTO', 108, detailsTop);
   document.setFont(FONT_NAME, 'normal');
   document.setFontSize(8.8);
   setTextColor(document, BODY_COLOR);

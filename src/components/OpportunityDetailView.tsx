@@ -896,7 +896,7 @@ export function OpportunityDetailView({
             subjects={[
               {
                 subject: { kind: 'opportunity', opportunityId: opportunity.id },
-                label: 'Obra o trabajo',
+                label: 'Proyecto',
               },
             ]}
             emptyMessage="Todavía no hay actividades para esta oportunidad."
@@ -911,7 +911,7 @@ export function OpportunityDetailView({
             subjects={[
               {
                 subject: { kind: 'opportunity', opportunityId: opportunity.id },
-                label: 'Obra o trabajo',
+                label: 'Proyecto',
               },
             ]}
             initialFilter="note"

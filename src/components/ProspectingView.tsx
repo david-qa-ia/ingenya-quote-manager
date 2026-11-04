@@ -92,6 +92,8 @@ import {
 } from '../utils/supabaseRepository';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 import { UiIcon } from './UiIcon';
+import { useResponsibles } from '../utils/useResponsibles';
+import { primaryResponsibleName } from '../utils/responsibleStorage';
 import {
   findProspectDuplicates,
   getProspectContactRequirementError,
@@ -752,7 +754,7 @@ export function ProspectingView({
           <p className="eyebrow">Ventro · Prospección comercial</p>
           <h1>Prospectos</h1>
           <p className="page-description">
-            Un prospecto todavía no es cliente ni una obra o trabajo en seguimiento.
+            Un prospecto todavía no es cliente ni un proyecto en seguimiento.
           </p>
         </div>
         <div className="header-actions">
@@ -1639,6 +1641,7 @@ function ProspectDetail({
   onRegisterResult?: () => void;
 }) {
   const workspaceContext = useWorkspace();
+  const responsibles = useResponsibles();
   const [draft, setDraft] = useState(prospect);
   const [isEditing, setIsEditing] = useState(isNew);
   const [scriptChannel, setScriptChannel] = useState<ProspectChannel>(initialContactChannel);
@@ -1706,7 +1709,9 @@ function ProspectDetail({
     );
     return () => onDirtyChange?.(false);
   }, [draft, isEditing, isNew, onDirtyChange, prospect]);
-  const defaultScript = `Hola ${draft.name}, soy Daniel. Te contacto por ${draft.potentialService || 'el servicio que necesitás'}. ¿Te parece si coordinamos una breve conversación?`;
+  // SCRUM-119: the script introduces the primary responsible, not a fixed name.
+  const senderName = primaryResponsibleName(responsibles);
+  const defaultScript = `Hola ${draft.name}${senderName ? `, soy ${senderName}` : ''}. Te contacto por ${draft.potentialService || 'el servicio que necesitás'}. ¿Te parece si coordinamos una breve conversación?`;
   function field<K extends keyof Prospect>(key: K, value: Prospect[K]) {
     setDraft((current) => ({ ...current, [key]: value, updatedAt: new Date().toISOString() }));
   }
@@ -2041,7 +2046,7 @@ function ProspectDetail({
             <section className="commercial-note" aria-label="Oportunidad creada">
               <h3>Oportunidad creada</h3>
               <p>
-                <strong>Oportunidad / obra:</strong> {prospect.conversion.draft.opportunityName}
+                <strong>Oportunidad / proyecto:</strong> {prospect.conversion.draft.opportunityName}
               </p>
               <p>
                 <strong>Contacto:</strong> {prospect.conversion.draft.clientName}
@@ -2272,7 +2277,7 @@ function ProspectConversionModal({
         <h2 id="conversion-title">Calificar oportunidad</h2>
         <p>{prospect.name}</p>
         <label className="field">
-          <span>Nombre de oportunidad / obra</span>
+          <span>Nombre de oportunidad / proyecto</span>
           <input
             value={input.opportunityName}
             onChange={(e) => set('opportunityName', e.target.value)}

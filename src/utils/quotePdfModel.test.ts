@@ -42,7 +42,7 @@ describe('prepareQuotePdfModel', () => {
     expect(prepareQuotePdfModel(input)).toMatchObject({
       id: draft.id,
       clientName: 'Sin cliente',
-      projectName: 'Sin obra',
+      projectName: 'Sin proyecto',
       status: 'Borrador',
       total: 187500,
       fileName: 'presupuesto-PRES-2026-0001.pdf',

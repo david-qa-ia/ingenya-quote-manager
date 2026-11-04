@@ -335,7 +335,7 @@ function App() {
   const [serviceEntryMode, setServiceEntryMode] = useState<'catalog' | 'manual'>('catalog');
   const [manualName, setManualName] = useState('');
   const [manualDescription, setManualDescription] = useState('');
-  const [manualUnit, setManualUnit] = useState<WorkUnit>('squareMeter');
+  const [manualUnit, setManualUnit] = useState<WorkUnit>('unit');
   const [manualQuantity, setManualQuantity] = useState('1');
   const [manualUnitPrice, setManualUnitPrice] = useState('');
   const [saveManualToCatalog, setSaveManualToCatalog] = useState(false);
@@ -712,7 +712,7 @@ function App() {
     setQuoteLines((currentLines) => [...currentLines, addition.line]);
     setManualName('');
     setManualDescription('');
-    setManualUnit('squareMeter');
+    setManualUnit('unit');
     setManualQuantity('1');
     setManualUnitPrice('');
     setSaveManualToCatalog(false);
@@ -955,7 +955,7 @@ function App() {
     setSaveFeedback({
       type: 'error',
       message:
-        'No hay un presupuesto asociado para abrir este contexto. La obra o trabajo sigue disponible en el seguimiento.',
+        'No hay un presupuesto asociado para abrir este contexto. El proyecto sigue disponible en el seguimiento.',
     });
   }
 
@@ -2494,7 +2494,7 @@ function App() {
                     <tr>
                       <th>ID</th>
                       <th>Cliente</th>
-                      <th>Obra / trabajo en seguimiento</th>
+                      <th>Proyecto en seguimiento</th>
                       <th>Estado</th>
                       <th>Estado comercial</th>
                       <th>Fecha</th>
@@ -2511,11 +2511,11 @@ function App() {
                         <td data-label="Cliente">
                           {savedQuote.clientName.trim() || 'Sin cliente'}
                         </td>
-                        <td data-label="Obra / trabajo en seguimiento">
-                          {savedQuote.projectName.trim() || 'Sin obra'}
+                        <td data-label="Proyecto en seguimiento">
+                          {savedQuote.projectName.trim() || 'Sin proyecto'}
                           {savedQuote.opportunityId && (
                             <small>
-                              Obra o trabajo:{' '}
+                              Proyecto:{' '}
                               {opportunities.find(
                                 (item) =>
                                   item.id === savedQuote.opportunityId &&
@@ -2734,7 +2734,7 @@ function App() {
                       <dd>{clientName.trim() || 'Sin especificar'}</dd>
                     </div>
                     <div>
-                      <dt>Obra / referencia</dt>
+                      <dt>Proyecto / referencia</dt>
                       <dd>{projectName.trim() || 'Sin especificar'}</dd>
                     </div>
                   </dl>
@@ -2762,12 +2762,12 @@ function App() {
                         <small>Podés dejar este campo vacío.</small>
                       </label>
                       <label className="field">
-                        <span>Obra / referencia</span>
+                        <span>Proyecto / referencia</span>
                         <input
                           type="text"
                           value={projectName}
                           onChange={(event) => setProjectName(event.target.value)}
-                          placeholder="Nombre o ubicación de la obra"
+                          placeholder="Nombre o ubicación del proyecto"
                         />
                         <small>Podés dejar este campo vacío.</small>
                       </label>

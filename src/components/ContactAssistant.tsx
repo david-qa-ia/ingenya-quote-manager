@@ -184,9 +184,7 @@ export function ContactAssistant({
           <strong>
             {context.client?.name ?? context.quote?.clientName ?? 'Cliente pendiente'}
           </strong>
-          <span>
-            {context.opportunity?.name ?? context.quote?.projectName ?? 'Sin obra o trabajo'}
-          </span>
+          <span>{context.opportunity?.name ?? context.quote?.projectName ?? 'Sin proyecto'}</span>
           {preview.services.length > 1 && <small>Servicios: {preview.services.join(', ')}</small>}
         </div>
         {eligibility && (

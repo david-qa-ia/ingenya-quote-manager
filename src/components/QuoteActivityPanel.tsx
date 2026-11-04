@@ -37,7 +37,7 @@ export function QuoteActivityPanel({ quote }: Props) {
             ? [
                 {
                   subject: { kind: 'opportunity' as const, opportunityId: opportunity.id },
-                  label: 'Obra o trabajo' as const,
+                  label: 'Proyecto' as const,
                 },
               ]
             : []),

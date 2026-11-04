@@ -75,7 +75,7 @@ export function prepareQuotePdfModel(
   return {
     id: quote.id,
     clientName: quote.clientName.trim() || 'Sin cliente',
-    projectName: projectName || 'Sin obra',
+    projectName: projectName || 'Sin proyecto',
     status: quote.status === 'draft' ? 'Borrador' : 'Finalizado',
     lines: quote.lines.map((line) => ({
       description: line.name,
