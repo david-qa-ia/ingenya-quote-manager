@@ -8574,3 +8574,15 @@ tr:last-child td {
   height: 16px;
   color: var(--accent-dark);
 }
+
+/* SCRUM-126: secondary links of the sign-in card ("¿Olvidaste tu contraseña?"). */
+.login-card .login-secondary-link {
+  justify-self: center;
+  width: auto;
+  margin-top: 4px;
+  font-size: 0.9rem;
+}
+/* The new-password screen has only the card, centered. */
+.workspace-access-state.login-experience.password-reset-experience {
+  grid-template-columns: minmax(0, 440px);
+}

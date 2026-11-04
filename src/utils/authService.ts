@@ -96,6 +96,11 @@ function persistSession(session: AuthSession | null): void {
   else sessionStorage.removeItem(SESSION_KEY);
 }
 
+/** SCRUM-126: stores a session obtained outside the password sign-in (password recovery). */
+export function saveAuthSession(session: AuthSession): void {
+  persistSession(session);
+}
+
 export async function signInWithPassword(email: string, password: string): Promise<AuthSession> {
   const config = getSupabaseConfig();
   if (!config) throw new Error('auth-not-configured');
