@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { deploymentBrand } from '../config/deploymentBrand';
+import { APP_NAME } from '../config/deploymentBrand';
 import { UiIcon } from './UiIcon';
 import type { NavigationSection } from '../utils/appNavigation';
 import { getCircularFocusIndex } from '../utils/appNavigation';
@@ -138,8 +138,8 @@ export function AppHeader({
     <header className="site-header app-sidebar-header">
       <div className="main-header">
         <div className="header-container main-header-content">
-          <div className="brand-name" aria-label={`Aplicación de ${deploymentBrand.companyName}`}>
-            {deploymentBrand.companyName}
+          <div className="brand-name" aria-label={`Aplicación de ${APP_NAME}`}>
+            {APP_NAME}
           </div>
           <WorkspaceSwitcher
             hasUnsavedChanges={hasUnsavedChanges}

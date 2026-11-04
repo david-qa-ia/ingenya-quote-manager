@@ -6,6 +6,7 @@ import type { SavedQuote } from '../types/quote';
 import type { PreparedProspectImport } from './prospectImportTransaction';
 import { getSupabaseConfig, getValidAuthSession, refreshAuthSession } from './authService';
 import type { Responsible } from './responsibleStorage';
+import { normalizeCompanyProfile, type CompanyProfile } from './companyProfileStorage';
 
 export type RemoteQuoteSendResult =
   | {
@@ -1030,5 +1031,79 @@ export async function saveRemoteResponsibles(
     ok: false,
     reason: 'validation',
     message: result.message ?? 'No se pudo guardar la lista de responsables.',
+  };
+}
+
+// SCRUM-119: company data printed on quotes, one row per workspace.
+interface SupabaseCompanyProfileRow {
+  company_name: string;
+  tagline: string;
+  email: string;
+  whatsapp: string;
+  website: string;
+  instagram: string;
+  footer_text: string;
+  quote_validity_days: number;
+  version: number;
+}
+
+export async function loadRemoteCompanyProfile(
+  workspaceId: string,
+): Promise<{ profile: CompanyProfile | null; version: number | null }> {
+  const query = new URLSearchParams({ select: '*', workspace_id: `eq.${workspaceId}` });
+  const rows = await request<SupabaseCompanyProfileRow[]>(
+    `/rest/v1/workspace_company_profiles?${query.toString()}`,
+  );
+  const row = rows[0];
+  if (!row) return { profile: null, version: null };
+  return {
+    profile: normalizeCompanyProfile({
+      companyName: row.company_name,
+      tagline: row.tagline,
+      email: row.email,
+      whatsapp: row.whatsapp,
+      website: row.website,
+      instagram: row.instagram,
+      footerText: row.footer_text,
+      quoteValidityDays: row.quote_validity_days,
+    }),
+    version: row.version,
+  };
+}
+
+export type RemoteCompanyProfileSaveResult =
+  { ok: true; version: number } | { ok: false; reason: 'conflict' | 'validation'; message: string };
+
+export async function saveRemoteCompanyProfile(
+  workspaceId: string,
+  profile: CompanyProfile,
+  expectedVersion: number | null,
+): Promise<RemoteCompanyProfileSaveResult> {
+  const result = await request<{ code?: string; message?: string; version?: number }>(
+    '/rest/v1/rpc/save_workspace_company_profile',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        p_workspace_id: workspaceId,
+        p_expected_version: expectedVersion,
+        p_profile: profile,
+        p_idempotency_key: `save-company-profile:${expectedVersion ?? 0}:${JSON.stringify(profile)}`,
+        p_request_id: crypto.randomUUID(),
+      }),
+    },
+  );
+  if (result.code === 'OK' && typeof result.version === 'number')
+    return { ok: true, version: result.version };
+  if (result.code === 'CONFLICT')
+    return {
+      ok: false,
+      reason: 'conflict',
+      message:
+        'Los datos cambiaron en otro dispositivo. Se actualizaron; revisalos y volvé a guardar.',
+    };
+  return {
+    ok: false,
+    reason: 'validation',
+    message: result.message ?? 'No se pudieron guardar los datos de la empresa.',
   };
 }

@@ -1,7 +1,7 @@
 import { workUnitLabels, workUnitSymbols } from '../data/workUnits';
-import { deploymentBrand } from '../config/deploymentBrand';
+import { loadCompanyBrand } from './companyProfileStorage';
 import type { DeploymentBrandConfig } from '../types/branding';
-import type { Quote } from '../types/quote';
+import type { Quote, SavedQuote } from '../types/quote';
 import { calculateLineSubtotal, calculateQuoteTotal } from './quoteCalculations';
 import { isValidQuoteLine } from './quoteValidation';
 
@@ -24,7 +24,17 @@ export interface QuotePdfModel {
   readonly proposalTitle: string;
   readonly isDraft: boolean;
   readonly brand: DeploymentBrandConfig;
+  /** SCRUM-119: issue date and the date the quote stays valid until (dd/mm/aaaa). */
+  readonly issuedOn: string;
+  readonly validUntil: string;
 }
+
+const pdfDateFormatter = new Intl.DateTimeFormat('es-AR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'America/Argentina/Buenos_Aires',
+});
 
 export class QuotePdfValidationError extends Error {
   constructor(message: string) {
@@ -38,14 +48,9 @@ export function createSafeQuotePdfFileName(quoteId: string): string {
   return `presupuesto-${safeId}.pdf`;
 }
 
+// SCRUM-119: only the company name is required; missing contact data is left out of the PDF.
 function validateBrandConfig(brand: DeploymentBrandConfig): void {
-  if (
-    !brand.companyName.trim() ||
-    !brand.email.trim() ||
-    !brand.whatsapp.display.trim() ||
-    !brand.whatsapp.value.trim() ||
-    !brand.footerBusinessText.trim()
-  ) {
+  if (!brand.companyName.trim()) {
     throw new QuotePdfValidationError(
       'No se puede generar el PDF porque la configuración comercial está incompleta.',
     );
@@ -54,7 +59,8 @@ function validateBrandConfig(brand: DeploymentBrandConfig): void {
 
 export function prepareQuotePdfModel(
   quote: Readonly<Quote>,
-  brand: DeploymentBrandConfig = deploymentBrand,
+  brand: DeploymentBrandConfig = loadCompanyBrand(),
+  now: Date = new Date(),
 ): QuotePdfModel {
   validateBrandConfig(brand);
 
@@ -71,6 +77,14 @@ export function prepareQuotePdfModel(
   }
 
   const projectName = quote.projectName.trim();
+  // A finalized quote keeps the date it was saved; a draft is dated when the PDF is made.
+  const savedAt = (quote as Partial<SavedQuote>).savedAt;
+  const issued =
+    quote.status === 'finalized' && savedAt && Number.isFinite(Date.parse(savedAt))
+      ? new Date(savedAt)
+      : now;
+  const validityDays = brand.quoteValidityDays ?? 15;
+  const validUntil = new Date(issued.getTime() + validityDays * 86_400_000);
 
   return {
     id: quote.id,
@@ -89,5 +103,7 @@ export function prepareQuotePdfModel(
     proposalTitle: projectName || 'Propuesta de servicios',
     isDraft: quote.status === 'draft',
     brand,
+    issuedOn: pdfDateFormatter.format(issued),
+    validUntil: pdfDateFormatter.format(validUntil),
   };
 }

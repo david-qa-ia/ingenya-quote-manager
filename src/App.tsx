@@ -94,6 +94,7 @@ import {
 } from './components/RegisterResultDrawer';
 import { resultNextStepLabels } from './utils/resultNextStep';
 import { syncResponsibles } from './utils/responsibleSync';
+import { syncCompanyProfile } from './utils/companyProfileSync';
 import {
   clearQuoteRecovery,
   isQuoteRecoveryUseful,
@@ -468,6 +469,10 @@ function App() {
     ];
     syncResponsibles(workspaceId ?? undefined, names).catch(() => {
       // The browser copy of the list keeps working while Supabase is unavailable.
+    });
+    // SCRUM-119: the company data printed on quotes comes from Supabase too.
+    syncCompanyProfile(workspaceId ?? undefined).catch(() => {
+      // The PDF keeps using the browser copy (or Ventro's data) while Supabase is unavailable.
     });
   }, [workspaceContext.session?.activeWorkspaceId, remoteDataRevision]);
 
