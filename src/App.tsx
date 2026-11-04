@@ -2048,6 +2048,7 @@ function App() {
           items={followUpItems}
           onShowFollowUp={() => setCurrentView('nextActions')}
           onOpen={setDrawerItem}
+          onOpenContext={handleFollowUpOpen}
         />
         {resultDrawer}
       </>
@@ -2125,7 +2126,6 @@ function App() {
             ) as string[]
           }
           onOpen={handleFollowUpOpen}
-          onPrepareContact={setInboxContact}
           onRegisterResult={setDrawerItem}
           onShowCadences={() => setCurrentView('cadences')}
         />

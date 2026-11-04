@@ -8334,3 +8334,54 @@ tr:last-child td {
   width: 16px;
   height: 16px;
 }
+
+/* SCRUM-119: the contact in "Mi trabajo de hoy" opens its context. */
+.daily-row-context {
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.daily-row-context strong {
+  color: var(--text-heading);
+}
+
+.daily-row-context:hover strong,
+.daily-row-context:focus-visible strong {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* SCRUM-119: on short screens (or zoomed in) the navigation used to slide over the workspace
+   selector. The rail now stacks its parts without shrinking them and scrolls when needed. */
+@media (min-width: 801px) {
+  .app-sidebar-header {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .app-sidebar-header .main-header-content {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100%;
+  }
+
+  .app-sidebar-header .primary-navigation {
+    flex: 1 0 auto;
+  }
+
+  .app-sidebar-header .workspace-switcher {
+    align-self: stretch;
+    width: auto;
+    max-width: none;
+  }
+}
