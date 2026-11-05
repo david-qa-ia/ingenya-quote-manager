@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useWorkspace } from '../context/useWorkspace';
 import type { WorkspaceMembership } from '../types/workspace';
 import { UiIcon } from './UiIcon';
+import { useSidebarPopover } from '../utils/sidebarPopover';
 
 interface Props {
   hasUnsavedChanges: boolean;
@@ -22,6 +23,7 @@ export function WorkspaceSwitcher({ hasUnsavedChanges, onResetWorkspaceContext }
   const panelRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  useSidebarPopover(triggerRef, panelRef, isOpen);
 
   function keepCurrentFocus() {
     setPendingMembership(null);

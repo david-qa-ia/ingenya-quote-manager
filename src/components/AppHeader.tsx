@@ -7,6 +7,7 @@ import { GlobalSearchPanel } from './GlobalSearchPanel';
 import type { GlobalSearchResult } from '../types/globalSearch';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { searchShortcutLabel } from '../utils/searchShortcut';
+import { useSidebarPopover } from '../utils/sidebarPopover';
 
 interface AppHeaderProps {
   activeSection: NavigationSection;
@@ -54,6 +55,8 @@ export function AppHeader({
   const navigationRef = useRef<HTMLElement>(null);
   const wasMenuOpenRef = useRef(false);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
+  const searchPanelRef = useRef<HTMLDivElement>(null);
+  useSidebarPopover(searchTriggerRef, searchPanelRef, isSearchOpen);
 
   useEffect(() => {
     if (isMenuOpen) {
@@ -246,7 +249,7 @@ export function AppHeader({
             </div>
           </nav>
           {isSearchOpen && (
-            <div id="global-search-panel">
+            <div id="global-search-panel" ref={searchPanelRef}>
               <GlobalSearchPanel
                 query={searchQuery}
                 results={searchResults}
