@@ -8612,3 +8612,20 @@ tr:last-child td {
 .password-requirements .password-requirement-met .ui-icon {
   opacity: 1;
 }
+
+/* SCRUM-128: the rail scrolls (SCRUM-119), so the workspace list and the search panel are
+   placed fixed next to it instead of inside it; otherwise the rail clips them. The position
+   comes from useSidebarPopover. */
+@media (min-width: 801px) {
+  .app-sidebar-header .workspace-switcher-popover,
+  .app-sidebar-header #global-search-panel {
+    position: fixed;
+    z-index: 40;
+    top: var(--sidebar-popover-top, 12px);
+    left: var(--sidebar-popover-left, 244px);
+  }
+
+  .app-sidebar-header .global-search-panel {
+    width: min(390px, calc(100vw - var(--sidebar-popover-left, 244px) - 12px));
+  }
+}
