@@ -8,7 +8,7 @@ import { CLIENTS_STORAGE_KEY, loadClients, saveClient } from './utils/clientStor
 import { buildOpportunityContactActivity } from './utils/opportunityContactActivity';
 import { buildJobList } from './utils/jobList';
 import { resolveJobRef, type JobRef } from './utils/jobFile';
-import { isDiscardResult } from './utils/resultNextStep';
+import { describeScheduledNextStep, isDiscardResult } from './utils/resultNextStep';
 import { canSendDraftInOneStep } from './utils/quoteOneStepSend';
 import { JobsView } from './components/JobsView';
 import { ClientsView } from './components/ClientsView';
@@ -99,7 +99,11 @@ import {
 import { resultNextStepLabels } from './utils/resultNextStep';
 import { syncResponsibles } from './utils/responsibleSync';
 import { syncCompanyProfile } from './utils/companyProfileSync';
-import { loadResponsibles, primaryResponsibleName } from './utils/responsibleStorage';
+import {
+  hasSingleResponsible,
+  loadResponsibles,
+  primaryResponsibleName,
+} from './utils/responsibleStorage';
 import type { ProspectContactExtras } from './utils/prospectContextSync';
 import {
   clearQuoteRecovery,
@@ -1319,7 +1323,11 @@ function App() {
               recordAutomaticActivity(
                 { kind: 'opportunity', opportunityId: current.id },
                 'nextActionChanged',
-                `Próximo paso agendado: ${nextAction.description} para ${dateFormatter.format(new Date(nextAction.dueAt))}, responsable ${nextAction.responsible}.`,
+                describeScheduledNextStep(
+                  nextAction,
+                  dateFormatter.format(new Date(nextAction.dueAt)),
+                  hasSingleResponsible(loadResponsibles()),
+                ),
               ),
           ],
         );
@@ -1377,7 +1385,7 @@ function App() {
               current.id,
               currentAction.id,
               event,
-              `Completó: ${currentAction.description}. Próximo paso agendado: ${scheduledAction.description} para ${dateFormatter.format(new Date(scheduledAction.dueAt))}, responsable ${scheduledAction.responsible}.`,
+              `Completó: ${currentAction.description}. ${describeScheduledNextStep(scheduledAction, dateFormatter.format(new Date(scheduledAction.dueAt)), hasSingleResponsible(loadResponsibles()))}`,
             ),
         ],
       );

@@ -84,3 +84,17 @@ function addWorkingDays(now: Date, days: number): string {
   }
   return date.toISOString().slice(0, 10);
 }
+
+/**
+ * Automatic note for a scheduled next step. The responsible is named only when the team has more
+ * than one person: with a single person "Responsable" is hidden everywhere (product decision).
+ */
+export function describeScheduledNextStep(
+  action: { description: string; responsible: string },
+  dueLabel: string,
+  singleResponsible: boolean,
+): string {
+  const responsible = action.responsible.trim();
+  const owner = singleResponsible || !responsible ? '' : `, responsable ${responsible}`;
+  return `Próximo paso agendado: ${action.description} para ${dueLabel}${owner}.`;
+}
