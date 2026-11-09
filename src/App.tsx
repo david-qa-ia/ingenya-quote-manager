@@ -38,12 +38,6 @@ import { currencyFormatter } from './utils/quoteFormatting';
 import { downloadQuotePdf } from './utils/quotePdf';
 import { QuotePdfValidationError } from './utils/quotePdfModel';
 import {
-  filterSavedQuotes,
-  filterSavedQuotesByCommercialStatus,
-  type SavedQuoteCommercialFilter,
-  type SavedQuoteFilter,
-} from './utils/savedQuoteFilters';
-import {
   applyCommercialTransition,
   commercialStatusLabels,
   createPreparedCommercialAudit,
@@ -59,6 +53,7 @@ import { createCatalogQuoteLine } from './utils/quoteLineFactory';
 import { addQuickService } from './utils/quickServiceAddition';
 import { opportunityOriginLabels, resolveActiveNavigationSection } from './utils/appNavigation';
 import { useAppNavigation } from './utils/useAppNavigation';
+import { useSavedQuotes } from './utils/useSavedQuotes';
 import {
   ACTIVITIES_STORAGE_KEY,
   loadActivities,
@@ -140,7 +135,7 @@ import {
   closeOpportunityForAcceptedQuote,
   closeOpportunityForRejectedQuote,
 } from './utils/opportunityQuoteSettlement';
-import { canCreateQuoteVersion } from './utils/quoteVersioning';
+import { canCreateQuoteVersion, collectQuoteVersions } from './utils/quoteVersioning';
 import { mirrorProspectActivitiesToOpportunity } from './utils/prospectConversion';
 import { completeCadenceAction } from './utils/cadenceTransitions';
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
@@ -260,16 +255,18 @@ function App() {
   );
   const [sentAudit, setSentAudit] = useState<Quote['sentAudit']>();
   const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([]);
-  const [savedQuotes, setSavedQuotes] = useState(loadSavedQuotes);
-  const [savedQuoteFilter, setSavedQuoteFilter] = useState<SavedQuoteFilter>('all');
-  const [savedQuoteCommercialFilter, setSavedQuoteCommercialFilter] =
-    useState<SavedQuoteCommercialFilter>('all');
-  const [downloadingSavedQuoteId, setDownloadingSavedQuoteId] = useState<string | null>(null);
-  const [savedQuotePdfFeedback, setSavedQuotePdfFeedback] = useState<{
-    quoteId: string;
-    type: 'success' | 'error';
-    message: string;
-  } | null>(null);
+  const {
+    savedQuotes,
+    reloadSavedQuotes,
+    visibleSavedQuotes,
+    documentFilter: savedQuoteFilter,
+    setDocumentFilter: setSavedQuoteFilter,
+    commercialFilter: savedQuoteCommercialFilter,
+    setCommercialFilter: setSavedQuoteCommercialFilter,
+    downloadingQuoteId: downloadingSavedQuoteId,
+    pdfFeedback: savedQuotePdfFeedback,
+    downloadSavedQuotePdf,
+  } = useSavedQuotes();
   const { currentView, setCurrentView, opportunityOrigin, rememberOpportunityOrigin } =
     useAppNavigation();
   // SCRUM-119: "Prospectos" in the menu goes back to the list even from a prospect detail.
@@ -319,7 +316,7 @@ function App() {
     const handleApplied = () => setRemoteSyncError('');
     // SCRUM-123: quotes and the catalog changed in the browser copy (loaded or restored).
     const handleDocuments = () => {
-      setSavedQuotes(loadSavedQuotes());
+      reloadSavedQuotes();
       const catalog = loadLaborCatalog();
       setCatalogJobs(catalog.jobs);
       setCatalogLoadIssue(catalog.issue);
@@ -335,7 +332,7 @@ function App() {
       window.removeEventListener(REMOTE_SYNC_APPLIED_EVENT, handleApplied);
       window.removeEventListener(REMOTE_DOCUMENTS_LOADED_EVENT, handleDocuments);
     };
-  }, []);
+  }, [reloadSavedQuotes]);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [quoteVersion, setQuoteVersion] = useState(1);
@@ -414,10 +411,6 @@ function App() {
     : undefined;
   const isContextualOpportunityQuote = Boolean(associatedClient && associatedOpportunity);
   const quoteTotal = calculateQuoteTotal(quoteLines);
-  const visibleSavedQuotes = filterSavedQuotesByCommercialStatus(
-    filterSavedQuotes(savedQuotes, savedQuoteFilter),
-    savedQuoteCommercialFilter,
-  );
   const globalSearchResults = deriveGlobalSearchResults(
     searchQuery,
     loadClients().items,
@@ -437,7 +430,7 @@ function App() {
     setIsSearchOpen(false);
     setSearchQuery('');
     setOpportunities(loadOpportunities().items);
-    setSavedQuotes(loadSavedQuotes());
+    reloadSavedQuotes();
     const catalog = loadLaborCatalog();
     setCatalogJobs(catalog.jobs);
     setCatalogLoadIssue(catalog.issue);
@@ -1418,7 +1411,7 @@ function App() {
       setOpportunityId(result.opportunity?.id);
       setOpportunities(loadOpportunities().items);
       setDirectClientInput(null);
-      setSavedQuotes(loadSavedQuotes());
+      reloadSavedQuotes();
       setSaveFeedback({
         type: 'success',
         message: 'Cliente directo y borrador guardados correctamente.',
@@ -1434,7 +1427,7 @@ function App() {
           'Presupuesto creado.',
           currentResponsible(),
         );
-      setSavedQuotes(loadSavedQuotes());
+      reloadSavedQuotes();
       setSaveFeedback({
         type: activitySaved ? 'success' : 'error',
         message: activitySaved
@@ -1479,7 +1472,7 @@ function App() {
       setCommercialStatus(next.commercialStatus);
       setCommercialStatusAudit(next.commercialStatusAudit);
       setSentAudit(next.sentAudit);
-      setSavedQuotes(loadSavedQuotes());
+      reloadSavedQuotes();
       if (quote.opportunityId && ['sent', 'followingUp'].includes(nextStatus)) {
         const opportunity = loadOpportunities().items.find(
           (item) => item.id === quote.opportunityId,
@@ -1675,7 +1668,7 @@ function App() {
     setCommercialStatus('sent');
     setCommercialStatusAudit(audit);
     setSentAudit(audit);
-    setSavedQuotes(loadSavedQuotes());
+    reloadSavedQuotes();
     setOpportunities(loadOpportunities().items);
     setQuoteSendTarget(null);
     return { ok: true };
@@ -1709,7 +1702,7 @@ function App() {
       `Pedido de cambio registrado: ${reason}`,
       responsible,
     );
-    setSavedQuotes(loadSavedQuotes());
+    reloadSavedQuotes();
     setDetailQuoteId(next.id);
   }
 
@@ -1717,7 +1710,7 @@ function App() {
     const result = convertDirectQuoteToOpportunity(quote);
     if (!result.ok) return result.message;
     setOpportunities(loadOpportunities().items);
-    setSavedQuotes(loadSavedQuotes());
+    reloadSavedQuotes();
     return null;
   }
 
@@ -1767,7 +1760,7 @@ function App() {
         setOpportunityId(result.opportunity?.id);
         setDirectClientInput(null);
         setQuoteStatus('finalized');
-        setSavedQuotes(loadSavedQuotes());
+        reloadSavedQuotes();
         const activitySaved = recordAutomaticActivity(
           { kind: 'quote', quoteId: persistedQuote.id },
           'finalized',
@@ -1794,7 +1787,7 @@ function App() {
       }
 
       setQuoteStatus('finalized');
-      setSavedQuotes(loadSavedQuotes());
+      reloadSavedQuotes();
       const creationActivitySaved =
         !isNewQuote ||
         recordAutomaticActivity(
@@ -1864,41 +1857,6 @@ function App() {
       });
     } finally {
       setIsDownloadingPdf(false);
-    }
-  }
-
-  async function handleSavedQuotePdfDownload(savedQuote: SavedQuote) {
-    if (downloadingSavedQuoteId !== null) return;
-
-    setDownloadingSavedQuoteId(savedQuote.id);
-    setSavedQuotePdfFeedback(null);
-
-    try {
-      await downloadQuotePdf(savedQuote);
-      const activitySaved = recordAutomaticActivity(
-        { kind: 'quote', quoteId: savedQuote.id },
-        'pdfGenerated',
-        'PDF generado.',
-        currentResponsible(),
-      );
-      setSavedQuotePdfFeedback({
-        quoteId: savedQuote.id,
-        type: activitySaved ? 'success' : 'error',
-        message: activitySaved
-          ? 'El PDF se descargó correctamente.'
-          : 'El PDF se descargó, pero no se pudo registrar la actividad.',
-      });
-    } catch (error) {
-      setSavedQuotePdfFeedback({
-        quoteId: savedQuote.id,
-        type: 'error',
-        message:
-          error instanceof QuotePdfValidationError
-            ? error.message
-            : 'No se pudo generar el PDF. Intentá nuevamente.',
-      });
-    } finally {
-      setDownloadingSavedQuoteId(null);
     }
   }
 
@@ -2349,26 +2307,7 @@ function App() {
 
   if (currentView === 'quoteDetail') {
     const quote = savedQuotes.find((item) => item.id === detailQuoteId);
-    const versionIds = new Set<string>(quote ? [quote.id] : []);
-    let expandedVersions = true;
-    while (expandedVersions) {
-      expandedVersions = false;
-      for (const item of savedQuotes) {
-        if (
-          item.basedOnQuoteId &&
-          versionIds.has(item.basedOnQuoteId) &&
-          !versionIds.has(item.id)
-        ) {
-          versionIds.add(item.id);
-          expandedVersions = true;
-        }
-        if (item.id === quote?.id && item.basedOnQuoteId && !versionIds.has(item.basedOnQuoteId)) {
-          versionIds.add(item.basedOnQuoteId);
-          expandedVersions = true;
-        }
-      }
-    }
-    const quoteVersions = savedQuotes.filter((item) => versionIds.has(item.id));
+    const quoteVersions = collectQuoteVersions(savedQuotes, detailQuoteId);
     const opportunity = opportunities.find(
       (item) => item.id === quote?.opportunityId && item.clientId === quote?.clientId,
     );
@@ -2486,7 +2425,7 @@ function App() {
           downloadingQuoteId={downloadingSavedQuoteId}
           pdfFeedback={savedQuotePdfFeedback}
           onOpen={handleSavedQuoteOpen}
-          onDownloadPdf={(quote) => void handleSavedQuotePdfDownload(quote)}
+          onDownloadPdf={(quote) => void downloadSavedQuotePdf(quote)}
           onNewQuote={handleNewQuote}
           onBackToCurrent={() => setCurrentView(quoteStatus === 'draft' ? 'editor' : 'summary')}
         />
