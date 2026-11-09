@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import './App.css';
-import { DirectClientQuotePanel } from './components/DirectClientQuotePanel';
 import { ContactAssistant } from './components/ContactAssistant';
 import type { Client, ClientInput } from './types/client';
 import type { FollowUpInboxItem } from './types/followUpInbox';
@@ -19,7 +18,6 @@ import {
 } from './utils/opportunityStorage';
 import { AppHeader } from './components/AppHeader';
 import { LaborCatalogView } from './components/LaborCatalogView';
-import { workUnitLabels, workUnitSymbols } from './data/workUnits';
 import type {
   CatalogJob,
   CommercialStatus,
@@ -29,7 +27,7 @@ import type {
   SavedQuote,
   WorkUnit,
 } from './types/quote';
-import { calculateLineSubtotal, calculateQuoteTotal } from './utils/quoteCalculations';
+import { calculateQuoteTotal } from './utils/quoteCalculations';
 import {
   loadSavedQuotes,
   saveFinalizedQuoteCommercialState,
@@ -70,7 +68,6 @@ import {
   saveActivity,
 } from './utils/activityStorage';
 import { MetricsDashboard } from './components/MetricsDashboard';
-import { FieldError } from './components/FieldError';
 import { UnsavedQuoteDialog } from './components/UnsavedQuoteDialog';
 import { hasUnsavedQuoteChanges } from './utils/quoteUnsavedChanges';
 import { persistContact, syncRemoteContacts } from './utils/contactPersistence';
@@ -97,6 +94,9 @@ import { OpportunityDetailView } from './components/OpportunityDetailView';
 import { TodayView } from './components/TodayView';
 import { SavedQuotesView } from './components/SavedQuotesView';
 import { QuoteSummaryView } from './components/QuoteSummaryView';
+import { QuoteLinkingSection } from './components/QuoteLinkingSection';
+import { ServiceEntryCard } from './components/ServiceEntryCard';
+import { QuoteLinesEditor } from './components/QuoteLinesEditor';
 import {
   RegisterResultDrawer,
   type InboxActionInput,
@@ -182,7 +182,6 @@ import {
   saveProspectResultRecovery,
 } from './utils/prospectResultRecovery';
 
-const availableWorkUnits = Object.keys(workUnitLabels) as WorkUnit[];
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -2563,467 +2562,93 @@ function App() {
           </div>
         </header>
 
-        {isContextualOpportunityQuote ? (
-          <section
-            className="quote-card opportunity-quote-context"
-            aria-label="Presupuesto vinculado"
-          >
-            <div>
-              <p className="eyebrow">PRESUPUESTO VINCULADO</p>
-              <h2>{associatedOpportunity!.name}</h2>
-              <p>
-                Cliente: <strong>{associatedClient!.name}</strong>
-                {associatedClient!.company ? ` · ${associatedClient!.company}` : ''}
-              </p>
-            </div>
-            <p className="commercial-note">
-              Ya está vinculado a este cliente y oportunidad. No tenés que seleccionar nada más; la
-              vinculación se guardará al guardar el borrador o finalizar el presupuesto.
-            </p>
-            <button
-              type="button"
-              className="button button-line"
-              onClick={() => {
-                setClientId(undefined);
-                setOpportunityId(undefined);
-                setShouldRefreshDocumentSnapshots(true);
-                setIsLinkingOpen(true);
-              }}
-            >
-              Cambiar oportunidad
-            </button>
-          </section>
-        ) : (
-          <section className="quote-card optional-linking-card" aria-label="Vinculación opcional">
-            <div className="quote-heading">
-              <div>
-                <p className="eyebrow">SEGUIMIENTO OPCIONAL</p>
-                <h2>¿Querés vincular este presupuesto a seguimiento?</h2>
-                <p className="commercial-note">
-                  Podés continuar sin vincularlo. La vinculación no modifica los servicios, el total
-                  ni los datos del documento.
-                </p>
-              </div>
-              <button
-                className="button button-line"
-                type="button"
-                aria-expanded={isLinkingOpen}
-                onClick={() => setIsLinkingOpen((isOpen) => !isOpen)}
-              >
-                {isLinkingOpen ? 'Cerrar vinculación' : 'Vincular a seguimiento'}
-              </button>
-            </div>
-            {isLinkingOpen && (
-              <DirectClientQuotePanel
-                clients={loadClients().items}
-                opportunities={opportunities}
-                onSelectOpportunity={(opportunity) => {
-                  const client = loadClients().items.find(
-                    (item) => item.id === opportunity.clientId,
-                  );
-                  if (client) handleAssociation(client, opportunity);
-                }}
-                onDirectChange={(input, followUp) => {
-                  setDirectClientInput(input);
-                  setDirectFollowUp(followUp);
-                  if (!input) return;
-                  setClientId(undefined);
-                  setOpportunityId(undefined);
-                  setClientName(input.name.trim() || input.company.trim());
-                  setProjectName(input.projectName.trim());
-                  setSaveFeedback(null);
-                }}
-              />
-            )}
-          </section>
-        )}
+        <QuoteLinkingSection
+          opportunity={isContextualOpportunityQuote ? associatedOpportunity : undefined}
+          client={isContextualOpportunityQuote ? associatedClient : undefined}
+          onChangeOpportunity={() => {
+            setClientId(undefined);
+            setOpportunityId(undefined);
+            setShouldRefreshDocumentSnapshots(true);
+            setIsLinkingOpen(true);
+          }}
+          isLinkingOpen={isLinkingOpen}
+          onToggleLinking={() => setIsLinkingOpen((isOpen) => !isOpen)}
+          clients={loadClients().items}
+          opportunities={opportunities}
+          onSelectOpportunity={(opportunity) => {
+            const client = loadClients().items.find((item) => item.id === opportunity.clientId);
+            if (client) handleAssociation(client, opportunity);
+          }}
+          onDirectChange={(input, followUp) => {
+            setDirectClientInput(input);
+            setDirectFollowUp(followUp);
+            if (!input) return;
+            setClientId(undefined);
+            setOpportunityId(undefined);
+            setClientName(input.name.trim() || input.company.trim());
+            setProjectName(input.projectName.trim());
+            setSaveFeedback(null);
+          }}
+        />
 
-        <section className="entry-grid service-entry-grid" aria-label="Agregar servicio">
-          <div className="entry-card service-entry-card">
-            <div className="card-heading">
-              <span className="step-number">1</span>
-              <div>
-                <h2>
-                  {serviceEntryMode === 'catalog' ? 'Agregar servicio' : 'Agregar servicio manual'}
-                </h2>
-                <p>
-                  {serviceEntryMode === 'catalog'
-                    ? 'Buscá un servicio del catálogo y ajustá su precio para este presupuesto.'
-                    : 'Completá el servicio que no está disponible en el catálogo.'}
-                </p>
-              </div>
-              <div className="service-entry-toggle" aria-label="Modo de carga">
-                <button
-                  className={`button button-line ${serviceEntryMode === 'catalog' ? 'is-selected' : ''}`}
-                  type="button"
-                  onClick={() => handleServiceEntryModeChange('catalog')}
-                >
-                  Catálogo
-                </button>
-                <button
-                  className={`button button-line ${serviceEntryMode === 'manual' ? 'is-selected' : ''}`}
-                  type="button"
-                  onClick={() => handleServiceEntryModeChange('manual')}
-                >
-                  Agregar manualmente
-                </button>
-              </div>
-            </div>
-            {serviceEntryMode === 'catalog' ? (
-              <form onSubmit={handleCatalogSubmit}>
-                <label className="field">
-                  <span>Buscar servicio activo</span>
-                  <div className="search-select">
-                    <input
-                      type="search"
-                      value={catalogSearch}
-                      onFocus={() => setIsCatalogMenuOpen(true)}
-                      onChange={(event) => handleCatalogSearchChange(event.target.value)}
-                      placeholder="Nombre o descripción"
-                      aria-expanded={isCatalogMenuOpen}
-                      aria-controls="catalog-service-results"
-                    />
-                    {isCatalogMenuOpen && (
-                      <div
-                        id="catalog-service-results"
-                        className="search-select-menu"
-                        role="listbox"
-                      >
-                        {visibleActiveCatalogJobs.length > 0 ? (
-                          visibleActiveCatalogJobs.map((job) => (
-                            <button
-                              type="button"
-                              key={job.id}
-                              className="search-select-option"
-                              role="option"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => handleCatalogServiceSelection(job)}
-                            >
-                              <strong>{job.name}</strong>
-                              <span>
-                                {job.description || 'Sin descripción'} · {workUnitLabels[job.unit]}{' '}
-                                · {currencyFormatter.format(job.defaultPrice)}
-                              </span>
-                            </button>
-                          ))
-                        ) : (
-                          <div className="search-select-empty">
-                            <p>No encontramos un servicio activo con esos datos.</p>
-                            <button
-                              type="button"
-                              className="button button-line"
-                              onClick={() => handleServiceEntryModeChange('manual')}
-                            >
-                              Agregar manualmente
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </label>
-                <p className="commercial-note">
-                  Escribí para filtrar y elegí un servicio de la lista. Podés borrar y buscar otro.
-                </p>
+        <ServiceEntryCard
+          mode={serviceEntryMode}
+          onModeChange={handleServiceEntryModeChange}
+          catalog={{
+            search: catalogSearch,
+            onSearchChange: handleCatalogSearchChange,
+            onSearchFocus: () => setIsCatalogMenuOpen(true),
+            isMenuOpen: isCatalogMenuOpen,
+            jobs: visibleActiveCatalogJobs,
+            onSelect: handleCatalogServiceSelection,
+            selectedJob: selectedVisibleJob,
+            quantity: catalogQuantity,
+            onQuantityChange: setCatalogQuantity,
+            unitPrice: catalogUnitPrice,
+            onUnitPriceChange: setCatalogUnitPrice,
+            error: catalogError,
+            onSubmit: handleCatalogSubmit,
+          }}
+          manual={{
+            name: manualName,
+            onNameChange: setManualName,
+            description: manualDescription,
+            onDescriptionChange: setManualDescription,
+            unit: manualUnit,
+            onUnitChange: setManualUnit,
+            quantity: manualQuantity,
+            onQuantityChange: setManualQuantity,
+            unitPrice: manualUnitPrice,
+            onUnitPriceChange: setManualUnitPrice,
+            saveToCatalog: saveManualToCatalog,
+            onSaveToCatalogChange: setSaveManualToCatalog,
+            validation: manualValidation,
+            error: manualError,
+            onSubmit: handleManualSubmit,
+          }}
+        />
 
-                <div className="form-grid">
-                  <div className="field read-only-field">
-                    <span>Unidad</span>
-                    <strong>
-                      {selectedVisibleJob
-                        ? `${workUnitLabels[selectedVisibleJob.unit]} (${workUnitSymbols[selectedVisibleJob.unit]})`
-                        : 'Sin servicio seleccionado'}
-                    </strong>
-                  </div>
-                  <label className="field">
-                    <span>Cantidad</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      autoComplete="off"
-                      value={catalogQuantity}
-                      onChange={(event) => setCatalogQuantity(event.target.value)}
-                      required
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Precio unitario</span>
-                    <div className="money-input">
-                      <span>$</span>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        autoComplete="off"
-                        value={catalogUnitPrice}
-                        onChange={(event) => setCatalogUnitPrice(event.target.value)}
-                        required
-                      />
-                    </div>
-                    <small>Precio sugerido, editable para este presupuesto.</small>
-                  </label>
-                </div>
-
-                {catalogError && <p className="form-error">{catalogError}</p>}
-                <button
-                  className="button button-secondary"
-                  type="submit"
-                  disabled={!selectedVisibleJob}
-                  aria-describedby={selectedVisibleJob ? undefined : 'catalog-add-hint'}
-                >
-                  Agregar servicio
-                </button>
-                {!selectedVisibleJob && (
-                  <p className="field-hint" id="catalog-add-hint">
-                    Elegí un servicio de la lista para agregarlo.
-                  </p>
-                )}
-              </form>
-            ) : (
-              <form onSubmit={handleManualSubmit} noValidate>
-                <label className="field">
-                  <span>Nombre del servicio</span>
-                  <input
-                    type="text"
-                    value={manualName}
-                    onChange={(event) => setManualName(event.target.value)}
-                    placeholder="Ej.: Reparar revoque"
-                    required
-                    {...manualValidation.fieldProps('name')}
-                  />
-                  <FieldError
-                    id={manualValidation.errorId('name')}
-                    message={manualValidation.visibleError('name')}
-                  />
-                </label>
-
-                <label className="field quick-description">
-                  <span>Descripción (opcional)</span>
-                  <textarea
-                    value={manualDescription}
-                    onChange={(event) => setManualDescription(event.target.value)}
-                    placeholder="Detalle breve del trabajo"
-                    rows={3}
-                  />
-                </label>
-
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Unidad</span>
-                    <select
-                      value={manualUnit}
-                      onChange={(event) => setManualUnit(event.target.value as WorkUnit)}
-                    >
-                      {availableWorkUnits.map((unit) => (
-                        <option key={unit} value={unit}>
-                          {workUnitLabels[unit]} ({workUnitSymbols[unit]})
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Cantidad</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      autoComplete="off"
-                      value={manualQuantity}
-                      onChange={(event) => setManualQuantity(event.target.value)}
-                      required
-                      {...manualValidation.fieldProps('quantity')}
-                    />
-                    <FieldError
-                      id={manualValidation.errorId('quantity')}
-                      message={manualValidation.visibleError('quantity')}
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Precio unitario</span>
-                    <div className="money-input">
-                      <span>$</span>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        autoComplete="off"
-                        value={manualUnitPrice}
-                        onChange={(event) => setManualUnitPrice(event.target.value)}
-                        placeholder="0"
-                        required
-                        {...manualValidation.fieldProps('unitPrice')}
-                      />
-                    </div>
-                    <FieldError
-                      id={manualValidation.errorId('unitPrice')}
-                      message={manualValidation.visibleError('unitPrice')}
-                    />
-                  </label>
-                </div>
-
-                <label className="checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={saveManualToCatalog}
-                    onChange={(event) => setSaveManualToCatalog(event.target.checked)}
-                  />
-                  <span>Guardar también en el catálogo para reutilizarlo</span>
-                </label>
-
-                {manualError && (
-                  <p className="form-error" role="alert">
-                    {manualError}
-                  </p>
-                )}
-                <button className="button button-secondary" type="submit">
-                  Agregar servicio
-                </button>
-              </form>
-            )}
-          </div>
-        </section>
-
-        <section className="quote-card" aria-labelledby="quote-lines-title">
-          <div className="quote-heading">
-            <div>
-              <p className="eyebrow">Detalle</p>
-              <h2 id="quote-lines-title">Servicios del presupuesto</h2>
-            </div>
-            <span className="line-count">
-              {quoteLines.length} {quoteLines.length === 1 ? 'servicio' : 'servicios'}
-            </span>
-          </div>
-
-          {quoteLines.length === 0 ? (
-            <div className="empty-state">
-              <span aria-hidden="true">＋</span>
-              <h3>Todavía no agregaste servicios</h3>
-              <p>Elegí uno del catálogo o cargalo manualmente para empezar el presupuesto.</p>
-            </div>
-          ) : (
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Servicio</th>
-                    <th>Unidad</th>
-                    <th className="numeric-cell">Cantidad</th>
-                    <th className="numeric-cell">Precio unitario</th>
-                    <th className="numeric-cell">Subtotal</th>
-                    <th className="actions-cell">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {quoteLines.map((line) => {
-                    const isEditing = editingLineId === line.id;
-
-                    return (
-                      <tr key={line.id}>
-                        <td>
-                          <strong>{line.name}</strong>
-                          {line.description && <small>{line.description}</small>}
-                          <small>{line.source === 'catalog' ? 'Catálogo' : 'Manual'}</small>
-                        </td>
-                        <td>{workUnitSymbols[line.unit]}</td>
-                        <td className="numeric-cell">
-                          {isEditing ? (
-                            <input
-                              className="line-edit-input"
-                              type="text"
-                              inputMode="decimal"
-                              autoComplete="off"
-                              value={editQuantity}
-                              onChange={(event) => setEditQuantity(event.target.value)}
-                              aria-label={`Cantidad de ${line.name}`}
-                            />
-                          ) : (
-                            line.quantity
-                          )}
-                        </td>
-                        <td className="numeric-cell">
-                          {isEditing ? (
-                            <input
-                              className="line-edit-input line-edit-price"
-                              type="text"
-                              inputMode="decimal"
-                              autoComplete="off"
-                              value={editUnitPrice}
-                              onChange={(event) => setEditUnitPrice(event.target.value)}
-                              aria-label={`Precio unitario de ${line.name}`}
-                            />
-                          ) : (
-                            currencyFormatter.format(line.unitPrice)
-                          )}
-                        </td>
-                        <td className="numeric-cell subtotal">
-                          {currencyFormatter.format(
-                            calculateLineSubtotal(line.quantity, line.unitPrice),
-                          )}
-                        </td>
-                        <td className="actions-cell">
-                          {isEditing ? (
-                            <>
-                              <div className="line-actions">
-                                <button
-                                  className="button button-line button-save"
-                                  type="button"
-                                  onClick={() => handleEditSave(line.id)}
-                                >
-                                  Guardar
-                                </button>
-                                <button
-                                  className="button button-line"
-                                  type="button"
-                                  onClick={handleEditCancel}
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                              {editError && (
-                                <small className="line-edit-error" role="alert">
-                                  {editError}
-                                </small>
-                              )}
-                            </>
-                          ) : (
-                            <div className="line-actions">
-                              <button
-                                className="button button-line"
-                                type="button"
-                                onClick={() => handleEditStart(line)}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                className="button button-line button-delete"
-                                type="button"
-                                onClick={() => handleLineDelete(line.id)}
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <footer className="quote-footer">
-            <div className="grand-total">
-              <span>Total del presupuesto</span>
-              <strong>{currencyFormatter.format(quoteTotal)}</strong>
-            </div>
-            <button
-              className="button button-primary"
-              type="button"
-              disabled={quoteLines.length === 0}
-              onClick={() => setCurrentView('summary')}
-            >
-              Continuar presupuesto <span aria-hidden="true">→</span>
-            </button>
-          </footer>
-        </section>
+        <QuoteLinesEditor
+          lines={quoteLines}
+          total={quoteTotal}
+          editing={
+            editingLineId
+              ? {
+                  lineId: editingLineId,
+                  quantity: editQuantity,
+                  onQuantityChange: setEditQuantity,
+                  unitPrice: editUnitPrice,
+                  onUnitPriceChange: setEditUnitPrice,
+                  error: editError,
+                  onSave: handleEditSave,
+                  onCancel: handleEditCancel,
+                }
+              : null
+          }
+          onEditStart={handleEditStart}
+          onDelete={handleLineDelete}
+          onContinue={() => setCurrentView('summary')}
+        />
       </main>
     </>
   );
