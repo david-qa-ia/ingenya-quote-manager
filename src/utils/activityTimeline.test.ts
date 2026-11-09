@@ -87,6 +87,13 @@ describe('activity display helpers', () => {
     ).toBe('Contacto registrado');
   });
 
+  it('translates the outcome of emails, meetings and Instagram like a call', () => {
+    for (const type of ['email', 'meeting', 'instagram'] as const)
+      expect(getActivityResultLabel({ ...activities[0], type, result: 'noAnswer' })).toBe(
+        'No contesta',
+      );
+  });
+
   it('formats history times in 24-hour Argentina time', () => {
     expect(formatActivityDateTime('2026-10-29T00:17:14.000Z')).toBe('28/10/2026, 21:17');
   });

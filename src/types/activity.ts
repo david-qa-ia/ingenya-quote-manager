@@ -1,6 +1,7 @@
 import type { ContactCommunicationSnapshot, WhatsAppResult } from './contactScript';
 
-export type ActivityType = 'call' | 'whatsapp' | 'email' | 'note' | 'relevantChange';
+export type ActivityType =
+  'call' | 'whatsapp' | 'email' | 'instagram' | 'meeting' | 'note' | 'relevantChange';
 
 export type CallResult =
   'effectiveContact' | 'noAnswer' | 'callBack' | 'notInterested' | 'invalidNumber';

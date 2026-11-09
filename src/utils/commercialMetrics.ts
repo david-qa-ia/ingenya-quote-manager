@@ -8,6 +8,15 @@ import type {
 import { businessTimeZone } from './opportunityNextAction';
 import type { Prospect } from '../types/prospect';
 import { isProspectSystemNote } from './prospectWorkflow';
+import { readLegacyContactNote } from './opportunityContactActivity';
+
+const contactActivityTypes: readonly string[] = [
+  'call',
+  'whatsapp',
+  'email',
+  'instagram',
+  'meeting',
+];
 
 /** Prefix used in the client filter to select a prospect instead of a client. */
 export const PROSPECT_FILTER_PREFIX = 'prospect:';
@@ -199,12 +208,23 @@ export function calculateCommercialMetrics(
       (item) =>
         activityBelongs(item, clientIds, scopedOpportunityIds, quoteIds) &&
         item.source === 'manual' &&
-        channelMatches(item.type) &&
+        channelMatches(readLegacyContactNote(item)?.channel ?? item.type) &&
         responsibleMatches(item.author),
     )
     .map((item) => {
+      const legacy = readLegacyContactNote(item);
+      if (legacy)
+        return {
+          type: legacy.channel,
+          occurredAt: item.occurredAt,
+          author: item.author,
+          isContact: true,
+          isEffective: legacy.effective,
+          isNote: false,
+        };
       const isSend = item.result === 'sent';
-      const isContact = !isSend && ['call', 'whatsapp', 'email'].includes(item.type);
+      // Every way of reaching the client counts as a contact (product decision 2026-11-09).
+      const isContact = !isSend && contactActivityTypes.includes(item.type);
       return {
         type: item.type,
         occurredAt: item.occurredAt,

@@ -39,6 +39,8 @@ const typeLabels: Record<ActivityType, string> = {
   call: 'Llamada',
   whatsapp: 'WhatsApp',
   email: 'Email',
+  instagram: 'Instagram',
+  meeting: 'Reunión',
   note: 'Nota',
   relevantChange: 'Cambio relevante',
 };
@@ -97,7 +99,16 @@ function activitySummary(activity: Activity): string {
     return `Registró una llamada: ${callResultLabels[activity.result as CallResult]}`;
   if (activity.type === 'whatsapp') return 'Registró una conversación por WhatsApp';
   if (activity.type === 'email') return 'Registró un email';
+  if (activity.type === 'meeting') return `Registró una reunión${resultSuffix(activity.result)}`;
+  if (activity.type === 'instagram')
+    return `Registró un contacto por Instagram${resultSuffix(activity.result)}`;
   return activity.result || typeLabels[activity.type];
+}
+
+/** ": Contacto efectivo" for a known outcome, ": <text>" for a typed one. */
+function resultSuffix(result: string): string {
+  const label = callResultLabels[result as CallResult] ?? result.trim();
+  return label ? `: ${label}` : '';
 }
 
 function activityIcon(activity: Activity): UiIconName {
@@ -105,6 +116,8 @@ function activityIcon(activity: Activity): UiIconName {
   if (activity.type === 'call') return 'phone';
   if (activity.type === 'whatsapp') return 'whatsapp';
   if (activity.type === 'email') return 'email';
+  if (activity.type === 'instagram') return 'instagram';
+  if (activity.type === 'meeting') return 'users';
   if (activity.note.startsWith('Datos actualizados desde el contexto:')) return 'edit';
   return 'activity';
 }
