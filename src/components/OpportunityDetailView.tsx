@@ -34,6 +34,8 @@ interface Props {
   opportunity: Opportunity;
   client?: Client;
   quotes: readonly SavedQuote[];
+  /** Names the list "Volver" returns to, the one the opportunity was opened from. */
+  backLabel: string;
   onBack: () => void;
   onSaveOpportunity: (opportunity: Opportunity, event: string) => boolean;
   onUpdateClient: (
@@ -93,6 +95,7 @@ export function OpportunityDetailView({
   opportunity,
   client,
   quotes,
+  backLabel,
   onBack,
   onSaveOpportunity,
   onUpdateClient,
@@ -306,11 +309,11 @@ export function OpportunityDetailView({
         type="button"
         onClick={onBack}
       >
-        ← Volver a seguimiento
+        ← {backLabel}
       </button>
       <header className="opportunity-detail-header">
         <div>
-          <p className="eyebrow">Seguimiento / Oportunidades</p>
+          <p className="eyebrow">Trabajos / Oportunidad</p>
           <div className="opportunity-title-row">
             <h1>{opportunity.name}</h1>
             <span className="status-badge prospect-status-contacted">

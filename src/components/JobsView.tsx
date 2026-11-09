@@ -14,6 +14,8 @@ interface Props {
   rows: readonly JobRow[];
   onOpen: (row: JobRow) => void;
   onNewProspect: () => void;
+  /** The prospect list, with CSV import and archived prospects. */
+  onShowProspects: () => void;
 }
 
 const filterOrder: readonly JobStageFilter[] = ['open', ...jobStageOrder, 'all'];
@@ -39,7 +41,7 @@ const initials = (name: string) =>
     .join('');
 
 /** Every sale in one list, from a new prospect to the outcome, filtered by stage. */
-export function JobsView({ rows, onOpen, onNewProspect }: Props) {
+export function JobsView({ rows, onOpen, onNewProspect, onShowProspects }: Props) {
   const [stage, setStage] = useState<JobStageFilter>('open');
   const [query, setQuery] = useState('');
   const counts = useMemo(() => countJobsByStage(rows), [rows]);
@@ -57,6 +59,9 @@ export function JobsView({ rows, onOpen, onNewProspect }: Props) {
           </p>
         </div>
         <div className="header-actions">
+          <button className="button button-line" type="button" onClick={onShowProspects}>
+            <UiIcon name="users" /> Prospectos e importación
+          </button>
           <button className="button button-primary" type="button" onClick={onNewProspect}>
             <UiIcon name="plus" /> Nuevo prospecto
           </button>

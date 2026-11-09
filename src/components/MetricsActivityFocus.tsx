@@ -6,7 +6,7 @@ const content = {
     icon: 'phone',
     title: 'Empezá por registrar un contacto',
     description:
-      'Todavía no hay llamadas, WhatsApps ni emails registrados en este período. Elegí una oportunidad desde Seguimiento y dejá asentado el resultado.',
+      'Todavía no hay llamadas, WhatsApps ni emails registrados en este período. Elegí un trabajo desde Hoy y dejá asentado el resultado.',
   },
   followUpContacts: {
     icon: 'activity',
@@ -24,7 +24,7 @@ const content = {
     icon: 'check-circle',
     title: 'Mantené el ritmo',
     description:
-      'Ya registraste contactos efectivos y seguimientos completados. Mirá Seguimiento para elegir la próxima oportunidad a trabajar.',
+      'Ya registraste contactos efectivos y seguimientos completados. Mirá Hoy para elegir la próxima oportunidad a trabajar.',
   },
 } as const satisfies Record<
   CommercialMetrics['focus'],

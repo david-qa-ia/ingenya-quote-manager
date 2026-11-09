@@ -1,21 +1,39 @@
 import { useState } from 'react';
 import { formatCurrency } from '../utils/quoteFormatting';
-import type { FollowUpBucket, FollowUpInboxItem } from '../types/followUpInbox';
+import type { FollowUpInboxItem } from '../types/followUpInbox';
+import { defaultFollowUpFilters, filterFollowUpInbox } from '../utils/followUpInbox';
 import { businessTimeZone } from '../utils/opportunityNextAction';
 import { getContactAction } from '../utils/contactAction';
 import { UiIcon } from './UiIcon';
 
 interface Props {
   items: readonly FollowUpInboxItem[];
-  onShowFollowUp: () => void;
+  /** Data that could not be read; the valid records are still shown. */
+  issues: readonly string[];
   onOpen: (item: FollowUpInboxItem) => void;
   /** SCRUM-119: clicking the contact opens its context (prospect, opportunity or quote). */
   onOpenContext: (item: FollowUpInboxItem) => void;
+  onShowMetrics: () => void;
+  onShowCadences: () => void;
 }
 
-const labels = { overdue: 'Vencidos', today: 'Hoy', upcoming: 'Próximos' } as const;
+const labels = {
+  overdue: 'Vencidos',
+  today: 'Hoy',
+  upcoming: 'Próximos',
+  missing: 'Sin próxima acción',
+} as const;
+type Bucket = keyof typeof labels;
+const bucketOrder = Object.keys(labels) as Bucket[];
 
-function BucketIcon({ bucket }: { bucket: keyof typeof labels }) {
+function BucketIcon({ bucket }: { bucket: Bucket }) {
+  if (bucket === 'missing') {
+    return (
+      <span className={`daily-bucket-icon daily-bucket-icon-${bucket}`}>
+        <UiIcon name="help" />
+      </span>
+    );
+  }
   if (bucket === 'upcoming') {
     return (
       <svg
@@ -86,16 +104,42 @@ function ContactAction({ item }: { item: FollowUpInboxItem }) {
   );
 }
 
-export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, onOpenContext }: Props) {
+function formatDue(item: FollowUpInboxItem) {
+  if (!item.action) return 'Sin fecha';
+  return new Intl.DateTimeFormat(
+    'es-AR',
+    item.bucket === 'today'
+      ? { hour: '2-digit', minute: '2-digit', timeZone: businessTimeZone }
+      : {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+          timeZone: businessTimeZone,
+        },
+  ).format(new Date(item.action.dueAt));
+}
+
+/**
+ * Hoy: everything to contact, overdue first, plus the jobs that have no next action yet.
+ * It replaces "Mi trabajo de hoy" and "A quién contactar hoy", and leads to Indicadores.
+ */
+export function TodayView({
+  items,
+  issues,
+  onOpen,
+  onOpenContext,
+  onShowMetrics,
+  onShowCadences,
+}: Props) {
   // SCRUM-117: open on the first bucket with work (overdue, then today, then upcoming), so the
-  // dashboard never says "al día" while there is a pending action in another tab.
-  const [selectedBucket, setSelectedBucket] = useState<FollowUpBucket | 'all'>(
-    () =>
-      (['overdue', 'today', 'upcoming'] as const).find((bucket) =>
-        items.some((item) => item.bucket === bucket),
-      ) ?? 'today',
+  // screen never says "al día" while there is a pending action in another tab.
+  const [selectedBucket, setSelectedBucket] = useState<Bucket>(
+    () => bucketOrder.find((bucket) => items.some((item) => item.bucket === bucket)) ?? 'today',
   );
-  const pendingElsewhere = (['overdue', 'today', 'upcoming'] as const)
+  const [search, setSearch] = useState('');
+  const pendingElsewhere = bucketOrder
     .filter((bucket) => bucket !== selectedBucket)
     .map((bucket) => ({ bucket, count: items.filter((item) => item.bucket === bucket).length }))
     .filter((entry) => entry.count > 0);
@@ -106,23 +150,35 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, onOpenContex
     year: 'numeric',
     timeZone: businessTimeZone,
   }).format(new Date());
-  const visible = items
-    .filter((item) => item.bucket !== 'missing')
-    .filter((item) => selectedBucket === 'all' || item.bucket === selectedBucket)
-    .slice(0, 6);
+  const visible = filterFollowUpInbox(items, {
+    ...defaultFollowUpFilters,
+    bucket: selectedBucket,
+    search,
+  });
   return (
     <main className="app-shell daily-dashboard">
       <header className="daily-dashboard-header">
         <div>
-          <h1>Mi trabajo de hoy</h1>
+          <h1>Hoy</h1>
           <p className="page-description">{date}</p>
-          <button className="daily-dashboard-followup-link" type="button" onClick={onShowFollowUp}>
-            Ver seguimiento completo →
+        </div>
+        <div className="header-actions">
+          <button className="button button-line" type="button" onClick={onShowMetrics}>
+            <UiIcon name="bar-chart" /> Indicadores
+          </button>
+          <button className="button button-line" type="button" onClick={onShowCadences}>
+            <UiIcon name="activity" /> Automatizaciones
           </button>
         </div>
       </header>
+      {issues.length > 0 && (
+        <p className="commercial-warning" role="alert">
+          No se pudieron recuperar todos los datos de seguimiento. Se muestran los registros válidos
+          disponibles.
+        </p>
+      )}
       <section className="daily-dashboard-summary" aria-label="Resumen del trabajo diario">
-        {(Object.keys(labels) as (keyof typeof labels)[]).map((bucket) => (
+        {bucketOrder.map((bucket) => (
           <button
             className={`daily-dashboard-tab ${selectedBucket === bucket ? 'daily-dashboard-tab-active' : ''}`}
             key={bucket}
@@ -137,6 +193,15 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, onOpenContex
         ))}
       </section>
       <section className="quote-card daily-dashboard-table">
+        <label className="field daily-dashboard-search">
+          <span>Buscar</span>
+          <input
+            type="search"
+            value={search}
+            placeholder="Contacto, proyecto o presupuesto"
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
         {visible.length ? (
           <>
             <div className="daily-dashboard-columns">
@@ -174,23 +239,23 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, onOpenContex
                     ? 'Sin valor estimado'
                     : formatCurrency(item.estimatedValue)}
                 </span>
-                <strong>
-                  {new Intl.DateTimeFormat('es-AR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    timeZone: businessTimeZone,
-                  }).format(new Date(item.action!.dueAt))}
-                </strong>
-                <span>{item.action?.description}</span>
+                <strong>{formatDue(item)}</strong>
+                <span>{item.action?.description ?? 'Definí cómo seguir'}</span>
                 <div className="daily-row-actions">
-                  <ContactAction item={item} />
-                  <button
-                    className="button button-primary"
-                    type="button"
-                    onClick={() => onOpen(item)}
-                  >
-                    ✓ Registrar resultado
-                  </button>
+                  {item.contactRestricted ? (
+                    <small className="commercial-warning">No contactar</small>
+                  ) : (
+                    <>
+                      <ContactAction item={item} />
+                      <button
+                        className="button button-primary"
+                        type="button"
+                        onClick={() => onOpen(item)}
+                      >
+                        {item.action ? '✓ Registrar resultado' : 'Definir próxima acción'}
+                      </button>
+                    </>
+                  )}
                 </div>
               </article>
             ))}
@@ -201,14 +266,14 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, onOpenContex
               <UiIcon name="check-circle" />
             </span>
             <div>
-              {pendingElsewhere.length ? (
+              {search.trim() ? (
                 <>
-                  <p>
-                    Nada en{' '}
-                    {selectedBucket in labels
-                      ? labels[selectedBucket as keyof typeof labels].toLowerCase()
-                      : 'esta vista'}
-                  </p>
+                  <p>Sin resultados para “{search.trim()}”</p>
+                  <small>Probá con otro nombre o revisá las otras pestañas.</small>
+                </>
+              ) : pendingElsewhere.length ? (
+                <>
+                  <p>Nada en {labels[selectedBucket].toLowerCase()}</p>
                   <small>
                     Tenés{' '}
                     {pendingElsewhere
@@ -224,17 +289,13 @@ export function DailyWorkDashboard({ items, onShowFollowUp, onOpen, onOpenContex
                 </>
               )}
             </div>
-            {pendingElsewhere.length ? (
+            {!search.trim() && pendingElsewhere.length > 0 && (
               <button
                 className="button button-secondary"
                 type="button"
                 onClick={() => setSelectedBucket(pendingElsewhere[0].bucket)}
               >
                 Ver {labels[pendingElsewhere[0].bucket].toLowerCase()}
-              </button>
-            ) : (
-              <button className="button button-secondary" type="button" onClick={onShowFollowUp}>
-                Ver seguimiento completo
               </button>
             )}
           </div>

@@ -13,9 +13,7 @@ interface AppHeaderProps {
   activeSection: NavigationSection;
   onNewQuote: () => void;
   onShowSavedQuotes: () => void;
-  onShowNextActions: () => void;
-  onShowMetrics: () => void;
-  onShowProspects: () => void;
+  onShowToday: () => void;
   onShowJobs: () => void;
   onShowClients: () => void;
   onShowSettings: () => void;
@@ -37,9 +35,7 @@ export function AppHeader({
   activeSection,
   onNewQuote,
   onShowSavedQuotes,
-  onShowNextActions,
-  onShowMetrics,
-  onShowProspects,
+  onShowToday,
   onShowJobs,
   onShowClients,
   onShowSettings,
@@ -197,6 +193,14 @@ export function AppHeader({
             <button
               className="navigation-link"
               type="button"
+              aria-current={activeSection === 'today' ? 'page' : undefined}
+              onClick={() => navigate(onShowToday)}
+            >
+              <UiIcon name="calendar-check" /> Hoy
+            </button>
+            <button
+              className="navigation-link"
+              type="button"
               aria-current={activeSection === 'jobs' ? 'page' : undefined}
               onClick={() => navigate(onShowJobs)}
             >
@@ -210,37 +214,14 @@ export function AppHeader({
             >
               <UiIcon name="person" /> Clientes
             </button>
+            <p className="navigation-group-label">Presupuestos rápidos</p>
             <button
-              className="navigation-link"
-              type="button"
-              aria-current={activeSection === 'prospects' ? 'page' : undefined}
-              onClick={() => navigate(onShowProspects)}
-            >
-              <UiIcon name="users" /> Prospectos
-            </button>
-            <button
-              className="navigation-link"
-              type="button"
-              aria-current={activeSection === 'nextActions' ? 'page' : undefined}
-              onClick={() => navigate(onShowNextActions)}
-            >
-              <UiIcon name="calendar-check" /> Seguimiento
-            </button>
-            <button
-              className="navigation-link"
+              className="navigation-link navigation-link-secondary"
               type="button"
               aria-current={activeSection === 'savedQuotes' ? 'page' : undefined}
               onClick={() => navigate(onShowSavedQuotes)}
             >
-              <UiIcon name="document" /> Mis presupuestos
-            </button>
-            <button
-              className="navigation-link"
-              type="button"
-              aria-current={activeSection === 'metrics' ? 'page' : undefined}
-              onClick={() => navigate(onShowMetrics)}
-            >
-              <UiIcon name="bar-chart" /> Indicadores
+              <UiIcon name="document" /> Presupuestos guardados
             </button>
             <button
               className="button button-primary header-new-quote"

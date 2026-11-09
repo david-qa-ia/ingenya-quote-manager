@@ -8892,3 +8892,73 @@ tr:last-child td {
     display: none;
   }
 }
+
+/* Hoy: one screen for overdue, today, upcoming and jobs without a next action. */
+.daily-dashboard-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+span.daily-bucket-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  stroke: none;
+}
+span.daily-bucket-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.daily-bucket-icon-missing {
+  color: var(--text-muted);
+}
+.daily-dashboard-search {
+  max-width: 320px;
+  margin-bottom: 14px;
+}
+.daily-dashboard-header .header-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 900px) {
+  .daily-dashboard-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .daily-dashboard-search {
+    max-width: none;
+  }
+  .daily-dashboard-header .header-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+/* Menu: quick quotes (without a client) are a secondary group under Hoy, Trabajos and Clientes. */
+.navigation-group-label {
+  margin: 14px 12px 2px;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+@media (min-width: 801px) {
+  .app-sidebar-header .navigation-group-label {
+    margin: 18px 10px 4px;
+    color: rgba(218, 227, 247, 0.52);
+    font-size: 0.61rem;
+    letter-spacing: 0.15em;
+  }
+  .app-sidebar-header .navigation-link-secondary {
+    min-height: 40px;
+    font-size: 0.87rem;
+    font-weight: 600;
+  }
+  .app-sidebar-header .navigation-link-secondary + .header-new-quote {
+    margin-top: 8px;
+  }
+}
+@media (max-width: 800px) and (min-width: 641px) {
+  .navigation-group-label {
+    display: none;
+  }
+}
