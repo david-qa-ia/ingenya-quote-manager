@@ -1,6 +1,14 @@
 import { currentActivityNote } from '../utils/activityNoteEditing';
 import { buildContactMessage, buildWhatsAppUrl } from '../utils/whatsappMessage';
 import { useContactSender } from '../utils/useContactSender';
+import { FieldError } from './FieldError';
+import {
+  commercialReasonLabels,
+  formatLossReason,
+  getLossReasonFieldErrors,
+  isLossReasonCode,
+  lossReasonCodes,
+} from '../utils/commercialOutcome';
 import { useState } from 'react';
 import { formatActivityDateTime } from '../utils/activityTimeline';
 import { loadActivities } from '../utils/activityStorage';
@@ -54,6 +62,10 @@ export function QuoteDetailView({
   const [target, setTarget] = useState<CommercialStatus | null>(null);
   const [author, setAuthor] = useState('');
   const [reason, setReason] = useState('');
+  const [lossCode, setLossCode] = useState('');
+  const [lossDetail, setLossDetail] = useState('');
+  const [showLossErrors, setShowLossErrors] = useState(false);
+  const lossErrors = getLossReasonFieldErrors({ code: lossCode, detail: lossDetail });
   const [feedback, setFeedback] = useState('');
   const [changeOpen, setChangeOpen] = useState(false);
   const [changeReason, setChangeReason] = useState('');
@@ -83,14 +95,26 @@ export function QuoteDetailView({
   }
   function confirm() {
     if (!target) return;
+    // A loss is recorded with a reason from the list (and a few words for "Otro").
+    if (target === 'rejected' && Object.keys(lossErrors).length) return setShowLossErrors(true);
     const error = onStatus(quote, target, {
       changedAt: new Date().toISOString(),
       changedBy: author.trim(),
-      reason: reason.trim(),
+      reason:
+        target === 'rejected' && isLossReasonCode(lossCode)
+          ? formatLossReason(lossCode, lossDetail)
+          : reason.trim(),
     });
     if (error) return setFeedback(error);
     setFeedback(`Estado actualizado a ${commercialStatusLabels[target]}.`);
+    closeStatusDialog();
+  }
+
+  function closeStatusDialog() {
     setTarget(null);
+    setLossCode('');
+    setLossDetail('');
+    setShowLossErrors(false);
   }
 
   const sender = useContactSender();
@@ -439,12 +463,54 @@ export function QuoteDetailView({
             <h2>¿Registrar {commercialStatusLabels[target].toLowerCase()}?</h2>
             <p>Este cambio se auditará; no se cerrará si el guardado falla.</p>
             <ResponsibleField label="Responsable" value={author} onChange={setAuthor} />
-            <label className="field">
-              <span>Motivo</span>
-              <textarea value={reason} onChange={(event) => setReason(event.target.value)} />
-            </label>
+            {target === 'rejected' ? (
+              <>
+                <label className="field">
+                  <span>Motivo</span>
+                  <select
+                    value={lossCode}
+                    onChange={(event) => setLossCode(event.target.value)}
+                    aria-invalid={showLossErrors && lossErrors.code ? true : undefined}
+                    aria-describedby={
+                      showLossErrors && lossErrors.code ? 'loss-reason-code-error' : undefined
+                    }
+                  >
+                    <option value="">Elegí un motivo</option>
+                    {lossReasonCodes.map((code) => (
+                      <option key={code} value={code}>
+                        {commercialReasonLabels[code]}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldError
+                    id="loss-reason-code-error"
+                    message={showLossErrors ? lossErrors.code : undefined}
+                  />
+                </label>
+                <label className="field">
+                  <span>{lossCode === 'other' ? '¿Cuál es el motivo?' : 'Detalle (opcional)'}</span>
+                  <textarea
+                    value={lossDetail}
+                    onChange={(event) => setLossDetail(event.target.value)}
+                    aria-invalid={showLossErrors && lossErrors.detail ? true : undefined}
+                    aria-describedby={
+                      showLossErrors && lossErrors.detail ? 'loss-reason-detail-error' : undefined
+                    }
+                  />
+                  <FieldError
+                    id="loss-reason-detail-error"
+                    message={showLossErrors ? lossErrors.detail : undefined}
+                  />
+                </label>
+              </>
+            ) : (
+              <label className="field">
+                <span>Motivo</span>
+                <textarea value={reason} onChange={(event) => setReason(event.target.value)} />
+              </label>
+            )}
             <div className="confirmation-actions">
-              <button className="button button-line" type="button" onClick={() => setTarget(null)}>
+              <button className="button button-line" type="button" onClick={closeStatusDialog}>
                 Cancelar
               </button>
               <button className="button button-primary" type="button" onClick={confirm}>

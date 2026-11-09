@@ -7,6 +7,7 @@ export type CommercialReasonCode =
   | 'outOfScope'
   | 'noBudget'
   | 'timeline'
+  | 'postponed'
   | 'invalidData'
   | 'notInterested'
   | 'duplicate'
