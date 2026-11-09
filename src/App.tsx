@@ -6,6 +6,7 @@ import type { Client, ClientInput } from './types/client';
 import type { FollowUpInboxItem } from './types/followUpInbox';
 import type { Opportunity } from './types/opportunity';
 import { CLIENTS_STORAGE_KEY, loadClients, saveClient } from './utils/clientStorage';
+import { buildOpportunityContactActivity } from './utils/opportunityContactActivity';
 import { associateQuote } from './utils/quoteAssociations';
 import {
   loadOpportunities,
@@ -1312,6 +1313,15 @@ function App() {
       const current = loadOpportunities().items.find((value) => value.id === item.opportunityId);
       if (!current) return { ok: false };
       const currentAction = current.nextAction;
+      const contactActivity = buildOpportunityContactActivity({
+        id: crypto.randomUUID(),
+        occurredAt: now,
+        author: input.actor,
+        opportunityId: current.id,
+        channel: input.channel,
+        result: input.result,
+        note: manualNote,
+      });
       if (!currentAction) {
         if (!input.nextStep || input.nextStep === 'none' || !input.dueAt) return { ok: false };
         const nextAction = {
@@ -1331,22 +1341,7 @@ function App() {
           [OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
           [
             () => saveOpportunity({ ...current, nextAction, updatedAt: now }),
-            ...(manualNote
-              ? [
-                  () =>
-                    saveActivity({
-                      id: crypto.randomUUID(),
-                      type: 'note',
-                      occurredAt: now,
-                      author: input.actor.trim(),
-                      result: 'Nota registrada',
-                      note: manualNote,
-                      subject: { kind: 'opportunity', opportunityId: current.id },
-                      source: 'manual',
-                      noteRevisions: [],
-                    }),
-                ]
-              : []),
+            ...(contactActivity ? [() => saveActivity(contactActivity)] : []),
             () =>
               recordAutomaticActivity(
                 { kind: 'opportunity', opportunityId: current.id },
@@ -1403,22 +1398,7 @@ function App() {
         [OPPORTUNITIES_STORAGE_KEY, ACTIVITIES_STORAGE_KEY],
         [
           () => saveOpportunity(persisted),
-          ...(manualNote
-            ? [
-                () =>
-                  saveActivity({
-                    id: crypto.randomUUID(),
-                    type: 'note',
-                    occurredAt: now,
-                    author: input.actor.trim(),
-                    result: 'Nota registrada',
-                    note: manualNote,
-                    subject: { kind: 'opportunity', opportunityId: current.id },
-                    source: 'manual',
-                    noteRevisions: [],
-                  }),
-              ]
-            : []),
+          ...(contactActivity ? [() => saveActivity(contactActivity)] : []),
           () =>
             recordNextActionActivity(
               current.id,
