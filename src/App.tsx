@@ -7,6 +7,8 @@ import type { FollowUpInboxItem } from './types/followUpInbox';
 import type { Opportunity } from './types/opportunity';
 import { CLIENTS_STORAGE_KEY, loadClients, saveClient } from './utils/clientStorage';
 import { buildOpportunityContactActivity } from './utils/opportunityContactActivity';
+import { buildJobList } from './utils/jobList';
+import { JobsView } from './components/JobsView';
 import { associateQuote } from './utils/quoteAssociations';
 import {
   loadOpportunities,
@@ -303,6 +305,7 @@ function App() {
   const [prospects, setProspects] = useState(() => loadProspects().items);
   const [prospectFilters, setProspectFilters] = useState(loadProspectFilters);
   const [requestedProspectId, setRequestedProspectId] = useState<string | null>(null);
+  const [openNewProspect, setOpenNewProspect] = useState(false);
   const [inboxContact, setInboxContact] = useState<FollowUpInboxItem | null>(null);
   const [drawerItem, setDrawerItem] = useState<FollowUpInboxItem | null>(null);
   const [clientId, setClientId] = useState<string | undefined>();
@@ -1954,6 +1957,7 @@ function App() {
         setCurrentView('prospects');
         setProspectsResetToken((value) => value + 1);
       }}
+      onShowJobs={() => setCurrentView('jobs')}
       onShowSettings={() => setCurrentView('settings')}
       searchQuery={searchQuery}
       searchResults={globalSearchResults}
@@ -2169,12 +2173,44 @@ function App() {
     );
   }
 
+  if (currentView === 'jobs') {
+    return (
+      <>
+        {appHeader}
+        <JobsView
+          rows={buildJobList({
+            prospects,
+            opportunities,
+            clients: loadClients().items,
+            quotes: savedQuotes,
+          })}
+          onOpen={(row) => {
+            if (row.kind === 'prospect') {
+              setRequestedProspectId(row.id);
+              setCurrentView('prospects');
+              return;
+            }
+            setOpportunities(loadOpportunities().items);
+            setDetailOpportunityId(row.id);
+            setCurrentView('opportunityDetail');
+          }}
+          onNewProspect={() => {
+            setCurrentView('prospects');
+            setOpenNewProspect(true);
+          }}
+        />
+      </>
+    );
+  }
+
   if (currentView === 'prospects') {
     return (
       <>
         {appHeader}
         <ProspectingView
           resetToken={prospectsResetToken}
+          openNewProspect={openNewProspect}
+          onOpenNewProspectHandled={() => setOpenNewProspect(false)}
           initialFilters={prospectFilters}
           onFiltersChange={(filters) => {
             setProspectFilters(filters);
