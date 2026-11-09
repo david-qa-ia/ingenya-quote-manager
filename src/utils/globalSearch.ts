@@ -3,6 +3,7 @@ import type { GlobalSearchResult } from '../types/globalSearch';
 import type { Opportunity } from '../types/opportunity';
 import type { Prospect } from '../types/prospect';
 import type { SavedQuote } from '../types/quote';
+import { jobStageLabels, opportunityJobRow } from './jobList';
 
 export function isQuoteWithoutResponse(quote: SavedQuote, now = new Date()): boolean {
   if (!['sent', 'followingUp'].includes(quote.commercialStatus)) return false;
@@ -120,7 +121,16 @@ export function deriveGlobalSearchResults(
         id: `opportunity:${opportunity.id}`,
         group: 'opportunities',
         title: opportunity.name,
-        context: [opportunity.pipelineStage ?? 'Oportunidad', client?.company ?? client?.name]
+        context: [
+          jobStageLabels[
+            opportunityJobRow(
+              opportunity,
+              client,
+              quotes.filter((quote) => quote.opportunityId === opportunity.id),
+            ).stage
+          ],
+          client?.company ?? client?.name,
+        ]
           .filter(Boolean)
           .join(' · '),
         icon: 'calendar-check',
