@@ -42,18 +42,13 @@ import {
   commercialStatusLabels,
   createPreparedCommercialAudit,
 } from './utils/quoteCommercialStatus';
-import {
-  addCatalogJob,
-  loadLaborCatalog,
-  saveLaborCatalog,
-  setCatalogJobActive,
-  updateCatalogJob,
-} from './utils/jobCatalogStorage';
+import { addCatalogJob, setCatalogJobActive, updateCatalogJob } from './utils/jobCatalogStorage';
 import { createCatalogQuoteLine } from './utils/quoteLineFactory';
 import { addQuickService } from './utils/quickServiceAddition';
 import { opportunityOriginLabels, resolveActiveNavigationSection } from './utils/appNavigation';
 import { useAppNavigation } from './utils/useAppNavigation';
 import { useSavedQuotes } from './utils/useSavedQuotes';
+import { useLaborCatalog } from './utils/useLaborCatalog';
 import {
   ACTIVITIES_STORAGE_KEY,
   loadActivities,
@@ -244,9 +239,14 @@ function loadOpportunitiesWithAcceptedQuoteRepair(): Opportunity[] {
 
 function App() {
   const workspaceContext = useWorkspace();
-  const [initialCatalogLoad] = useState(loadLaborCatalog);
-  const [catalogJobs, setCatalogJobs] = useState<CatalogJob[]>(initialCatalogLoad.jobs);
-  const [catalogLoadIssue, setCatalogLoadIssue] = useState(initialCatalogLoad.issue);
+  const {
+    catalogJobs,
+    catalogLoadIssue,
+    reloadCatalog,
+    writeCatalog,
+    showSavedCatalog,
+    saveCatalog,
+  } = useLaborCatalog();
   const [quoteId, setQuoteId] = useState(createQuoteId);
   const [quoteStatus, setQuoteStatus] = useState<QuoteStatus>('draft');
   const [commercialStatus, setCommercialStatus] = useState<CommercialStatus>('prepared');
@@ -317,9 +317,7 @@ function App() {
     // SCRUM-123: quotes and the catalog changed in the browser copy (loaded or restored).
     const handleDocuments = () => {
       reloadSavedQuotes();
-      const catalog = loadLaborCatalog();
-      setCatalogJobs(catalog.jobs);
-      setCatalogLoadIssue(catalog.issue);
+      reloadCatalog();
       setRemoteDataRevision((value) => value + 1);
     };
     window.addEventListener(REMOTE_SYNC_FAILED_EVENT, handleFailure);
@@ -332,7 +330,7 @@ function App() {
       window.removeEventListener(REMOTE_SYNC_APPLIED_EVENT, handleApplied);
       window.removeEventListener(REMOTE_DOCUMENTS_LOADED_EVENT, handleDocuments);
     };
-  }, [reloadSavedQuotes]);
+  }, [reloadSavedQuotes, reloadCatalog]);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [quoteVersion, setQuoteVersion] = useState(1);
@@ -431,9 +429,7 @@ function App() {
     setSearchQuery('');
     setOpportunities(loadOpportunities().items);
     reloadSavedQuotes();
-    const catalog = loadLaborCatalog();
-    setCatalogJobs(catalog.jobs);
-    setCatalogLoadIssue(catalog.issue);
+    reloadCatalog();
     setSelectedJobId('');
     setCatalogSearch('');
     setCatalogQuantity('1');
@@ -738,17 +734,14 @@ function App() {
         unitPrice,
       },
       saveManualToCatalog,
-      (jobs) => catalogLoadIssue !== 'invalid-root' && saveLaborCatalog(jobs),
+      writeCatalog,
       createLineId,
     );
     if (!addition.success) {
       setManualError(addition.message);
       return;
     }
-    if (addition.catalogJobs) {
-      setCatalogJobs(addition.catalogJobs);
-      setCatalogLoadIssue(null);
-    }
+    if (addition.catalogJobs) showSavedCatalog(addition.catalogJobs);
     setQuoteLines((currentLines) => [...currentLines, addition.line]);
     setManualName('');
     setManualDescription('');
@@ -761,12 +754,8 @@ function App() {
   }
 
   function persistCatalog(nextJobs: CatalogJob[]): string | null {
-    if (catalogLoadIssue === 'invalid-root') {
-      return 'No se guardaron cambios para preservar el catálogo corrupto para diagnóstico.';
-    }
-    if (!saveLaborCatalog(nextJobs)) return 'No se pudo guardar el catálogo. Intentá nuevamente.';
-    setCatalogJobs(nextJobs);
-    setCatalogLoadIssue(null);
+    const error = saveCatalog(nextJobs);
+    if (error) return error;
     const nextSelectedJob = nextJobs.find((job) => job.id === selectedJobId && job.isActive);
     setSelectedJobId(nextSelectedJob?.id ?? '');
     if (!nextSelectedJob) setCatalogSearch('');
