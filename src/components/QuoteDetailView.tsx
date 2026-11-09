@@ -1,4 +1,6 @@
 import { currentActivityNote } from '../utils/activityNoteEditing';
+import { buildContactMessage, buildWhatsAppUrl } from '../utils/whatsappMessage';
+import { useContactSender } from '../utils/useContactSender';
 import { useState } from 'react';
 import { formatActivityDateTime } from '../utils/activityTimeline';
 import { loadActivities } from '../utils/activityStorage';
@@ -91,7 +93,16 @@ export function QuoteDetailView({
     setTarget(null);
   }
 
-  const phone = client?.phone?.replace(/\D/g, '');
+  const sender = useContactSender();
+  const whatsappUrl = buildWhatsAppUrl(
+    client?.phone,
+    buildContactMessage({
+      ...sender,
+      purpose: 'quote',
+      contactName: client?.name || quote.clientName,
+      service: opportunity?.qualification?.serviceOfInterest || quote.projectName,
+    }),
+  );
   const email = client?.email?.trim();
   function openExternal(url: string, message: string) {
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -203,14 +214,14 @@ export function QuoteDetailView({
                 className="button button-line"
                 type="button"
                 onClick={() =>
-                  phone &&
+                  whatsappUrl &&
                   openExternal(
-                    `https://wa.me/${phone}`,
+                    whatsappUrl,
                     'WhatsApp abierto. Registrá el envío cuando lo hayas compartido.',
                   )
                 }
-                disabled={!phone}
-                title={!phone ? 'Falta un teléfono válido.' : undefined}
+                disabled={!whatsappUrl}
+                title={!whatsappUrl ? 'Falta un teléfono válido.' : undefined}
               >
                 <UiIcon name="whatsapp" /> Abrir WhatsApp
               </button>

@@ -4,6 +4,7 @@ import type { FollowUpInboxItem } from '../types/followUpInbox';
 import { defaultFollowUpFilters, filterFollowUpInbox } from '../utils/followUpInbox';
 import { businessTimeZone } from '../utils/opportunityNextAction';
 import { getContactAction } from '../utils/contactAction';
+import { useContactSender } from '../utils/useContactSender';
 import { UiIcon } from './UiIcon';
 
 interface Props {
@@ -71,7 +72,7 @@ function BucketIcon({ bucket }: { bucket: Bucket }) {
 
 function ContactAction({ item }: { item: FollowUpInboxItem }) {
   const [feedback, setFeedback] = useState('');
-  const action = getContactAction(item);
+  const action = getContactAction(item, useContactSender());
   if (!action) return null;
   if ('disabledReason' in action)
     return (
@@ -98,7 +99,11 @@ function ContactAction({ item }: { item: FollowUpInboxItem }) {
       </>
     );
   return (
-    <a className="button button-line" href={href}>
+    <a
+      className="button button-line"
+      href={href}
+      {...(action.label === 'WhatsApp' ? { target: '_blank', rel: 'noreferrer' } : {})}
+    >
       {action.label}
     </a>
   );

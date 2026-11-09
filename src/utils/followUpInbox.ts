@@ -237,6 +237,7 @@ export function deriveFollowUpInbox(
       clientName: prospect.name,
       clientCompany: prospect.company,
       opportunityName: prospect.potentialService || undefined,
+      ...(['uncontacted', 'contactToday'].includes(prospect.status) ? { firstContact: true } : {}),
       phone: !isPendingPhone(prospect.phone) ? prospect.phone : undefined,
       email: !isPendingEmail(prospect.email) ? prospect.email : undefined,
       instagram: prospect.instagram?.trim() || undefined,

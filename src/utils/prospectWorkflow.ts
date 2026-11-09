@@ -1,3 +1,4 @@
+import { buildContactMessage, buildWhatsAppUrl } from './whatsappMessage';
 import type {
   Prospect,
   ProspectChannel,
@@ -335,9 +336,22 @@ export function transitionProspect(
     ],
   };
 }
-export function createProspectWhatsAppUrl(phone: string): string | null {
-  const normalized = normalizePhone(phone);
-  return normalized && !isPendingPhone(normalized) ? `https://wa.me/${normalized}` : null;
+/** Opens the prospect's WhatsApp chat with the first contact or follow-up message ready. */
+export function createProspectWhatsAppUrl(
+  prospect: Pick<Prospect, 'name' | 'phone' | 'potentialService' | 'status'>,
+  sender: { senderName?: string; companyName?: string } = {},
+): string | null {
+  return buildWhatsAppUrl(
+    prospect.phone,
+    buildContactMessage({
+      ...sender,
+      purpose: ['uncontacted', 'contactToday'].includes(prospect.status)
+        ? 'firstContact'
+        : 'followUp',
+      contactName: prospect.name,
+      service: prospect.potentialService,
+    }),
+  );
 }
 
 export function createProspectInstagramUrl(value: string | undefined): string | null {

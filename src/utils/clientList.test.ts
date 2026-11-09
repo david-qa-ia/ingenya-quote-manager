@@ -137,9 +137,18 @@ describe('getClientContactLinks', () => {
   it('opens dialer, WhatsApp and mail draft, with the preferred channel first', () => {
     expect(getClientContactLinks(client({ preferredChannel: 'email' }))).toEqual([
       { channel: 'email', label: 'Correo', href: 'mailto:marta@example.com' },
-      { channel: 'whatsapp', label: 'WhatsApp', href: 'https://wa.me/3415551234' },
+      { channel: 'whatsapp', label: 'WhatsApp', href: 'https://wa.me/5493415551234' },
       { channel: 'phone', label: 'Llamar', href: 'tel:3415551234' },
     ]);
+  });
+
+  it('opens the WhatsApp chat with the message ready', () => {
+    const whatsapp = getClientContactLinks(client({}), 'Hola Marta, ¿cómo estás?').find(
+      (link) => link.channel === 'whatsapp',
+    );
+    expect(whatsapp?.href).toBe(
+      `https://wa.me/5493415551234?text=${encodeURIComponent('Hola Marta, ¿cómo estás?')}`,
+    );
   });
 
   it('leaves out channels whose data is still pending', () => {
