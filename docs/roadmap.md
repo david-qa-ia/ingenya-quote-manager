@@ -48,10 +48,14 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
 
    Taxes stay out of scope unless the owner decides how to show them.
 
-2. [ ] Discount on a quote: while preparing it, the user can apply the percentage discount they
-       decide at that moment, from 0% to 100% (never more). The quote and its PDF show subtotal,
-       discount and final total; a finalized quote keeps its discount. Discount on the whole quote
-       unless the owner asks for it per service.
+2. [ ] Discount on the whole quote, decided while preparing it (owner, 2026-11-09):
+   - One "Descuento" field with a % / $ choice. A percentage goes from 0% to 100%; an amount
+     from $0 up to the subtotal (never more than 100%).
+   - A percentage is recalculated when services change in a draft; an amount stays fixed. If
+     the subtotal drops below that amount, the quote asks to adjust it before finalizing.
+   - The quote and its PDF show subtotal, discount (e.g. "Descuento 10% −$10.000") and final
+     total. A finalized quote keeps its discount.
+   - Not per service. If taxes are ever shown, the discount applies before them.
 
 ## Known bugs
 
