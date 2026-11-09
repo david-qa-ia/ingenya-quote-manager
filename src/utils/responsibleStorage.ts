@@ -145,9 +145,14 @@ export function seedResponsiblesFromNames(
   }));
 }
 
-/** Options for a "Responsable" select: active people, plus a legacy value so it is never lost. */
+/**
+ * Options for a "Responsable" select: active people, plus a legacy value so it is never lost.
+ * Without a team list there are no options, so the field stays free text while the name is typed
+ * (a typed "D" must not become the only choice and cut "Daniel" short).
+ */
 export function responsibleOptions(list: readonly Responsible[], current: string): string[] {
   const names = activeResponsibles(list).map((item) => item.name);
+  if (!names.length) return [];
   const value = current.trim();
   if (value && !names.some((name) => sameName(name, value))) names.push(value);
   return names;
