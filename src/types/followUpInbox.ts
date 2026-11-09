@@ -21,6 +21,8 @@ export interface FollowUpInboxItem {
   contactRestricted: boolean;
   opportunityId?: string;
   opportunityName?: string;
+  /** A prospect nobody has reached yet: its WhatsApp message is a first contact. */
+  firstContact?: boolean;
   quoteId?: string;
   quoteName?: string;
   responsible: string;

@@ -1,3 +1,4 @@
+import { buildWhatsAppUrl } from './whatsappMessage';
 import type { Client } from '../types/client';
 import { canContactClient, isPendingEmail, isPendingPhone } from './clientValidation';
 import { isOpenJob, normalizeSearchText, type JobRow } from './jobList';
@@ -140,16 +141,20 @@ const channelLabels: Record<ContactChannel, string> = {
  * Links that open the dialer, a WhatsApp chat or a mail draft; the user sends the message. None
  * when the client asked not to be contacted or the data is missing. The preferred channel first.
  */
-export function getClientContactLinks(client: Client): ContactLink[] {
+export function getClientContactLinks(client: Client, whatsappMessage = ''): ContactLink[] {
   const digits = client.phone.replace(/\D/g, '');
   const hrefs: Record<ContactChannel, string> = {
     phone: `tel:${digits}`,
-    whatsapp: `https://wa.me/${digits}`,
+    // The chat opens with the message written; the user reviews it and sends it.
+    whatsapp: buildWhatsAppUrl(client.phone, whatsappMessage) ?? '',
     email: `mailto:${client.email.trim()}`,
   };
   const channels: ContactChannel[] = ['whatsapp', 'phone', 'email'];
   return channels
-    .filter((channel) => canContactClient(client, channel) && (channel === 'email' || digits))
+    .filter(
+      (channel) =>
+        canContactClient(client, channel) && (channel === 'email' || (digits && hrefs[channel])),
+    )
     .sort((a, b) => Number(b === client.preferredChannel) - Number(a === client.preferredChannel))
     .map((channel) => ({ channel, label: channelLabels[channel], href: hrefs[channel] }));
 }

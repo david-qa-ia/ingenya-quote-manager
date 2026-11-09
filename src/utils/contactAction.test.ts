@@ -14,11 +14,40 @@ const item: FollowUpInboxItem = {
 };
 
 describe('contact actions', () => {
-  it('uses the normalized WhatsApp destination and never needs the result drawer', () => {
-    expect(getContactAction({ ...item, channel: 'whatsapp', phone: '+54 11 3718 2246' })).toEqual({
+  it('opens the WhatsApp chat with the country code and the message ready', () => {
+    const action = getContactAction(
+      {
+        ...item,
+        channel: 'whatsapp',
+        phone: '+54 11 3718 2246',
+        subjectType: 'prospect',
+        firstContact: true,
+        opportunityName: 'Impermeabilización',
+      },
+      { senderName: 'Daniel', companyName: 'Ingenya' },
+    );
+
+    expect(action).toEqual({
       label: 'WhatsApp',
-      href: 'https://wa.me/541137182246',
+      href: `https://wa.me/5491137182246?text=${encodeURIComponent(
+        'Hola Laura, ¿cómo estás? Soy Daniel, de Ingenya. Te escribo por el trabajo de impermeabilización. ¿Tenés unos minutos para contarme qué necesitás?',
+      )}`,
     });
+  });
+
+  it('writes about the quote, never naming it by its internal number', () => {
+    const action = getContactAction({
+      ...item,
+      channel: 'whatsapp',
+      phone: '341 600-0001',
+      quoteId: 'PRES-2026-ABCD1234',
+      quoteName: 'PRES-2026-ABCD1234',
+      opportunityName: 'Pintura palier',
+    });
+
+    expect(action && 'href' in action && decodeURIComponent(action.href)).toContain(
+      'Te escribo por el presupuesto de pintura palier.',
+    );
   });
 
   it('disables actions when the contact destination is missing', () => {

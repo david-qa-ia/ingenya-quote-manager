@@ -10,6 +10,8 @@ import {
 } from '../utils/clientList';
 import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
 import { jobStageLabels, type JobRow } from '../utils/jobList';
+import { buildContactMessage } from '../utils/whatsappMessage';
+import { useContactSender } from '../utils/useContactSender';
 import { formatCurrency } from '../utils/quoteFormatting';
 import { UiIcon } from './UiIcon';
 
@@ -46,6 +48,7 @@ export function ClientsView({ rows, onOpenJob }: Props) {
   const [filter, setFilter] = useState<ClientFilter>('all');
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const sender = useContactSender();
   const counts = useMemo(() => countClients(rows), [rows]);
   const visible = useMemo(() => filterClients(rows, { filter, query }), [rows, filter, query]);
   const now = new Date().toISOString();
@@ -95,7 +98,15 @@ export function ClientsView({ rows, onOpenJob }: Props) {
               const { client } = row;
               const expanded = expandedId === client.id;
               const panelId = `client-panel-${client.id}`;
-              const links = getClientContactLinks(client);
+              const links = getClientContactLinks(
+                client,
+                buildContactMessage({
+                  ...sender,
+                  purpose: 'followUp',
+                  contactName: client.name,
+                  service: row.jobs.find((job) => !['won', 'lost'].includes(job.stage))?.service,
+                }),
+              );
               const contact = [
                 isPendingPhone(client.phone) ? '' : client.phone,
                 isPendingEmail(client.email) ? '' : client.email,

@@ -208,8 +208,13 @@ describe('prospect workflow', () => {
     expect(withProspectProfileChangeActivity(prospect, { ...prospect }, 'qa')).toEqual(prospect);
   });
   it('builds a direct WhatsApp URL only for confirmed phones', () => {
-    expect(createProspectWhatsAppUrl('341 555-0101')).toBe('https://wa.me/3415550101');
-    expect(createProspectWhatsAppUrl('1111111111')).toBeNull();
+    const lead = { name: 'Ana Paz', potentialService: '', status: 'uncontacted' as const };
+    expect(createProspectWhatsAppUrl({ ...lead, phone: '341 555-0101' })).toBe(
+      `https://wa.me/5493415550101?text=${encodeURIComponent(
+        'Hola Ana, ¿cómo estás? Te escribo por tu consulta. ¿Tenés unos minutos para contarme qué necesitás?',
+      )}`,
+    );
+    expect(createProspectWhatsAppUrl({ ...lead, phone: '1111111111' })).toBeNull();
     expect(createProspectInstagramUrl('@ventro')).toBe('https://www.instagram.com/ventro/');
     expect(createProspectInstagramUrl('not a profile')).toBeNull();
   });

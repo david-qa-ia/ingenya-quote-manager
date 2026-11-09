@@ -94,6 +94,7 @@ import {
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 import { UiIcon } from './UiIcon';
 import { JobFileHeader } from './JobFileHeader';
+import { useContactSender } from '../utils/useContactSender';
 import { opportunityOriginLabels } from '../utils/appNavigation';
 import { getConvertedOpportunityId, jobFileHeadingFromRow } from '../utils/jobFile';
 import { prospectJobRow } from '../utils/jobList';
@@ -1302,7 +1303,7 @@ function ProspectRow({
   onOpenOpportunity?: (id: string) => void;
 }) {
   const convertedOpportunityId = getConvertedOpportunityId(prospect);
-  const whatsappUrl = createProspectWhatsAppUrl(prospect.phone);
+  const whatsappUrl = createProspectWhatsAppUrl(prospect, useContactSender());
   const instagramUrl = createProspectInstagramUrl(prospect.instagram);
   const initials = prospect.name
     .split(/\s+/)
@@ -1446,7 +1447,7 @@ export function ProspectQueueRow({
   const lastAction = [...prospect.activities]
     .reverse()
     .find((activity) => activity.type === 'contactResult');
-  const whatsAppUrl = createProspectWhatsAppUrl(prospect.phone);
+  const whatsAppUrl = createProspectWhatsAppUrl(prospect, useContactSender());
   const dueLabel =
     group === 'overdue' ? 'Vencido' : group === 'today' ? 'Contactar hoy' : 'Próximo';
   return (
