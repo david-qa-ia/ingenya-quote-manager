@@ -1,4 +1,5 @@
 import type { ResultNextStep } from '../components/RegisterResultDrawer';
+import { isDiscardResult } from './resultNextStep';
 
 export type RegisterResultField = 'result' | 'nextStep' | 'dueAt' | 'actor';
 
@@ -30,7 +31,8 @@ export function getRegisterResultFieldErrors(
 ): RegisterResultFieldErrors {
   const errors: RegisterResultFieldErrors = {};
   if (!draft.result) errors.result = 'Elegí el resultado del contacto.';
-  if (draft.nextStep === 'none' && !draft.hasPendingAction)
+  // Discarding (not interested, wrong data) closes the conversation: no next step required.
+  if (draft.nextStep === 'none' && !draft.hasPendingAction && !isDiscardResult(draft.result))
     errors.nextStep = 'Elegí un próximo paso: este seguimiento no tiene otra acción pendiente.';
   if (draft.nextStep !== 'none' && !draft.dueAt)
     errors.dueAt = 'Elegí la fecha y hora del próximo paso.';
