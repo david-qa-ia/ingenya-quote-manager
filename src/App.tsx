@@ -59,16 +59,8 @@ import {
 } from './utils/jobCatalogStorage';
 import { createCatalogQuoteLine } from './utils/quoteLineFactory';
 import { addQuickService } from './utils/quickServiceAddition';
-import {
-  hashForView,
-  initialViewFromHash,
-  opportunityOriginLabels,
-  resolveActiveNavigationSection,
-  resolveOpportunityOrigin,
-  viewFromHash,
-  type AppView,
-  type OpportunityOrigin,
-} from './utils/appNavigation';
+import { opportunityOriginLabels, resolveActiveNavigationSection } from './utils/appNavigation';
+import { useAppNavigation } from './utils/useAppNavigation';
 import {
   ACTIVITIES_STORAGE_KEY,
   loadActivities,
@@ -277,33 +269,10 @@ function App() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-  const [currentView, setCurrentView] = useState<AppView>(() =>
-    initialViewFromHash(typeof window === 'undefined' ? '' : window.location.hash),
-  );
+  const { currentView, setCurrentView, opportunityOrigin, rememberOpportunityOrigin } =
+    useAppNavigation();
   // SCRUM-119: "Prospectos" in the menu goes back to the list even from a prospect detail.
   const [prospectsResetToken, setProspectsResetToken] = useState(0);
-  const navigatingFromHistoryRef = useRef(false);
-
-  // SCRUM-119: keep the address in step with the section, so back/forward and reload work.
-  useEffect(() => {
-    const hash = hashForView(currentView);
-    const fromHistory = navigatingFromHistoryRef.current;
-    navigatingFromHistoryRef.current = false;
-    if (window.location.hash === hash) return;
-    if (fromHistory || !window.location.hash) window.history.replaceState(null, '', hash);
-    else window.history.pushState(null, '', hash);
-  }, [currentView]);
-
-  useEffect(() => {
-    const onPopState = () => {
-      const view = viewFromHash(window.location.hash);
-      if (!view) return;
-      navigatingFromHistoryRef.current = true;
-      setCurrentView(view);
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
   const [prospects, setProspects] = useState(() => loadProspects().items);
   const [prospectFilters, setProspectFilters] = useState(loadProspectFilters);
   const [requestedProspectId, setRequestedProspectId] = useState<string | null>(null);
@@ -316,8 +285,6 @@ function App() {
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [shouldRefreshDocumentSnapshots, setShouldRefreshDocumentSnapshots] = useState(false);
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
-  // "Volver" in the opportunity detail returns to the list it was opened from.
-  const [opportunityOrigin, setOpportunityOrigin] = useState<OpportunityOrigin>('today');
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
   const [quoteSendTarget, setQuoteSendTarget] = useState<SavedQuote | null>(null);
   const [quoteSendRecoveryRequired, setQuoteSendRecoveryRequired] = useState(false);
@@ -981,7 +948,7 @@ function App() {
     setDirectClientInput(null);
     setDirectFollowUp(undefined);
     setDetailQuoteId(savedQuote.id);
-    setOpportunityOrigin((previous) => resolveOpportunityOrigin(currentView, previous));
+    rememberOpportunityOrigin();
     setCurrentView('quoteDetail');
   }
 
@@ -1016,7 +983,7 @@ function App() {
   function openOpportunityDetail(id: string) {
     setOpportunities(loadOpportunities().items);
     setDetailOpportunityId(id);
-    setOpportunityOrigin((previous) => resolveOpportunityOrigin(currentView, previous));
+    rememberOpportunityOrigin();
     setCurrentView('opportunityDetail');
   }
 
