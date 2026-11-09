@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { suggestNextStep } from './resultNextStep';
+import { describeScheduledNextStep, suggestNextStep } from './resultNextStep';
 
 // Monday 9 November 2026, 15:00 in Argentina.
 const monday = new Date('2026-11-09T18:00:00.000Z');
@@ -53,5 +53,21 @@ describe('suggestNextStep', () => {
   it('suggests nothing when discarding', () => {
     for (const result of ['notInterested', 'invalidNumber'])
       expect(suggestNextStep({ result, channel: 'call', hasQuote: false, now: monday })).toBeNull();
+  });
+});
+
+describe('describeScheduledNextStep', () => {
+  const action = { description: 'Dar seguimiento', responsible: 'Daniel' };
+
+  it('does not name the responsible when the team has a single person', () => {
+    expect(describeScheduledNextStep(action, '10 nov 2026, 10:00', true)).toBe(
+      'Próximo paso agendado: Dar seguimiento para 10 nov 2026, 10:00.',
+    );
+  });
+
+  it('names the responsible when the team has several people', () => {
+    expect(describeScheduledNextStep(action, '10 nov 2026, 10:00', false)).toBe(
+      'Próximo paso agendado: Dar seguimiento para 10 nov 2026, 10:00, responsable Daniel.',
+    );
   });
 });
