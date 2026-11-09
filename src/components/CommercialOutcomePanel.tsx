@@ -3,7 +3,12 @@ import { formatActivityDateTime } from '../utils/activityTimeline';
 import type { CommercialOutcome, CommercialOutcomeType } from '../types/commercialOutcome';
 import type { Opportunity } from '../types/opportunity';
 import type { Quote, SavedQuote } from '../types/quote';
-import { commercialOutcomeLabels, commercialReasonLabels } from '../utils/commercialOutcome';
+import {
+  commercialOutcomeLabels,
+  commercialReasonLabels,
+  lossReasonCodes,
+} from '../utils/commercialOutcome';
+import type { CommercialReasonCode } from '../types/commercialOutcome';
 import { loadCommercialOutcomes } from '../utils/commercialOutcomeStorage';
 import {
   commercialOutcomeFieldOrder,
@@ -23,7 +28,7 @@ interface Props {
 
 export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onRecord }: Props) {
   const [type, setType] = useState<CommercialOutcomeType>('accepted');
-  const [reasonCode, setReasonCode] = useState<keyof typeof commercialReasonLabels>('price');
+  const [reasonCode, setReasonCode] = useState<CommercialReasonCode | ''>('price');
   const [note, setNote] = useState('');
   const [author, setAuthor] = useState('');
   const [closeAsWon, setCloseAsWon] = useState(false);
@@ -34,6 +39,16 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
   const relatedQuotes = savedQuotes.filter((item) => item.opportunityId === opportunity.id);
   const isQuoteResult = type === 'accepted' || type === 'rejected';
   const needsReason = type !== 'reopened';
+  // A loss is explained with the short list, and nothing is preselected.
+  const isLoss = type === 'rejected' || type === 'lost';
+  const reasonOptions: readonly CommercialReasonCode[] = isLoss
+    ? lossReasonCodes
+    : (Object.keys(commercialReasonLabels) as CommercialReasonCode[]);
+  function changeType(next: CommercialOutcomeType) {
+    setType(next);
+    const nextIsLoss = next === 'rejected' || next === 'lost';
+    if (nextIsLoss !== isLoss) setReasonCode(nextIsLoss ? '' : 'price');
+  }
   const validation = useFieldValidation(
     `outcome-${opportunity.id}`,
     getCommercialOutcomeFieldErrors({ needsReason, reasonCode, note, author }),
@@ -61,7 +76,7 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
     const outcome: CommercialOutcome = {
       id: crypto.randomUUID(),
       type,
-      ...(needsReason ? { reasonCode } : {}),
+      ...(needsReason && reasonCode ? { reasonCode } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
       occurredAt: new Date().toISOString(),
       author: author.trim(),
@@ -96,7 +111,7 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
           <span>Resultado</span>
           <select
             value={type}
-            onChange={(event) => setType(event.target.value as CommercialOutcomeType)}
+            onChange={(event) => changeType(event.target.value as CommercialOutcomeType)}
           >
             <option value="accepted">Aceptar este presupuesto</option>
             <option value="rejected">Rechazar este presupuesto</option>
@@ -110,14 +125,13 @@ export function CommercialOutcomePanel({ opportunity, quote, savedQuotes, onReco
             <span>Motivo</span>
             <select
               value={reasonCode}
-              onChange={(event) =>
-                setReasonCode(event.target.value as keyof typeof commercialReasonLabels)
-              }
+              onChange={(event) => setReasonCode(event.target.value as CommercialReasonCode)}
               {...validation.fieldProps('reasonCode')}
             >
-              {Object.entries(commercialReasonLabels).map(([value, label]) => (
+              {isLoss && <option value="">Elegí un motivo</option>}
+              {reasonOptions.map((value) => (
                 <option key={value} value={value}>
-                  {label}
+                  {commercialReasonLabels[value]}
                 </option>
               ))}
             </select>

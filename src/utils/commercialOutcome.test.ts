@@ -4,7 +4,11 @@ import type { Opportunity } from '../types/opportunity';
 import {
   applyCommercialOutcome,
   getOpportunityCommercialState,
+  commercialReasonLabels,
+  formatLossReason,
+  getLossReasonFieldErrors,
   isCommercialOutcome,
+  lossReasonCodes,
 } from './commercialOutcome';
 
 const opportunity: Opportunity = {
@@ -73,5 +77,45 @@ describe('commercial outcomes', () => {
     expect(getOpportunityCommercialState(reopened)).toBe('open');
     expect(isCommercialOutcome(corrected)).toBe(true);
     expect(lost.supersedesOutcomeId).toBeUndefined();
+  });
+});
+
+describe('loss reasons', () => {
+  it('offers the short list: price, chose another, no answer, postponed, other', () => {
+    expect(lossReasonCodes.map((code) => commercialReasonLabels[code])).toEqual([
+      'Precio',
+      'Eligió a otro',
+      'No respondió',
+      'Lo pospuso',
+      'Otro',
+    ]);
+  });
+
+  it('requires a reason, and a few words when it is "Otro"', () => {
+    expect(getLossReasonFieldErrors({ code: '', detail: '' })).toEqual({
+      code: 'Elegí el motivo de la pérdida.',
+    });
+    expect(getLossReasonFieldErrors({ code: 'other', detail: ' ' })).toEqual({
+      detail: 'Contá brevemente el motivo.',
+    });
+    expect(getLossReasonFieldErrors({ code: 'postponed', detail: '' })).toEqual({});
+  });
+
+  it('saves the reason as readable text in the quote history', () => {
+    expect(formatLossReason('price')).toBe('Precio');
+    expect(formatLossReason('other', ' Se mudó ')).toBe('Otro: Se mudó');
+  });
+
+  it('keeps accepting outcomes saved with the earlier reasons', () => {
+    const base = {
+      id: 'o1',
+      type: 'lost',
+      occurredAt: '2026-11-09T12:00:00.000Z',
+      author: 'Daniel',
+      origin: 'commercialPanel',
+      opportunityId: 'op1',
+    };
+    expect(isCommercialOutcome({ ...base, reasonCode: 'noBudget' })).toBe(true);
+    expect(isCommercialOutcome({ ...base, reasonCode: 'postponed' })).toBe(true);
   });
 });

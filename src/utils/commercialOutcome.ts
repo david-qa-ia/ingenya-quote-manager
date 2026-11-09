@@ -1,18 +1,61 @@
-import type { CommercialOutcome, CommercialOutcomeType } from '../types/commercialOutcome';
+import type {
+  CommercialReasonCode,
+  CommercialOutcome,
+  CommercialOutcomeType,
+} from '../types/commercialOutcome';
 import type { Opportunity, OpportunityCommercialState } from '../types/opportunity';
 
 export const commercialReasonLabels = {
   price: 'Precio',
-  noResponse: 'Falta de respuesta',
-  choseAnotherProposal: 'Eligió otra propuesta',
+  noResponse: 'No respondió',
+  choseAnotherProposal: 'Eligió a otro',
   outOfScope: 'Fuera de alcance',
   noBudget: 'Sin presupuesto',
   timeline: 'Plazo',
+  postponed: 'Lo pospuso',
   invalidData: 'Datos inválidos',
   notInterested: 'No interesado',
   duplicate: 'Duplicado',
   other: 'Otro',
 } as const;
+
+/**
+ * Why a sale was lost, as offered when marking a quote or a project as lost (product decision:
+ * a short list). Other codes stay valid for outcomes saved before.
+ */
+export const lossReasonCodes = [
+  'price',
+  'choseAnotherProposal',
+  'noResponse',
+  'postponed',
+  'other',
+] as const satisfies readonly CommercialReasonCode[];
+
+export type LossReasonCode = (typeof lossReasonCodes)[number];
+
+export function isLossReasonCode(value: string): value is LossReasonCode {
+  return (lossReasonCodes as readonly string[]).includes(value);
+}
+
+export type LossReasonField = 'code' | 'detail';
+
+/** A reason must be picked; "Otro" needs a few words saying which. */
+export function getLossReasonFieldErrors(draft: {
+  code: string;
+  detail: string;
+}): Partial<Record<LossReasonField, string>> {
+  const errors: Partial<Record<LossReasonField, string>> = {};
+  if (!isLossReasonCode(draft.code)) errors.code = 'Elegí el motivo de la pérdida.';
+  else if (draft.code === 'other' && !draft.detail.trim())
+    errors.detail = 'Contá brevemente el motivo.';
+  return errors;
+}
+
+/** The reason as it is saved in the quote history: "Precio" or "Precio: se fue de presupuesto". */
+export function formatLossReason(code: LossReasonCode, detail = ''): string {
+  const text = detail.trim();
+  return text ? `${commercialReasonLabels[code]}: ${text}` : commercialReasonLabels[code];
+}
 
 export const commercialOutcomeLabels: Record<CommercialOutcomeType, string> = {
   accepted: 'Presupuesto aceptado',
