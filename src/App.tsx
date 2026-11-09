@@ -9,6 +9,8 @@ import { CLIENTS_STORAGE_KEY, loadClients, saveClient } from './utils/clientStor
 import { buildOpportunityContactActivity } from './utils/opportunityContactActivity';
 import { buildJobList } from './utils/jobList';
 import { JobsView } from './components/JobsView';
+import { ClientsView } from './components/ClientsView';
+import { buildClientList } from './utils/clientList';
 import { associateQuote } from './utils/quoteAssociations';
 import {
   loadOpportunities,
@@ -1958,6 +1960,7 @@ function App() {
         setProspectsResetToken((value) => value + 1);
       }}
       onShowJobs={() => setCurrentView('jobs')}
+      onShowClients={() => setCurrentView('clients')}
       onShowSettings={() => setCurrentView('settings')}
       searchQuery={searchQuery}
       searchResults={globalSearchResults}
@@ -2169,6 +2172,26 @@ function App() {
           onOpenContext={handleFollowUpOpen}
         />
         {resultDrawer}
+      </>
+    );
+  }
+
+  if (currentView === 'clients') {
+    const clients = loadClients().items;
+    return (
+      <>
+        {appHeader}
+        <ClientsView
+          rows={buildClientList(
+            clients,
+            buildJobList({ prospects, opportunities, clients, quotes: savedQuotes }),
+          )}
+          onOpenJob={(job) => {
+            setOpportunities(loadOpportunities().items);
+            setDetailOpportunityId(job.id);
+            setCurrentView('opportunityDetail');
+          }}
+        />
       </>
     );
   }

@@ -46,6 +46,7 @@ describe('section addresses (SCRUM-119)', () => {
     expect(initialViewFromHash('#/presupuesto-detalle')).toBe('savedQuotes');
     expect(initialViewFromHash('#/oportunidad')).toBe('nextActions');
     expect(initialViewFromHash('#/configuracion')).toBe('settings');
+    expect(initialViewFromHash('#/clientes')).toBe('clients');
     expect(initialViewFromHash('')).toBe('dailyDashboard');
   });
 });

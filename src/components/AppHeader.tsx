@@ -17,6 +17,7 @@ interface AppHeaderProps {
   onShowMetrics: () => void;
   onShowProspects: () => void;
   onShowJobs: () => void;
+  onShowClients: () => void;
   onShowSettings: () => void;
   searchQuery: string;
   searchResults: readonly GlobalSearchResult[];
@@ -40,6 +41,7 @@ export function AppHeader({
   onShowMetrics,
   onShowProspects,
   onShowJobs,
+  onShowClients,
   onShowSettings,
   searchQuery,
   searchResults,
@@ -199,6 +201,14 @@ export function AppHeader({
               onClick={() => navigate(onShowJobs)}
             >
               <UiIcon name="building" /> Trabajos
+            </button>
+            <button
+              className="navigation-link"
+              type="button"
+              aria-current={activeSection === 'clients' ? 'page' : undefined}
+              onClick={() => navigate(onShowClients)}
+            >
+              <UiIcon name="person" /> Clientes
             </button>
             <button
               className="navigation-link"

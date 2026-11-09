@@ -17,7 +17,7 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
 ## Stage 1: new navigation
 
 1. [x] Trabajos: every sale in one list by stage (#84).
-2. [ ] Clientes: list of clients with their jobs (in progress).
+2. [x] Clientes: list of clients with their jobs (#86).
 3. [ ] Menu: Hoy (merge "Mi trabajo de hoy" and "A quién contactar hoy"), Trabajos, Clientes;
        saved quotes as a secondary item; Indicadores reachable from Hoy.
 4. [ ] Split `src/App.tsx` into views and hooks, without behavior changes.
