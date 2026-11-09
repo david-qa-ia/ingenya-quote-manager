@@ -48,6 +48,7 @@ import { addQuickService } from './utils/quickServiceAddition';
 import { opportunityOriginLabels, resolveActiveNavigationSection } from './utils/appNavigation';
 import { useAppNavigation } from './utils/useAppNavigation';
 import { useSavedQuotes } from './utils/useSavedQuotes';
+import { useCommercialRecords } from './utils/useCommercialRecords';
 import { useLaborCatalog } from './utils/useLaborCatalog';
 import {
   ACTIVITIES_STORAGE_KEY,
@@ -198,45 +199,6 @@ function loadProspectFilters(): ProspectFilters {
   }
 }
 
-function loadOpportunitiesWithAcceptedQuoteRepair(): Opportunity[] {
-  const settledQuotes = loadSavedQuotes().filter(
-    (quote) =>
-      (quote.commercialStatus === 'accepted' || quote.commercialStatus === 'rejected') &&
-      quote.opportunityId,
-  );
-  loadOpportunities().items.forEach((opportunity) => {
-    const settledQuote = settledQuotes
-      .filter((quote) => quote.opportunityId === opportunity.id)
-      .sort(
-        (left, right) =>
-          Date.parse(right.commercialStatusAudit.changedAt) -
-          Date.parse(left.commercialStatusAudit.changedAt),
-      )[0];
-    if (!settledQuote) return;
-    const isAccepted = settledQuote.commercialStatus === 'accepted';
-    const needsRepair =
-      opportunity.pipelineStage !== (isAccepted ? 'won' : 'lost') ||
-      opportunity.commercialState !== (isAccepted ? 'won' : 'lost') ||
-      opportunity.status !== 'closed' ||
-      opportunity.nextAction?.status === 'pending';
-    if (!needsRepair) return;
-    const next = (isAccepted ? closeOpportunityForAcceptedQuote : closeOpportunityForRejectedQuote)(
-      opportunity,
-      settledQuote.commercialStatusAudit.changedBy,
-      settledQuote.commercialStatusAudit.changedAt,
-    );
-    if (!saveOpportunity(next)) return;
-    if (opportunity.nextAction?.status === 'pending' && next.nextAction)
-      recordNextActionActivity(
-        next.id,
-        next.nextAction.id,
-        'cancelled',
-        `Próximo paso cancelado porque el presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}.`,
-      );
-  });
-  return loadOpportunities().items;
-}
-
 function App() {
   const workspaceContext = useWorkspace();
   const {
@@ -269,9 +231,10 @@ function App() {
   } = useSavedQuotes();
   const { currentView, setCurrentView, opportunityOrigin, rememberOpportunityOrigin } =
     useAppNavigation();
+  const { opportunities, reloadOpportunities, prospects, setProspects, reloadProspects } =
+    useCommercialRecords();
   // SCRUM-119: "Prospectos" in the menu goes back to the list even from a prospect detail.
   const [prospectsResetToken, setProspectsResetToken] = useState(0);
-  const [prospects, setProspects] = useState(() => loadProspects().items);
   const [prospectFilters, setProspectFilters] = useState(loadProspectFilters);
   const [requestedProspectId, setRequestedProspectId] = useState<string | null>(null);
   const [openNewProspect, setOpenNewProspect] = useState(false);
@@ -289,7 +252,6 @@ function App() {
   const [prospectHasUnsavedChanges, setProspectHasUnsavedChanges] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [opportunities, setOpportunities] = useState(loadOpportunitiesWithAcceptedQuoteRepair);
   // Bumped after remote data is copied into the browser so views that read it re-render.
   const [remoteDataRevision, setRemoteDataRevision] = useState(0);
   const [remoteSyncError, setRemoteSyncError] = useState('');
@@ -310,7 +272,7 @@ function App() {
     const handleFailure = (event: Event) => {
       // SCRUM-114: the browser copy was restored; show the restored data and why.
       setRemoteSyncError((event as CustomEvent<string>).detail);
-      setOpportunities(loadOpportunities().items);
+      reloadOpportunities();
       setRemoteDataRevision((value) => value + 1);
     };
     const handleApplied = () => setRemoteSyncError('');
@@ -330,7 +292,7 @@ function App() {
       window.removeEventListener(REMOTE_SYNC_APPLIED_EVENT, handleApplied);
       window.removeEventListener(REMOTE_DOCUMENTS_LOADED_EVENT, handleDocuments);
     };
-  }, [reloadSavedQuotes, reloadCatalog]);
+  }, [reloadSavedQuotes, reloadCatalog, reloadOpportunities]);
   const [clientName, setClientName] = useState('');
   const [projectName, setProjectName] = useState('');
   const [quoteVersion, setQuoteVersion] = useState(1);
@@ -427,7 +389,7 @@ function App() {
     setDetailQuoteId(null);
     setIsSearchOpen(false);
     setSearchQuery('');
-    setOpportunities(loadOpportunities().items);
+    reloadOpportunities();
     reloadSavedQuotes();
     reloadCatalog();
     setSelectedJobId('');
@@ -473,14 +435,14 @@ function App() {
       .then(() => startRemoteDocumentSync(workspaceId))
       .then(() => {
         if (cancelled) return;
-        setOpportunities(loadOpportunities().items);
+        reloadOpportunities();
         window.dispatchEvent(new Event('activitiesupdated'));
         setRemoteDataRevision((value) => value + 1);
       });
     return () => {
       cancelled = true;
     };
-  }, [workspaceContext.session?.activeWorkspaceId]);
+  }, [workspaceContext.session?.activeWorkspaceId, reloadOpportunities, setProspects]);
 
   // SCRUM-117: the team list of responsibles, shared through Supabase. The first time, names
   // already typed in prospects, their history and opportunities become the initial list.
@@ -964,7 +926,7 @@ function App() {
   }
 
   function openOpportunityDetail(id: string) {
-    setOpportunities(loadOpportunities().items);
+    reloadOpportunities();
     setDetailOpportunityId(id);
     rememberOpportunityOrigin();
     setCurrentView('opportunityDetail');
@@ -1051,11 +1013,10 @@ function App() {
     if (!saved.ok) return false;
     if (synced) {
       mirrorProspectActivitiesToOpportunity(synced.prospect, synced.prospect.conversion!.draft);
-      setProspects(loadProspects().items);
-      window.dispatchEvent(new Event('ventro:prospects-updated'));
+      reloadProspects();
       void syncProspectContextRemotely(synced.prospect);
     }
-    if (event === 'edited') setOpportunities(loadOpportunities().items);
+    if (event === 'edited') reloadOpportunities();
     return true;
   }
 
@@ -1098,8 +1059,7 @@ function App() {
     if (!saved.ok) return 'No se pudo guardar el contacto. Los datos existentes se conservaron.';
     if (synced) {
       mirrorProspectActivitiesToOpportunity(synced.prospect, synced.prospect.conversion!.draft);
-      setProspects(loadProspects().items);
-      window.dispatchEvent(new Event('ventro:prospects-updated'));
+      reloadProspects();
       void syncProspectContextRemotely(synced.prospect);
     }
     if (next.doNotContact) {
@@ -1122,7 +1082,7 @@ function App() {
             );
         });
     }
-    setOpportunities(loadOpportunities().items);
+    reloadOpportunities();
     return null;
   }
 
@@ -1142,8 +1102,7 @@ function App() {
       const current = loadProspects().items.find((item) => item.id === prospect.id);
       if (current?.updatedAt !== prospect.updatedAt) return;
       if (saveProspectWithResult({ ...current, version: remote.version }).ok) {
-        setProspects(loadProspects().items);
-        window.dispatchEvent(new Event('ventro:prospects-updated'));
+        reloadProspects();
       }
     } catch (error) {
       setSaveFeedback({
@@ -1228,8 +1187,7 @@ function App() {
           return { ok: false, message: 'No se pudo guardar el resultado localmente.' };
         }
         clearProspectResultRecovery();
-        setProspects(loadProspects().items);
-        window.dispatchEvent(new Event('ventro:prospects-updated'));
+        reloadProspects();
         return { ok: true };
       }
       if (item.cadenceStep) {
@@ -1267,7 +1225,7 @@ function App() {
           writes,
         );
         if (!saved.ok) return saved;
-        setOpportunities(loadOpportunities().items);
+        reloadOpportunities();
         return { ok: true };
       }
       if (!item.opportunityId) return { ok: false };
@@ -1312,7 +1270,7 @@ function App() {
           ],
         );
         if (!saved.ok) return saved;
-        setOpportunities(loadOpportunities().items);
+        reloadOpportunities();
         return { ok: true };
       }
       const next = transitionNextAction(
@@ -1370,7 +1328,7 @@ function App() {
         ],
       );
       if (!saved.ok) return saved;
-      setOpportunities(loadOpportunities().items);
+      reloadOpportunities();
       return { ok: true };
     } catch (error) {
       return {
@@ -1398,7 +1356,7 @@ function App() {
       setClientId(result.client.id);
       setClientName(result.client.name);
       setOpportunityId(result.opportunity?.id);
-      setOpportunities(loadOpportunities().items);
+      reloadOpportunities();
       setDirectClientInput(null);
       reloadSavedQuotes();
       setSaveFeedback({
@@ -1472,7 +1430,7 @@ function App() {
             pipelineStage: 'proposal',
             updatedAt: audit.changedAt,
           });
-          setOpportunities(loadOpportunities().items);
+          reloadOpportunities();
         }
       }
       if (quote.opportunityId && ['accepted', 'rejected'].includes(nextStatus)) {
@@ -1505,7 +1463,7 @@ function App() {
             )
           )
             return `El presupuesto fue ${isAccepted ? 'aceptado' : 'rechazado'}, pero no se pudo registrar la cancelación del próximo paso.`;
-          setOpportunities(loadOpportunities().items);
+          reloadOpportunities();
         }
       }
       if (['accepted', 'rejected', 'expired'].includes(nextStatus)) {
@@ -1658,7 +1616,7 @@ function App() {
     setCommercialStatusAudit(audit);
     setSentAudit(audit);
     reloadSavedQuotes();
-    setOpportunities(loadOpportunities().items);
+    reloadOpportunities();
     setQuoteSendTarget(null);
     return { ok: true };
   }
@@ -1698,7 +1656,7 @@ function App() {
   function handleDirectQuoteConversion(quote: SavedQuote): string | null {
     const result = convertDirectQuoteToOpportunity(quote);
     if (!result.ok) return result.message;
-    setOpportunities(loadOpportunities().items);
+    reloadOpportunities();
     reloadSavedQuotes();
     return null;
   }
@@ -2038,8 +1996,7 @@ function App() {
         message: 'No se pudo recuperar el espejo local. Intentá nuevamente.',
       };
     clearProspectResultRecovery();
-    setProspects(loadProspects().items);
-    window.dispatchEvent(new Event('ventro:prospects-updated'));
+    reloadProspects();
     return { ok: true };
   }
 
@@ -2156,7 +2113,7 @@ function App() {
           openProspectId={requestedProspectId}
           onOpenProspectHandled={() => setRequestedProspectId(null)}
           onProspectsChanged={setProspects}
-          onOpportunitiesChanged={() => setOpportunities(loadOpportunities().items)}
+          onOpportunitiesChanged={() => reloadOpportunities()}
           onDirtyChange={setProspectHasUnsavedChanges}
         />
         {resultDrawer}
@@ -2254,7 +2211,7 @@ function App() {
                 onClose={() => setInboxContact(null)}
                 onRecorded={() => {
                   setInboxContact(null);
-                  setOpportunities(loadOpportunities().items);
+                  reloadOpportunities();
                 }}
               />
             )}
