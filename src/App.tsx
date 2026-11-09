@@ -9,6 +9,7 @@ import { buildOpportunityContactActivity } from './utils/opportunityContactActiv
 import { buildJobList } from './utils/jobList';
 import { resolveJobRef, type JobRef } from './utils/jobFile';
 import { isDiscardResult } from './utils/resultNextStep';
+import { canSendDraftInOneStep } from './utils/quoteOneStepSend';
 import { JobsView } from './components/JobsView';
 import { ClientsView } from './components/ClientsView';
 import { buildClientList } from './utils/clientList';
@@ -252,6 +253,8 @@ function App() {
   const [convertedJobNotice, setConvertedJobNotice] = useState<string | null>(null);
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
   const [quoteSendTarget, setQuoteSendTarget] = useState<SavedQuote | null>(null);
+  /** Draft being sent with "Enviar": it is finalized only when the send is confirmed. */
+  const [draftSendTarget, setDraftSendTarget] = useState<SavedQuote | null>(null);
   const [quoteSendRecoveryRequired, setQuoteSendRecoveryRequired] = useState(false);
   const [prospectHasUnsavedChanges, setProspectHasUnsavedChanges] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -1546,8 +1549,10 @@ function App() {
     }
   }
 
-  async function handleQuoteSend(input: QuoteSendInput): Promise<{ ok: boolean; error?: string }> {
-    const quote = quoteSendTarget;
+  async function handleQuoteSend(
+    input: QuoteSendInput,
+    quote: SavedQuote | null = quoteSendTarget,
+  ): Promise<{ ok: boolean; error?: string }> {
     if (!quote) return { ok: false, error: 'No se encontró el presupuesto.' };
     if (quoteSendRecoveryRequired || hasQuoteSendRecovery(quote.id))
       return { ok: false, error: 'Este envío requiere recuperación. No repitas la confirmación.' };
@@ -1730,6 +1735,83 @@ function App() {
     }
   }
 
+  /**
+   * Saves a finalized draft and records its "created" and "finalized" activities. Used by
+   * "Finalizar presupuesto" and by "Enviar", which finalizes and registers the send at once.
+   */
+  function saveFinalizedDraft(
+    finalizedQuote: Quote,
+    isNewQuote: boolean,
+  ): { ok: true; activitySaved: boolean } | { ok: false; message: string } {
+    if (!saveQuote(finalizedQuote))
+      return { ok: false, message: 'No se pudo finalizar el presupuesto. Intentá nuevamente.' };
+    setQuoteStatus('finalized');
+    reloadSavedQuotes();
+    const creationActivitySaved =
+      !isNewQuote ||
+      recordAutomaticActivity(
+        { kind: 'quote', quoteId: finalizedQuote.id },
+        'created',
+        'Presupuesto creado.',
+        currentResponsible(),
+      );
+    const finalizationActivitySaved = recordAutomaticActivity(
+      { kind: 'quote', quoteId: finalizedQuote.id },
+      'finalized',
+      'Presupuesto finalizado.',
+      currentResponsible(),
+    );
+    return { ok: true, activitySaved: creationActivitySaved && finalizationActivitySaved };
+  }
+
+  /**
+   * "Enviar" from a draft: one confirmation finalizes the quote and registers the send. If the
+   * send cannot be registered, the quote stays finalized and the drawer says so, so the user can
+   * register the send later from the quote.
+   */
+  async function handleDraftSend(input: QuoteSendInput): Promise<{ ok: boolean; error?: string }> {
+    if (finalizationLockRef.current)
+      return { ok: false, error: 'El presupuesto se está finalizando.' };
+    let saved: SavedQuote | undefined;
+    if (quoteStatus === 'draft') {
+      finalizationLockRef.current = true;
+      setIsFinalizing(true);
+      try {
+        const finalizedQuote = finalizeQuote(getCurrentQuote());
+        const finalized = saveFinalizedDraft(
+          finalizedQuote,
+          !savedQuotes.some((savedQuote) => savedQuote.id === finalizedQuote.id),
+        );
+        if (!finalized.ok) return { ok: false, error: finalized.message };
+        saved = loadSavedQuotes().find((item) => item.id === finalizedQuote.id);
+      } catch (error) {
+        return {
+          ok: false,
+          error:
+            error instanceof QuoteFinalizationError
+              ? error.message
+              : 'No se pudo finalizar el presupuesto. Intentá nuevamente.',
+        };
+      } finally {
+        finalizationLockRef.current = false;
+        setIsFinalizing(false);
+      }
+    } else saved = loadSavedQuotes().find((item) => item.id === quoteId);
+    if (!saved) return { ok: false, error: 'No se encontró el presupuesto finalizado.' };
+    const result = await handleQuoteSend(input, saved);
+    if (!result.ok)
+      return {
+        ok: false,
+        error: `El presupuesto quedó finalizado, pero no se registró el envío: ${result.error ?? 'intentá nuevamente.'}`,
+      };
+    setDraftSendTarget(null);
+    setFinalizationFeedback({
+      type: 'success',
+      message: 'Presupuesto finalizado y envío registrado.',
+    });
+    return { ok: true };
+  }
+
   function handleFinalizationConfirm() {
     if (finalizationLockRef.current || quoteStatus !== 'draft') return;
 
@@ -1775,32 +1857,13 @@ function App() {
         return;
       }
 
-      if (!saveQuote(finalizedQuote)) {
+      const finalized = saveFinalizedDraft(finalizedQuote, isNewQuote);
+      if (!finalized.ok) {
         setIsFinalizationConfirmationOpen(false);
-        setFinalizationFeedback({
-          type: 'error',
-          message: 'No se pudo finalizar el presupuesto. Intentá nuevamente.',
-        });
+        setFinalizationFeedback({ type: 'error', message: finalized.message });
         return;
       }
-
-      setQuoteStatus('finalized');
-      reloadSavedQuotes();
-      const creationActivitySaved =
-        !isNewQuote ||
-        recordAutomaticActivity(
-          { kind: 'quote', quoteId: finalizedQuote.id },
-          'created',
-          'Presupuesto creado.',
-          currentResponsible(),
-        );
-      const finalizationActivitySaved = recordAutomaticActivity(
-        { kind: 'quote', quoteId: finalizedQuote.id },
-        'finalized',
-        'Presupuesto finalizado.',
-        currentResponsible(),
-      );
-      const activitySaved = creationActivitySaved && finalizationActivitySaved;
+      const { activitySaved } = finalized;
       setIsFinalizationConfirmationOpen(false);
       setFinalizationFeedback({
         type: activitySaved ? 'success' : 'error',
@@ -2460,7 +2523,45 @@ function App() {
             if (saved) handleQuoteDetailOpen(saved);
           }}
           onShowSavedQuotes={() => setCurrentView('savedQuotes')}
+          onSend={
+            // A quote for a client can be sent in one step; a direct client is created on
+            // finalizing, so that quote is finalized first.
+            canSendDraftInOneStep({
+              status: quoteStatus,
+              clientId,
+              lineCount: quoteLines.length,
+              hasPendingDirectClient: Boolean(directClientInput),
+            })
+              ? () =>
+                  setDraftSendTarget({
+                    ...getCurrentQuote(),
+                    savedAt: new Date().toISOString(),
+                  })
+              : undefined
+          }
         />
+        {draftSendTarget && (
+          <RegisterQuoteSendDrawer
+            quote={draftSendTarget}
+            finalizesDraft
+            onClose={() => setDraftSendTarget(null)}
+            onSubmit={handleDraftSend}
+            existingNextAction={
+              associatedOpportunity?.nextAction?.status === 'pending'
+                ? associatedOpportunity.nextAction
+                : undefined
+            }
+            canSendWhatsApp={/^\d{7,15}$/.test(
+              (
+                loadClients().items.find((item) => item.id === draftSendTarget.clientId)?.phone ??
+                ''
+              ).replace(/\D/g, ''),
+            )}
+            canSendEmail={/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+              loadClients().items.find((item) => item.id === draftSendTarget.clientId)?.email ?? '',
+            )}
+          />
+        )}
       </>
     );
   }
