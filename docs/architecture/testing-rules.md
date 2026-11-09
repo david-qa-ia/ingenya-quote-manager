@@ -1,6 +1,6 @@
 # Testing Rules
 
-This document defines testing expectations for the Ventro app.
+Examples and detail for the test rules in `AGENTS.md`.
 
 ## Testing Purpose
 
@@ -82,18 +82,9 @@ A different input is worth a separate test when it represents a distinct busines
 
 ## UI Tests
 
-UI tests should be added when the app has meaningful user flows.
-
-Future UI tests should cover:
-
-- Adding a catalog service to a quote.
-- Adding a manual service to a quote.
-- Editing unit price.
-- Editing quantity.
-- Checking subtotals and total.
-- Continuing to the next quote step.
-
-Playwright can be added in a future ticket when the UI flow exists.
+Prefer testing the pure function behind a screen. Add a browser-level test (Playwright is
+available in development sessions, not as a dependency) only for a user flow whose risk is the
+wiring between screens, and describe manual browser checks in the PR.
 
 ## Test Naming
 
@@ -110,19 +101,6 @@ Avoid:
 ```text
 calls reduce correctly
 ```
-
-## Required Checks
-
-Before opening or merging a pull request, run:
-
-```bash
-npm run format:check
-npm run lint
-npm test
-npm run build
-```
-
-GitHub Actions must run the same quality checks.
 
 ## Failure Rules
 

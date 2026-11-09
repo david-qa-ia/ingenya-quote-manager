@@ -4,15 +4,9 @@ This document defines the product boundaries for the Ventro app.
 
 ## Product Purpose
 
-The Ventro app helps Daniel create clear construction service quotes for his clients.
-
-The first version focuses on charging labor/services, not managing workers.
-
-> **Current scope (2026-10-29, SCRUM-108).** The product now also covers prospecting,
-> clients and opportunities, follow-up, cadences, registered quote sends, commercial outcomes,
-> metrics and workspaces backed by Supabase. `AGENTS.md` lists the current boundaries. Sections
-> below that say a capability is "outside this increment" describe the scope of that specific
-> ticket at the time; they are kept as history and do not forbid features delivered later.
+Ventro helps Daniel sell construction services: from a prospect to a quote, its follow-up and
+the commercial outcome. `AGENTS.md` lists the current scope. This document keeps the business
+rules for labor, quotes, clients, opportunities and commercial statuses.
 
 ## Meaning Of Labor
 
@@ -43,7 +37,7 @@ The allowed units are:
 - Linear meter: `linearMeter`, shown as `ml`
 - Unit: `unit`, shown as `u`
 
-No other units should be added unless a Jira ticket updates this document.
+Add a unit only together with an update to this document.
 
 ## Catalog Job Rules
 
@@ -101,7 +95,8 @@ never usable contact destinations. Preferred channel is empty, `phone`, `whatsap
 contact consent starts as false. This increment does not send communications.
 
 Opportunity name and client are required. Address, estimated start date and responsible seller
-are optional. The seller is text, initially empty; there are no users or permissions.
+are optional. The seller is a name from the team list in Configuración; there are no per-user
+permissions.
 
 `clientName` and `projectName` remain document snapshots. Initial selection in a new quote
 copies the names. Manual association of an already saved draft preserves its existing texts;
@@ -112,11 +107,6 @@ replaced the commercial context. Editing a client or opportunity never updates s
 snapshots automatically. Finalized quotes cannot be edited or associated retrospectively. The
 current responsible seller is resolved from the opportunity, not copied into the quote or PDF.
 
-Commercial statuses, follow-up, messaging, backend persistence and synchronization remain
-outside this increment. _(Historical, SCRUM-46. Later delivered by SCRUM-47 and later tickets,
-SCRUM-79/80 for Supabase persistence and workspaces. Automatic messaging is still out of scope.)_ `draft` and `finalized`, service lines, calculations and PDF behavior
-are unchanged.
-
 ## Commercial Statuses (SCRUM-47)
 
 Document status and commercial status are independent. Finalizing or downloading a PDF does not
@@ -125,7 +115,4 @@ message or infer a contact action. The pending contact values `1111111111` and `
 contact destinations.
 
 Finalized documents remain immutable. Later commercial changes may update only commercial
-metadata through the approved storage operation. Contact history, next actions, reminders,
-cadences, metrics and AI remain outside this increment. _(Historical, SCRUM-47. Contact history,
-next actions, cadences and metrics were delivered later, for example SCRUM-48, SCRUM-53 and
-SCRUM-54. AI remains out of scope.)_
+metadata through the approved storage operation.
