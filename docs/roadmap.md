@@ -32,6 +32,29 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
 5. [x] Loss reason as a list (price, chose another, no answer, postponed, other) (#104).
 6. [x] "Enviar" finalizes and registers the send in one step (#105).
 
+## Stage 3: quote document
+
+1. [ ] The quote PDF reads as a complete quote document, not a summary of the data. Seen in
+       PRES-2026-E0080EC2 (2026-11-09):
+   - The internal status badge ("FINALIZADO") is shown to the client.
+   - The project name is repeated as "Propuesta" title and as "Proyecto".
+   - Services show only their name ("QRS"); no description or scope of the work.
+   - The client block has only the name: no company, phone, email or address of the job.
+   - No conditions: payment terms, execution time, what is included and what is not, and what
+     "Válido hasta" means for the client.
+   - No acceptance section (sign or confirm) and no logo, only the company name as text.
+   - The total sits at the bottom of the page, far from a one-line table, leaving a large empty
+     area.
+
+   Taxes stay out of scope unless the owner decides how to show them.
+
 ## Known bugs
 
 - [x] In a new workspace, a responsible typed as "Daniel" is saved as "D".
+- [ ] The global search shows the internal word "opportunity" next to opportunity results.
+- [ ] At ~390px, the pipeline labels in the job file run together and the "Editar" button of
+      "Datos de oportunidad" is cut at the card edge.
+- [ ] At ~390px, the "Registrar resultado" drawer header wraps the person's name into narrow
+      lines.
+- [ ] The automatic note "Próximo paso agendado: … responsable Daniel." names the responsible
+      even when the team has a single person (Responsable is hidden everywhere else).
