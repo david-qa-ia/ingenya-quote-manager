@@ -30,7 +30,7 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
 3. [x] WhatsApp and Llamar buttons open the chat or dialer with the message ready (#102).
 4. [x] Suggested next step after each result; optional next step when discarding (#103).
 5. [x] Loss reason as a list (price, chose another, no answer, postponed, other) (#104).
-6. [ ] "Enviar" finalizes and registers the send in one step.
+6. [x] "Enviar" finalizes and registers the send in one step (#105).
 
 ## Known bugs
 

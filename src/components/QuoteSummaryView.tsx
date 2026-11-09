@@ -1,3 +1,4 @@
+import { UiIcon } from './UiIcon';
 import type { RefObject } from 'react';
 import { workUnitLabels, workUnitSymbols } from '../data/workUnits';
 import type { QuoteLine, QuoteStatus } from '../types/quote';
@@ -35,6 +36,8 @@ interface Props {
   onConfirmFinalization: () => void;
   /** SCRUM-118: from a finalized quote the user can register the send and follow it up. */
   onRegisterSend: () => void;
+  /** Finalizes the draft and registers its send in one step; missing without a client. */
+  onSend?: () => void;
   onShowSavedQuotes: () => void;
 }
 
@@ -66,6 +69,7 @@ export function QuoteSummaryView({
   onCancelFinalization,
   onConfirmFinalization,
   onRegisterSend,
+  onSend,
   onShowSavedQuotes,
 }: Props) {
   return (
@@ -116,12 +120,22 @@ export function QuoteSummaryView({
               {status === 'draft' && (
                 <button
                   ref={finalizationTriggerRef}
-                  className="button button-primary"
+                  className={`button ${onSend ? 'button-line' : 'button-primary'}`}
                   type="button"
                   onClick={onRequestFinalization}
                   disabled={isFinalizing}
                 >
-                  Finalizar presupuesto
+                  {onSend ? 'Finalizar sin enviar' : 'Finalizar presupuesto'}
+                </button>
+              )}
+              {status === 'draft' && onSend && (
+                <button
+                  className="button button-primary"
+                  type="button"
+                  onClick={onSend}
+                  disabled={isFinalizing || lines.length === 0}
+                >
+                  <UiIcon name="send" /> Enviar
                 </button>
               )}
               {status === 'finalized' && (
@@ -137,7 +151,9 @@ export function QuoteSummaryView({
             </div>
             {status === 'draft' && (
               <p className="finalization-note">
-                Finalizar no envía el presupuesto al cliente ni registra un cobro.
+                {onSend
+                  ? 'Enviar finaliza el presupuesto y registra el envío. La app no lo manda: lo compartís vos.'
+                  : 'Finalizar no envía el presupuesto al cliente ni registra un cobro.'}
               </p>
             )}
             {saveFeedback && (

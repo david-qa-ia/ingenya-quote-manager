@@ -25,6 +25,8 @@ interface Props {
   existingNextAction?: NextAction;
   canSendWhatsApp: boolean;
   canSendEmail: boolean;
+  /** The quote is still a draft: confirming finalizes it and registers the send. */
+  finalizesDraft?: boolean;
 }
 const channelLabels: Record<QuoteSendChannel, string> = {
   whatsapp: 'WhatsApp',
@@ -53,6 +55,7 @@ export function RegisterQuoteSendDrawer({
   existingNextAction,
   canSendWhatsApp,
   canSendEmail,
+  finalizesDraft = false,
 }: Props) {
   const [channel, setChannel] = useState<QuoteSendChannel>(
     canSendWhatsApp ? 'whatsapp' : canSendEmail ? 'email' : 'meeting',
@@ -118,9 +121,13 @@ export function RegisterQuoteSendDrawer({
       >
         <header>
           <div>
-            <h2 id="quote-send-title">Registrar envío</h2>
+            <h2 id="quote-send-title">
+              {finalizesDraft ? 'Enviar presupuesto' : 'Registrar envío'}
+            </h2>
             <p>
-              Presupuesto {quote.id} · Versión {quote.version ?? 1}
+              {finalizesDraft
+                ? `${quote.projectName || 'Presupuesto'} · ${quote.clientName}`
+                : `Presupuesto ${quote.id} · Versión ${quote.version ?? 1}`}
             </p>
           </div>
           <button aria-label="Cerrar" type="button" disabled={saving} onClick={onClose}>
@@ -128,7 +135,10 @@ export function RegisterQuoteSendDrawer({
           </button>
         </header>
         <p className="quote-send-notice">
-          <UiIcon name="help" /> Registrar el envío no lo manda: confirma que ya lo compartiste.
+          <UiIcon name="help" />{' '}
+          {finalizesDraft
+            ? 'Al confirmar, el presupuesto se finaliza y queda registrado el envío. Mandalo vos por el canal que elijas; la app no lo envía.'
+            : 'Registrar el envío no lo manda: confirma que ya lo compartiste.'}
         </p>
         <fieldset disabled={saving}>
           <legend>Canal real</legend>
