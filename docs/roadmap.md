@@ -48,6 +48,11 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
 
    Taxes stay out of scope unless the owner decides how to show them.
 
+2. [ ] Discount on a quote: while preparing it, the user can apply the percentage discount they
+       decide at that moment, from 0% to 100% (never more). The quote and its PDF show subtotal,
+       discount and final total; a finalized quote keeps its discount. Discount on the whole quote
+       unless the owner asks for it per service.
+
 ## Known bugs
 
 - [x] In a new workspace, a responsible typed as "Daniel" is saved as "D".
