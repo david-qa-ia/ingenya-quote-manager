@@ -5,6 +5,8 @@ import { ActivityTimeline } from './ActivityTimeline';
 import { ClientForm, type ContactProspectExtras } from './ClientForm';
 import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
 import { UiIcon, type UiIconName } from './UiIcon';
+import { JobFileHeader } from './JobFileHeader';
+import { getJobFileHeading } from '../utils/jobFile';
 import type { Client, ClientInput } from '../types/client';
 import type { Opportunity, OpportunityPipelineStage } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
@@ -190,6 +192,13 @@ export function OpportunityDetailView({
     action?.kind === 'sendQuote' ||
     action?.description.trim().toLowerCase() === 'enviar presupuesto';
   const currentStage = opportunity.pipelineStage ?? 'opportunity';
+  // Same header as the row in Trabajos and as the prospect this job started as.
+  const heading = getJobFileHeading(
+    { kind: 'opportunity', id: opportunity.id },
+    { prospects: [], opportunities: [opportunity], clients: client ? [client] : [], quotes },
+  ) ?? { name: opportunity.name, detail: '', stage: 'quoting' as const };
+  const service = opportunity.qualification?.serviceOfInterest.trim();
+  const projectName = service && opportunity.name.trim() !== service ? opportunity.name.trim() : '';
   const pipeline: readonly (readonly [OpportunityPipelineStage, string])[] = [
     ['prospect', 'Prospecto'],
     ['contacted', 'Contactado'],
@@ -304,39 +313,17 @@ export function OpportunityDetailView({
 
   return (
     <main className="app-shell opportunity-detail-view">
-      <button
-        className="button button-link opportunity-back back-link"
-        type="button"
-        onClick={onBack}
-      >
-        ← {backLabel}
-      </button>
-      <header className="opportunity-detail-header">
-        <div>
-          <p className="eyebrow">Trabajos / Oportunidad</p>
-          <div className="opportunity-title-row">
-            <h1>{opportunity.name}</h1>
-            <span className="status-badge prospect-status-contacted">
-              {currentStage === 'proposal'
-                ? 'Propuesta'
-                : currentStage === 'won'
-                  ? 'Ganada'
-                  : currentStage === 'lost'
-                    ? 'Perdida'
-                    : 'En seguimiento'}
-            </span>
-          </div>
-          <p className="page-description">
-            {client?.company && `${client.company} · `}
-            {client?.name ?? 'Cliente no disponible'}
-          </p>
-        </div>
-        <div className="opportunity-header-actions">
+      <JobFileHeader
+        heading={heading}
+        backLabel={backLabel}
+        onBack={onBack}
+        note={projectName ? `Proyecto: ${projectName}` : undefined}
+        actions={
           <button className="button button-primary" type="button" onClick={onRegisterResult}>
             <UiIcon name="document" /> Registrar resultado
           </button>
-        </div>
-      </header>
+        }
+      />
       {isMissingClient && (
         <p className="commercial-warning" role="alert">
           No se encontró el cliente vinculado. La oportunidad se muestra en modo de solo lectura.
