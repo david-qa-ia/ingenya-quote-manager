@@ -33,6 +33,22 @@ describe('finalizeQuote', () => {
     expect(validQuote).toEqual(original);
   });
 
+  it('keeps the version lineage of a new commercial version', () => {
+    const secondVersion: Quote = {
+      ...validQuote,
+      id: 'PRES-2026-0002',
+      version: 2,
+      basedOnQuoteId: 'PRES-2026-0001',
+      changeRequest: {
+        requestedAt: '2026-09-29T12:00:00.000Z',
+        requestedBy: 'Daniel',
+        reason: 'El cliente pide quitar el relevamiento.',
+      },
+    };
+
+    expect(finalizeQuote(secondVersion)).toEqual({ ...secondVersion, status: 'finalized' });
+  });
+
   it('rejects a quote without lines', () => {
     expect(() => finalizeQuote({ ...validQuote, lines: [] })).toThrow(
       'Agregá al menos un servicio antes de finalizar el presupuesto.',
