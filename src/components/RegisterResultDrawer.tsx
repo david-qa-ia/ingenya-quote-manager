@@ -338,7 +338,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
           <span className="result-drawer-avatar" aria-hidden="true">
             {initials}
           </span>
-          <div>
+          <div className="result-drawer-heading">
             <p className="eyebrow">Registrar resultado</p>
             <h2 id="result-drawer-title">{item.clientName}</h2>
             <p>
@@ -349,7 +349,7 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
           </div>
           <button
             ref={closeRef}
-            className="button button-link"
+            className="button button-link result-drawer-close"
             type="button"
             onClick={onClose}
             aria-label="Cerrar"

@@ -2689,6 +2689,15 @@ td small {
   font-size: 1.1rem;
   font-weight: 800;
 }
+.result-drawer-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.result-drawer-close {
+  flex: 0 0 auto;
+  width: auto;
+}
 .result-drawer-header h2 {
   margin: 4px 0;
   color: var(--text-heading);
@@ -9018,5 +9027,22 @@ span.daily-bucket-icon svg {
   .opportunity-data-heading .button {
     flex: 0 0 auto;
     width: auto;
+  }
+}
+
+/* Narrow "Registrar resultado" drawer: the name gets the width, not the close button. */
+@media (max-width: 520px) {
+  .result-drawer-header {
+    gap: 12px;
+    padding: 20px 16px 16px;
+  }
+  .result-drawer-avatar {
+    flex-basis: 40px;
+    width: 40px;
+    height: 40px;
+  }
+  .result-drawer-header h2 {
+    font-size: 1.2rem;
+    line-height: 1.25;
   }
 }
