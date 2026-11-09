@@ -1,4 +1,5 @@
 export type AppView =
+  | 'jobs'
   | 'dailyDashboard'
   | 'editor'
   | 'summary'
@@ -12,9 +13,10 @@ export type AppView =
   | 'quoteDetail'
   | 'settings';
 export type NavigationSection =
-  'newQuote' | 'savedQuotes' | 'nextActions' | 'metrics' | 'prospects' | 'settings';
+  'jobs' | 'newQuote' | 'savedQuotes' | 'nextActions' | 'metrics' | 'prospects' | 'settings';
 
 export function resolveActiveNavigationSection(view: AppView): NavigationSection {
+  if (view === 'jobs') return 'jobs';
   if (view === 'settings') return 'settings';
   if (view === 'dailyDashboard') return 'nextActions';
   if (view === 'savedQuotes') return 'savedQuotes';
@@ -47,6 +49,7 @@ export function getCircularFocusIndex(
  * reopen their list after a reload, because that selection is not part of the address.
  */
 const viewHashes: Record<AppView, string> = {
+  jobs: '#/trabajos',
   dailyDashboard: '#/seguimiento',
   nextActions: '#/seguimiento-completo',
   cadences: '#/automatizaciones',

@@ -155,6 +155,9 @@ interface Props {
   openProspectId?: string | null;
   /** SCRUM-119: changes when the user picks "Prospectos" in the menu; shows the list again. */
   resetToken?: number;
+  /** Opens a blank new-prospect form on arrival (from Trabajos). */
+  openNewProspect?: boolean;
+  onOpenNewProspectHandled?: () => void;
   onOpenProspectHandled?: () => void;
   onProspectsChanged?: (prospects: Prospect[]) => void;
   onOpportunitiesChanged?: () => void;
@@ -168,6 +171,8 @@ export function ProspectingView({
   onOpenResult,
   openProspectId,
   resetToken,
+  openNewProspect,
+  onOpenNewProspectHandled,
   onOpenProspectHandled,
   onProspectsChanged,
   onOpportunitiesChanged,
@@ -177,7 +182,9 @@ export function ProspectingView({
   const [prospects, setProspects] = useState(() => loadProspects().items);
   const [storedFilters, setFilters] = useState(initialFilters);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [creationDraft, setCreationDraft] = useState<Prospect | null>(null);
+  const [creationDraft, setCreationDraft] = useState<Prospect | null>(() =>
+    openNewProspect ? createNewProspect() : null,
+  );
   const lastResetTokenRef = useRef(resetToken);
   useEffect(() => {
     if (resetToken === lastResetTokenRef.current) return;
@@ -186,6 +193,9 @@ export function ProspectingView({
     setCreationDraft(null);
     onOpenProspectHandled?.();
   }, [resetToken, onOpenProspectHandled]);
+  useEffect(() => {
+    if (openNewProspect) onOpenNewProspectHandled?.();
+  }, [openNewProspect, onOpenNewProspectHandled]);
   const initialContactChannel: ProspectChannel = 'phone';
   const [importRecovery, setImportRecovery] = useState<ProspectImportRecovery | null>(() =>
     loadProspectImportRecovery(),
