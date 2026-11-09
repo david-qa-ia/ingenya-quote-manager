@@ -18,6 +18,8 @@ import {
   type ActivityFormField,
 } from '../utils/activityFormValidation';
 import { appendActivityNoteRevision, loadActivities, saveActivity } from '../utils/activityStorage';
+import { canEditActivityNote, currentNoteEditor } from '../utils/activityNoteEditing';
+import { useResponsibles } from '../utils/useResponsibles';
 import {
   getTimelineActivitiesForSubjects,
   getTimelineSubjectLabel,
@@ -108,6 +110,9 @@ export function ActivityTimeline({
     note: '',
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const responsibles = useResponsibles();
+  // Own notes stay editable on load, before the note form fills in its author.
+  const editor = currentNoteEditor(input.author, responsibles);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedNote, setEditedNote] = useState('');
   const [feedbackState, setFeedbackState] = useState<{ message: string; isError: boolean }>({
@@ -193,9 +198,9 @@ export function ActivityTimeline({
       return;
     }
     if (
-      !appendActivityNoteRevision(activity.id, input.author.trim(), {
+      !appendActivityNoteRevision(activity.id, editor, {
         editedAt: new Date().toISOString(),
-        editedBy: input.author.trim(),
+        editedBy: editor,
         note: editedNote.trim(),
       })
     ) {
@@ -375,20 +380,18 @@ export function ActivityTimeline({
                 </div>
               )
             )}
-            {activity.source === 'manual' &&
-              activity.author === input.author.trim() &&
-              editingId !== activity.id && (
-                <button
-                  className="button button-link"
-                  type="button"
-                  onClick={() => {
-                    setEditingId(activity.id);
-                    setEditedNote(activity.note);
-                  }}
-                >
-                  Editar mi nota
-                </button>
-              )}
+            {canEditActivityNote(activity, editor) && editingId !== activity.id && (
+              <button
+                className="button button-link"
+                type="button"
+                onClick={() => {
+                  setEditingId(activity.id);
+                  setEditedNote(activity.note);
+                }}
+              >
+                Editar mi nota
+              </button>
+            )}
             {activity.noteRevisions.length > 0 &&
               (() => {
                 const revision = activity.noteRevisions.at(-1)!;
