@@ -73,4 +73,9 @@ describe('responsibles (SCRUM-117)', () => {
     expect(responsibleOptions(list, 'Ana')).toEqual(['David', 'Ana']);
     expect(responsibleOptions(list, 'david')).toEqual(['David']);
   });
+
+  it('keeps the field as free text in a new workspace while a name is typed', () => {
+    expect(responsibleOptions([], 'D')).toEqual([]);
+    expect(responsibleOptions([], 'Daniel')).toEqual([]);
+  });
 });

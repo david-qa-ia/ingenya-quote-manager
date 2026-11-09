@@ -34,4 +34,4 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
 
 ## Known bugs
 
-- [ ] In a new workspace, a responsible typed as "Daniel" is saved as "D".
+- [x] In a new workspace, a responsible typed as "Daniel" is saved as "D".
