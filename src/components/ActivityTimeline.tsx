@@ -18,7 +18,13 @@ import {
   type ActivityFormField,
 } from '../utils/activityFormValidation';
 import { appendActivityNoteRevision, loadActivities, saveActivity } from '../utils/activityStorage';
-import { canEditActivityNote, currentNoteEditor } from '../utils/activityNoteEditing';
+import {
+  canEditActivityNote,
+  createNoteRevision,
+  currentActivityNote,
+  currentNoteEditor,
+  getPreviousNoteVersions,
+} from '../utils/activityNoteEditing';
 import { useResponsibles } from '../utils/useResponsibles';
 import {
   getTimelineActivitiesForSubjects,
@@ -53,6 +59,31 @@ interface Props {
   emptyMessage?: string;
   registerLabel?: string;
   nextAction?: NextAction;
+}
+
+/** Earlier texts of an edited note, closed by default so the timeline stays short. */
+function PreviousNoteVersions({ activity }: { activity: Activity }) {
+  const versions = getPreviousNoteVersions(activity);
+  if (!versions.length) return null;
+  return (
+    <details className="activity-note-history">
+      <summary>
+        {versions.length === 1
+          ? 'Ver versión anterior'
+          : `Ver versiones anteriores (${versions.length})`}
+      </summary>
+      <ol>
+        {versions.map((version) => (
+          <li key={version.replacedAt}>
+            <p>{version.text}</p>
+            <small>
+              Reemplazada el {formatActivityDateTime(version.replacedAt)} por {version.replacedBy}.
+            </small>
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
 }
 
 function activitySummary(activity: Activity): string {
@@ -111,8 +142,6 @@ export function ActivityTimeline({
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const responsibles = useResponsibles();
-  // Own notes stay editable on load, before the note form fills in its author.
-  const editor = currentNoteEditor(input.author, responsibles);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedNote, setEditedNote] = useState('');
   const [feedbackState, setFeedbackState] = useState<{ message: string; isError: boolean }>({
@@ -197,12 +226,9 @@ export function ActivityTimeline({
       setFeedback('La nota no puede quedar vacía.', true);
       return;
     }
+    const editor = currentNoteEditor(input.author, responsibles, activity.author);
     if (
-      !appendActivityNoteRevision(activity.id, editor, {
-        editedAt: new Date().toISOString(),
-        editedBy: editor,
-        note: editedNote.trim(),
-      })
+      !appendActivityNoteRevision(activity.id, createNoteRevision(activity, editedNote, editor))
     ) {
       setFeedback('No se pudo guardar la edición de la nota.', true);
       return;
@@ -373,23 +399,23 @@ export function ActivityTimeline({
                 </button>
               </div>
             ) : (
-              activity.note && (
+              currentActivityNote(activity) && (
                 <div className="activity-entry-detail">
                   <span>{activityDetailLabel(activity)}</span>
-                  <p>{activity.note}</p>
+                  <p>{currentActivityNote(activity)}</p>
                 </div>
               )
             )}
-            {canEditActivityNote(activity, editor) && editingId !== activity.id && (
+            {canEditActivityNote(activity) && editingId !== activity.id && (
               <button
                 className="button button-link"
                 type="button"
                 onClick={() => {
                   setEditingId(activity.id);
-                  setEditedNote(activity.note);
+                  setEditedNote(currentActivityNote(activity));
                 }}
               >
-                Editar mi nota
+                Editar nota
               </button>
             )}
             {activity.noteRevisions.length > 0 &&
@@ -402,6 +428,7 @@ export function ActivityTimeline({
                   </small>
                 );
               })()}
+            <PreviousNoteVersions activity={activity} />
           </li>
         ))}
       </ol>

@@ -22,7 +22,10 @@ export type AutomaticActivityEvent =
 export interface ActivityNoteRevision {
   editedAt: string;
   editedBy: string;
+  /** The text after this edit. */
   note: string;
+  /** The text this edit replaced; missing in edits saved before it was recorded. */
+  previousNote?: string;
 }
 
 export interface Activity {

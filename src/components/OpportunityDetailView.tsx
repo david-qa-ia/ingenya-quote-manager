@@ -7,6 +7,7 @@ import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
 import { UiIcon, type UiIconName } from './UiIcon';
 import { JobFileHeader } from './JobFileHeader';
 import { getJobFileHeading, getJobProjectName } from '../utils/jobFile';
+import { currentActivityNote } from '../utils/activityNoteEditing';
 import type { Client, ClientInput } from '../types/client';
 import type { Opportunity, OpportunityPipelineStage } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
@@ -871,7 +872,7 @@ export function OpportunityDetailView({
                       </span>
                       <div>
                         <strong>{getActivityResultLabel(activity)}</strong>
-                        <small>{activity.note || 'Actividad registrada'}</small>
+                        <small>{currentActivityNote(activity) || 'Actividad registrada'}</small>
                       </div>
                       <time dateTime={activity.occurredAt}>{shortDate(activity.occurredAt)}</time>
                     </li>

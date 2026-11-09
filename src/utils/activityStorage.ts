@@ -68,7 +68,8 @@ function isNoteRevision(value: unknown): value is ActivityNoteRevision {
   return (
     isIsoDate(revision.editedAt) &&
     isNonEmptyString(revision.editedBy) &&
-    typeof revision.note === 'string'
+    typeof revision.note === 'string' &&
+    (revision.previousNote === undefined || typeof revision.previousNote === 'string')
   );
 }
 function isCommunication(value: unknown): value is ContactCommunicationSnapshot {
@@ -245,19 +246,18 @@ export function recordCadenceActivity(
   }
 }
 
+/** Saves an edit of a manual note; anyone on the team can edit it (one shared user). */
 export function appendActivityNoteRevision(
   activityId: string,
-  author: string,
   revision: ActivityNoteRevision,
 ): boolean {
   try {
-    if (!isNonEmptyString(activityId) || !isNonEmptyString(author) || !isNoteRevision(revision))
-      return false;
+    if (!isNonEmptyString(activityId) || !isNoteRevision(revision)) return false;
     const records = readCollection(ACTIVITIES_STORAGE_KEY);
     const matching = records.filter((record) => hasRecordId(record, activityId));
     if (matching.length !== 1 || !isActivity(matching[0])) return false;
     const activity = matching[0];
-    if (activity.source !== 'manual' || activity.author !== author) return false;
+    if (activity.source !== 'manual') return false;
     const index = records.findIndex((record) => hasRecordId(record, activityId));
     records[index] = {
       ...activity,
