@@ -128,14 +128,8 @@ Each of these requires its own Jira ticket.
 
 ## Agent Rules
 
-Before modifying storage behavior, agents must read:
-
-- `docs/architecture/product-rules.md`
-- `docs/architecture/coding-rules.md`
-- `docs/architecture/testing-rules.md`
-- `docs/architecture/storage-architecture.md`
-
-Agents must not introduce new storage keys, persistence mechanisms, backend assumptions, or duplicated derived totals without an explicit Jira ticket.
+Agents must not introduce new storage keys, persistence mechanisms, backend assumptions, or
+duplicated derived totals without the owner's approval, recorded in the PR.
 
 SCRUM-40 explicitly authorizes `ingenya.laborCatalog.v1` for the local labor catalog.
 

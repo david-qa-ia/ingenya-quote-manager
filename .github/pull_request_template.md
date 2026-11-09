@@ -1,6 +1,6 @@
 ## Jira Ticket
 
-- Ticket:
+- Ticket (optional):
 
 ## Summary
 

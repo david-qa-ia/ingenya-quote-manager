@@ -1,84 +1,86 @@
-# Agent Instructions
+# Agent Guide
 
-This repository is the Ventro commercial management app (repository name: `ingenya-quote-manager`).
-
-AI agents are allowed to help with implementation, refactoring, tests, documentation, and quality checks, but they must follow the project rules before changing code.
-
-## Required Reading Before Changes
-
-Before editing files, agents must read:
-
-- `AGENTS.md`
-- `docs/architecture/product-rules.md`
-- `docs/architecture/coding-rules.md`
-- `docs/architecture/ui-rules.md`
-- `docs/architecture/testing-rules.md`
-- `docs/architecture/ai-agent-workflow.md`
-
-If the ticket touches persistence, drafts, saved quotes, localStorage, quote recovery, or stored data, agents must also read:
-
-- `docs/architecture/storage-architecture.md`
-- `docs/architecture/persistence-architecture.md`
-
-If the ticket touches workspaces, sign-in or the active workspace, agents must also read:
-
-- `docs/architecture/workspaces.md`
+Ventro (repository `ingenya-quote-manager`) is the commercial app Daniel uses to sell construction
+services: prospects, clients, opportunities, quotes, follow-up and metrics. This file is the only
+required reading. The documents under `docs/architecture/` are references: open one only when the
+change touches its topic (table below).
 
 ## Product Boundaries
 
-- The app (Ventro, formerly Brio / Ingenya Quote Manager) helps Daniel manage commercial work for construction
-  services: prospects, clients, opportunities, quotes and their follow-up.
-- "Labor" means services charged to the final client, not workers, wages, salaries, unions, UOCRA, or construction chamber labor tables.
-- Current scope (updated 2026-10-29, SCRUM-108):
-  - Quotes for services/labor: drafts, finalization, versions and PDF.
-  - Clients (contacts) and opportunities, with qualification and next actions.
-  - Prospecting: manual and CSV import, first contact, contact results, conversion to an
-    opportunity, and archive/restore (SCRUM-111).
-  - Follow-up ("Seguimiento"), cadences, registered quote sends and commercial outcomes
-    (accepted, rejected, lost, reopened).
-  - Commercial metrics ("Indicadores").
-  - Workspaces with Supabase as the source of truth (Auth, RLS, transactional RPCs and
-    migrations in `supabase/migrations`), plus a workspace-namespaced local mirror in
-    localStorage. Without Supabase environment variables the app runs in local-only mode.
-- The app records contacts and sends that the user confirms; it never sends WhatsApp or email
-  messages by itself.
-- Materials, taxes, margins, AI voice input, automatic message sending and team permissions for
-  the reserved `collaborator` role are outside the current scope unless a Jira ticket explicitly
-  includes them.
+- "Labor" means a service charged to the final client (paint a wall, install a door), never
+  workers, wages, unions, UOCRA or salary tables.
+- In scope: quotes for services (drafts, finalization, versions, PDF), clients, opportunities,
+  prospecting (manual, CSV, first contact, conversion, archive), follow-up and cadences, registered
+  sends, commercial outcomes, metrics ("Indicadores") and workspaces.
+- Supabase is the source of truth when configured (Auth, RLS, transactional RPCs, migrations in
+  `supabase/migrations`). localStorage keeps a mirror namespaced by workspace. Without Supabase
+  variables the app runs local-only.
+- The app records what the user confirms. It never sends WhatsApp or email by itself; it may open a
+  chat, dialer or mail draft for the user to send.
+- Out of scope unless the owner asks: materials, taxes, margins, voice input, automatic sending and
+  per-user permissions for the reserved `collaborator` role.
 
-## Forms And Validation
+## Code Rules
 
-- Validation rules live in pure functions in `src/utils` (for example `getProspectFieldErrors`,
-  `getClientFieldErrors`). Existing `get*ValidationError` functions also guard stored data and
-  CSV import, so change them only with equivalence tests.
-- Forms show one message per field with the shared `FieldError` component and
-  `useFieldValidation` hook: `aria-invalid`, `aria-describedby`, focus on the first invalid field,
-  and the `var(--danger)` color. Save or server errors use `.form-error` with `role="alert"`, in
-  Spanish and without internal codes.
-- Do not add form or validation libraries (react-hook-form, yup, zod, UI kits) without a
-  justification approved in the Jira ticket.
+- Code, identifiers, file names, commits and PR titles in English. Every user-facing text in
+  Spanish, without internal codes.
+- Business logic lives in pure functions in `src/utils`, types in `src/types`; React components
+  present and interact. Prefer derived values over duplicated state.
+- Forms: validation in pure `get*FieldErrors` functions, one message per field with `FieldError`
+  and `useFieldValidation`; save errors in `.form-error` with `role="alert"`. Existing
+  `get*ValidationError` functions also guard stored data and CSV import: change them only with
+  equivalence tests.
+- UI: follow `docs/architecture/ui-rules.md` (Ventro blue `#2F6BFF`, shared tokens in
+  `src/index.css` and `src/App.css`, icons only through `UiIcon`). Check the desktop and the narrow
+  layout of every screen you change.
+- Storage: validate what you read, never overwrite stored data silently, and do not add storage
+  keys, tables or RPCs without reading the storage docs below.
+- No new dependency without a short reason in the PR (problem, why now, why the platform is not
+  enough). No form, validation or UI-kit libraries.
 
-## Code Language Rules
+## Tests
 
-- Code, variables, functions, types, file names, and commit messages must be written in English.
-- UI text shown to the user must be written in Spanish.
-- Keep domain concepts explicit and simple.
+- Every test protects a business rule, an acceptance criterion, an edge case or a regression.
+  Assert observable results through public functions; no snapshots of large trees, no tests of
+  call order or private helpers, no near-duplicate scenarios.
+- A bug fix ships with a test that fails without the fix.
+- Never delete, skip or loosen a test to make CI pass.
 
-## Workflow Rules
+## Workflow
 
-- Every meaningful change must be linked to a Jira ticket.
-- Work must happen on a feature branch, not directly on `main`.
-- Branch names should include the Jira ticket key when possible.
-- Pull requests must describe the change, ticket, scope, and validation performed.
-- Do not mix unrelated tickets in the same branch.
+1. Branch from an up-to-date `main`: `fix/…`, `feat/…`, `refactor/…` or `docs/…`, plus the Jira key
+   when a ticket exists (tickets are optional).
+2. Keep one concern per branch. Large features ship as a sequence of small PRs, each one green and
+   usable on its own.
+3. Run `npm run format`, then the same checks as CI:
+   `npm run format:check && npm run lint && npm test && npm run build`.
+4. Open the PR with `.github/pull_request_template.md`. For UI changes, describe what was checked in
+   the browser.
+5. `main` requires the "Quality checks" status on an up-to-date branch: update the branch, wait for
+   CI, then squash-merge. Merge only when the owner has delegated merging; otherwise leave the PR
+   open.
 
-## Quality Rules
+Stop and ask only when a change conflicts with these rules, needs a product decision nobody has
+made, or cannot be undone. Otherwise decide, and record the decision in the PR.
 
-Before opening or merging a pull request, agents must run:
+## Working Efficiently
 
-```bash
-npm run format:check
-npm run lint
-npm test
-npm run build
-```
+- `src/App.tsx` (about 3,500 lines) and `src/components/ProspectingView.tsx` (about 2,500) are too
+  large to read whole: search for the symbol and read the surrounding lines.
+- Run the focused test file while working (`npx vitest run path/to/file.test.ts`) and the full
+  suite once before the PR.
+- Prefer extending an existing helper or component over a parallel one; search `src/utils` first.
+
+## Reference Docs (open only when relevant)
+
+| Topic                                                     | Document                                        |
+| --------------------------------------------------------- | ----------------------------------------------- |
+| Units, catalog, quote lines, snapshots, commercial status | `docs/architecture/product-rules.md`            |
+| Visual language, components, icons                        | `docs/architecture/ui-rules.md`                 |
+| Test examples                                             | `docs/architecture/testing-rules.md`            |
+| localStorage keys, recovery, local mirror                 | `docs/architecture/storage-architecture.md`     |
+| Supabase model, RPCs, idempotency, audit                  | `docs/architecture/persistence-architecture.md` |
+| Workspaces, sign-in, active workspace                     | `docs/architecture/workspaces.md`               |
+| Quote document and commercial statuses                    | `docs/architecture/quote-status.md`             |
+| Deployment (Cloudflare Pages)                             | `docs/architecture/deployment.md`               |
+| Notes from past tickets                                   | `docs/architecture/history/`                    |
