@@ -7,6 +7,7 @@ import type { Opportunity } from './types/opportunity';
 import { CLIENTS_STORAGE_KEY, loadClients, saveClient } from './utils/clientStorage';
 import { buildOpportunityContactActivity } from './utils/opportunityContactActivity';
 import { buildJobList } from './utils/jobList';
+import { resolveJobRef, type JobRef } from './utils/jobFile';
 import { JobsView } from './components/JobsView';
 import { ClientsView } from './components/ClientsView';
 import { buildClientList } from './utils/clientList';
@@ -925,6 +926,25 @@ function App() {
     setCurrentView('editor');
   }
 
+  /**
+   * Opens the job file of a sale from any list. A converted prospect opens as its opportunity,
+   * so the same sale always opens the same file.
+   */
+  function openJob(ref: JobRef) {
+    const resolved =
+      resolveJobRef(ref, {
+        prospects: loadProspects().items,
+        opportunities: loadOpportunities().items,
+      }) ?? ref;
+    if (resolved.kind === 'opportunity') {
+      openOpportunityDetail(resolved.id);
+      return;
+    }
+    rememberOpportunityOrigin();
+    setRequestedProspectId(resolved.id);
+    setCurrentView('prospects');
+  }
+
   function openOpportunityDetail(id: string) {
     reloadOpportunities();
     setDetailOpportunityId(id);
@@ -934,8 +954,7 @@ function App() {
 
   function handleFollowUpOpen(item: FollowUpInboxItem) {
     if (item.prospectId) {
-      setRequestedProspectId(item.prospectId);
-      setCurrentView('prospects');
+      openJob({ kind: 'prospect', id: item.prospectId });
       return;
     }
     if (item.opportunityId) {
@@ -968,8 +987,7 @@ function App() {
       return;
     }
     if (result.prospect) {
-      setRequestedProspectId(result.prospect.id);
-      setCurrentView('prospects');
+      openJob({ kind: 'prospect', id: result.prospect.id });
       return;
     }
     setProspectFilters((current) => ({ ...current, search: result.client?.name ?? '' }));
@@ -2050,7 +2068,7 @@ function App() {
             clients,
             buildJobList({ prospects, opportunities, clients, quotes: savedQuotes }),
           )}
-          onOpenJob={(job) => openOpportunityDetail(job.id)}
+          onOpenJob={openJob}
         />
       </>
     );
@@ -2067,14 +2085,7 @@ function App() {
             clients: loadClients().items,
             quotes: savedQuotes,
           })}
-          onOpen={(row) => {
-            if (row.kind === 'prospect') {
-              setRequestedProspectId(row.id);
-              setCurrentView('prospects');
-              return;
-            }
-            openOpportunityDetail(row.id);
-          }}
+          onOpen={openJob}
           onNewProspect={() => {
             setCurrentView('prospects');
             setOpenNewProspect(true);
@@ -2111,6 +2122,17 @@ function App() {
           onOpenOpportunity={openOpportunityDetail}
           onOpenResult={setDrawerItem}
           openProspectId={requestedProspectId}
+          openProspectBack={
+            requestedProspectId
+              ? {
+                  label: opportunityOriginLabels[opportunityOrigin],
+                  onBack: () => {
+                    setRequestedProspectId(null);
+                    setCurrentView(opportunityOrigin);
+                  },
+                }
+              : undefined
+          }
           onOpenProspectHandled={() => setRequestedProspectId(null)}
           onProspectsChanged={setProspects}
           onOpportunitiesChanged={() => reloadOpportunities()}

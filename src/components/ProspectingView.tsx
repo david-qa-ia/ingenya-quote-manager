@@ -93,6 +93,9 @@ import {
 } from '../utils/supabaseRepository';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 import { UiIcon } from './UiIcon';
+import { JobFileHeader } from './JobFileHeader';
+import { jobFileHeadingFromRow } from '../utils/jobFile';
+import { prospectJobRow } from '../utils/jobList';
 import { useResponsibles } from '../utils/useResponsibles';
 import { loadResponsibles, primaryResponsibleName } from '../utils/responsibleStorage';
 import {
@@ -153,6 +156,11 @@ interface Props {
   onOpenOpportunity: (id: string) => void;
   onOpenResult: (item: FollowUpInboxItem) => void;
   openProspectId?: string | null;
+  /**
+   * Where "Volver" leads from a prospect opened from another list (Trabajos, Hoy, Clientes or
+   * the search). A prospect opened from this list goes back to it.
+   */
+  openProspectBack?: { label: string; onBack: () => void };
   /** SCRUM-119: changes when the user picks "Prospectos" in the menu; shows the list again. */
   resetToken?: number;
   /** Opens a blank new-prospect form on arrival (from Trabajos). */
@@ -170,6 +178,7 @@ export function ProspectingView({
   onOpenOpportunity,
   onOpenResult,
   openProspectId,
+  openProspectBack,
   resetToken,
   openNewProspect,
   onOpenNewProspectHandled,
@@ -761,13 +770,19 @@ export function ProspectingView({
         onDirtyChange={onDirtyChange}
       />
     );
+  const openedFromOutside = !selectedId && openProspectBack ? openProspectBack : null;
   if (selected)
     return (
       <>
         <ProspectDetail
           prospect={selected}
           initialContactChannel={initialContactChannel}
+          backLabel={openedFromOutside?.label}
           onBack={() => {
+            if (openedFromOutside) {
+              openedFromOutside.onBack();
+              return;
+            }
             setSelectedId(null);
             onOpenProspectHandled?.();
           }}
@@ -1688,8 +1703,11 @@ function ProspectDetail({
   onRestore,
   existingProspects = [],
   onOpenExisting,
+  backLabel = 'Volver a prospectos',
 }: {
   prospect: Prospect;
+  /** Where "Volver" leads: the prospect list, or the list the job was opened from. */
+  backLabel?: string;
   /** Other prospects, to warn about possible duplicates before saving (SCRUM-118). */
   existingProspects?: readonly Prospect[];
   onOpenExisting?: (id: string) => void;
@@ -1899,45 +1917,39 @@ function ProspectDetail({
   ];
   return (
     <main className="app-shell prospecting-shell">
-      {!isNew && (
-        <button className="button button-link back-link" type="button" onClick={onBack}>
-          ← Volver a prospectos
-        </button>
+      {isNew ? (
+        <header className="page-header">
+          <div>
+            <p className="eyebrow">Alta de prospecto</p>
+            <h1>Nuevo prospecto</h1>
+          </div>
+        </header>
+      ) : (
+        <JobFileHeader
+          heading={jobFileHeadingFromRow(prospectJobRow(prospect))}
+          backLabel={backLabel}
+          onBack={onBack}
+          note={statusDescription[prospect.status]}
+          actions={
+            convertedOpportunityId ? (
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={() => onOpenOpportunity(convertedOpportunityId)}
+              >
+                Ir a la oportunidad
+              </button>
+            ) : (
+              !isArchived &&
+              onRegisterResult && (
+                <button className="button button-primary" type="button" onClick={onRegisterResult}>
+                  Registrar resultado
+                </button>
+              )
+            )
+          }
+        />
       )}
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">{isNew ? 'Alta de prospecto' : 'Ficha de prospecto'}</p>
-          <h1>{isNew ? 'Nuevo prospecto' : prospect.name}</h1>
-          {!isNew && (
-            <>
-              <p className="page-description">
-                {prospect.company && `${prospect.company} · `}
-                {statusDescription[prospect.status]}
-              </p>
-              <span className={`status-badge prospect-status-${prospect.status}`}>
-                {prospectStatusLabels[prospect.status]}
-              </span>
-            </>
-          )}
-        </div>
-        {!isNew && convertedOpportunityId ? (
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={() => onOpenOpportunity(convertedOpportunityId)}
-          >
-            Ir a la oportunidad
-          </button>
-        ) : (
-          !isNew &&
-          !isArchived &&
-          onRegisterResult && (
-            <button className="button button-primary" type="button" onClick={onRegisterResult}>
-              Registrar resultado
-            </button>
-          )
-        )}
-      </header>
       {feedback &&
         (feedbackTone === 'error' ? (
           <p className="form-error" role="alert">

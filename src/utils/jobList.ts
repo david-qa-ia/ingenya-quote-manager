@@ -82,7 +82,7 @@ function opportunityStage(opportunity: Opportunity, quote: SavedQuote | undefine
   return 'quoting';
 }
 
-function prospectRow(prospect: Prospect): JobRow {
+export function prospectJobRow(prospect: Prospect): JobRow {
   return {
     kind: 'prospect',
     id: prospect.id,
@@ -98,7 +98,7 @@ function prospectRow(prospect: Prospect): JobRow {
   };
 }
 
-function opportunityRow(
+export function opportunityJobRow(
   opportunity: Opportunity,
   client: Client | undefined,
   quotes: readonly SavedQuote[],
@@ -150,9 +150,9 @@ export function buildJobList(sources: JobSources): JobRow[] {
         prospect.status !== 'converted' &&
         prospect.conversion?.state !== 'completed',
     )
-    .map(prospectRow);
+    .map(prospectJobRow);
   const opportunities = sources.opportunities.map((opportunity) =>
-    opportunityRow(
+    opportunityJobRow(
       opportunity,
       clients.get(opportunity.clientId),
       quotesByOpportunity.get(opportunity.id) ?? [],
