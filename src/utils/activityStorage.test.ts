@@ -67,19 +67,31 @@ describe('activity storage', () => {
     expect(stored.get(ACTIVITIES_STORAGE_KEY)).toBe('{broken');
   });
 
-  it('appends a note revision only for the original manual author', () => {
+  it('appends a note revision from anyone on the team and keeps the replaced text', () => {
     saveActivity(activity);
     const revision = {
       editedAt: '2026-10-14T13:00:00.000Z',
-      editedBy: 'Daniel',
+      editedBy: 'Otra persona',
       note: 'Nota corregida',
+      previousNote: 'Nota original',
     };
-    expect(appendActivityNoteRevision(activity.id, 'Otra persona', revision)).toBe(false);
-    expect(appendActivityNoteRevision(activity.id, 'Daniel', revision)).toBe(true);
+    expect(appendActivityNoteRevision(activity.id, revision)).toBe(true);
     expect(loadActivities().items[0]).toMatchObject({
       note: 'Nota corregida',
       noteRevisions: [revision],
     });
+  });
+
+  it('never edits an automatic entry', () => {
+    saveActivity({ ...activity, source: 'automatic', event: 'created' });
+    expect(
+      appendActivityNoteRevision(activity.id, {
+        editedAt: '2026-10-14T13:00:00.000Z',
+        editedBy: 'Daniel',
+        note: 'Otro texto',
+      }),
+    ).toBe(false);
+    expect(loadActivities().items[0]).toMatchObject({ note: 'Nota original', noteRevisions: [] });
   });
 
   it('records automatic events independently from the quote document', () => {

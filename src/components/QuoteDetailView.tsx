@@ -1,3 +1,4 @@
+import { currentActivityNote } from '../utils/activityNoteEditing';
 import { useState } from 'react';
 import { formatActivityDateTime } from '../utils/activityTimeline';
 import { loadActivities } from '../utils/activityStorage';
@@ -410,7 +411,7 @@ export function QuoteDetailView({
                 .map((activity) => (
                   <p className="commercial-note" key={activity.id}>
                     {formatActivityDateTime(activity.occurredAt)} ·{' '}
-                    {activity.note || activity.result}
+                    {currentActivityNote(activity) || activity.result}
                   </p>
                 ))
             ) : (
