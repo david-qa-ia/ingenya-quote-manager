@@ -65,7 +65,7 @@ import {
   sortProspectsForContact,
   type ProspectFilters,
 } from '../utils/prospectWorkflow';
-import { ResponsibleSelect } from './ResponsibleSelect';
+import { ResponsibleField } from './ResponsibleSelect';
 import { formatActivityDateTime } from '../utils/activityTimeline';
 import {
   canQualifyProspect,
@@ -1012,18 +1012,16 @@ export function ProspectingView({
                       disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
                     />
                   </label>
-                  <label className="field">
-                    <span>Responsable</span>
-                    <ResponsibleSelect
-                      value={firstContactResponsible}
-                      defaultToPrimary={false}
-                      onChange={(value) => {
-                        setFirstContactResponsible(value);
-                        setPreparedImport(null);
-                      }}
-                      disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
-                    />
-                  </label>
+                  <ResponsibleField
+                    label="Responsable"
+                    value={firstContactResponsible}
+                    defaultToPrimary={false}
+                    onChange={(value) => {
+                      setFirstContactResponsible(value);
+                      setPreparedImport(null);
+                    }}
+                    disabled={isImporting || importRecovery?.phase === 'remoteConfirmed'}
+                  />
                   <label className="field">
                     <span>Nota opcional</span>
                     <input
@@ -2459,15 +2457,13 @@ function ProspectConversionModal({
           />
           {fieldError('nextStepAt')}
         </label>
-        <label className="field">
-          <span>Responsable</span>
-          <ResponsibleSelect
-            value={input.responsible}
-            onChange={(value) => set('responsible', value)}
-            {...validation.fieldProps('responsible')}
-          />
-          {fieldError('responsible')}
-        </label>
+        <ResponsibleField
+          label="Responsable"
+          value={input.responsible}
+          onChange={(value) => set('responsible', value)}
+          {...validation.fieldProps('responsible')}
+          error={fieldError('responsible')}
+        />
         {saveError && (
           <p className="form-error" role="alert">
             {saveError}

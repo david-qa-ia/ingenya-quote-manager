@@ -1,6 +1,10 @@
-import { useEffect, type SelectHTMLAttributes } from 'react';
+import { useEffect, type ReactNode, type SelectHTMLAttributes } from 'react';
 import { useResponsibles } from '../utils/useResponsibles';
-import { primaryResponsibleName, responsibleOptions } from '../utils/responsibleStorage';
+import {
+  hasSingleResponsible,
+  primaryResponsibleName,
+  responsibleOptions,
+} from '../utils/responsibleStorage';
 import type React from 'react';
 
 type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'value' | 'onChange'> & {
@@ -62,3 +66,25 @@ export function ResponsibleSelect({
 
 const sameName = (a: string, b: string) =>
   a.trim().toLocaleLowerCase('es') === b.trim().toLocaleLowerCase('es');
+
+/**
+ * A "Responsable" (or "Autor") field. While the team has a single person it is hidden and
+ * filled with that person, since there is nobody else to pick (one shared user).
+ */
+export function ResponsibleField({
+  label,
+  error,
+  defaultToPrimary = true,
+  ...props
+}: Props & { label: string; error?: ReactNode }) {
+  const single = hasSingleResponsible(useResponsibles());
+  const select = <ResponsibleSelect {...props} defaultToPrimary={single || defaultToPrimary} />;
+  if (single) return <div hidden>{select}</div>;
+  return (
+    <label className="field">
+      <span>{label}</span>
+      {select}
+      {error}
+    </label>
+  );
+}

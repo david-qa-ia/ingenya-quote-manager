@@ -7,7 +7,7 @@ import type {
   CallResult,
 } from '../types/activity';
 import type { NextAction } from '../types/opportunity';
-import { ResponsibleSelect } from './ResponsibleSelect';
+import { ResponsibleField } from './ResponsibleSelect';
 import { activityAuthorLabel } from '../utils/activityAuthor';
 import { UiIcon, type UiIconName } from './UiIcon';
 import { FieldError } from './FieldError';
@@ -26,6 +26,7 @@ import {
   getPreviousNoteVersions,
 } from '../utils/activityNoteEditing';
 import { useResponsibles } from '../utils/useResponsibles';
+import { hasSingleResponsible } from '../utils/responsibleStorage';
 import {
   getTimelineActivitiesForSubjects,
   getTimelineSubjectLabel,
@@ -142,6 +143,7 @@ export function ActivityTimeline({
   });
   const [isFormOpen, setIsFormOpen] = useState(false);
   const responsibles = useResponsibles();
+  const singleResponsible = hasSingleResponsible(responsibles);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedNote, setEditedNote] = useState('');
   const [feedbackState, setFeedbackState] = useState<{ message: string; isError: boolean }>({
@@ -287,15 +289,13 @@ export function ActivityTimeline({
               {fieldError('occurredAt')}
             </label>
           )}
-          <label className="field">
-            <span>Autor</span>
-            <ResponsibleSelect
-              value={input.author}
-              onChange={(value) => setInput((current) => ({ ...current, author: value }))}
-              {...validation.fieldProps('author')}
-            />
-            {fieldError('author')}
-          </label>
+          <ResponsibleField
+            label="Autor"
+            value={input.author}
+            onChange={(value) => setInput((current) => ({ ...current, author: value }))}
+            {...validation.fieldProps('author')}
+            error={fieldError('author')}
+          />
           {!noteOnly && input.type === 'call' ? (
             <label className="field">
               <span>Resultado</span>
@@ -364,7 +364,8 @@ export function ActivityTimeline({
             <span>Próximo paso agendado</span>
             <strong>{nextAction.description}</strong>
             <small>
-              {formatActivityDateTime(nextAction.dueAt)} · Responsable: {nextAction.responsible}
+              {formatActivityDateTime(nextAction.dueAt)}
+              {!singleResponsible && ` · Responsable: ${nextAction.responsible}`}
             </small>
           </div>
         </section>

@@ -6,7 +6,7 @@ import {
   businessTimeZone,
   transitionNextAction,
 } from '../utils/opportunityNextAction';
-import { ResponsibleSelect } from './ResponsibleSelect';
+import { ResponsibleField } from './ResponsibleSelect';
 
 const labels = {
   call: 'Llamada',
@@ -335,10 +335,7 @@ function CreateAction({ opportunity, onSave }: Props) {
                 onChange={(event) => setDueAt(event.target.value)}
               />
             </label>
-            <label className="field">
-              <span>Responsable</span>
-              <ResponsibleSelect value={responsible} onChange={setResponsible} />
-            </label>
+            <ResponsibleField label="Responsable" value={responsible} onChange={setResponsible} />
             <label className="field">
               <span>Prioridad</span>
               <select

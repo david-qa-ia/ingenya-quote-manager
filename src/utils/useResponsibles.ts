@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  hasSingleResponsible,
   loadResponsibles,
   RESPONSIBLES_UPDATED_EVENT,
   type Responsible,
@@ -14,4 +15,9 @@ export function useResponsibles(): Responsible[] {
     return () => window.removeEventListener(RESPONSIBLES_UPDATED_EVENT, refresh);
   }, []);
   return list;
+}
+
+/** True while the team has one person: "Responsable" fields and labels are hidden. */
+export function useSingleResponsible(): boolean {
+  return hasSingleResponsible(useResponsibles());
 }

@@ -25,7 +25,7 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
 
 ## Stage 2: actions and simplification
 
-1. [ ] One shared user: notes editable by anyone, hide "Responsable" with a single person.
+1. [x] One shared user: notes editable by anyone, hide "Responsable" with a single person (#99, #100).
 2. [ ] Meetings and Instagram as contact activity types that count in Indicadores.
 3. [ ] WhatsApp and Llamar buttons open the chat or dialer with the message ready.
 4. [ ] Suggested next step after each result; optional next step when discarding.

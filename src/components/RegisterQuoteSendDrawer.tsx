@@ -6,7 +6,7 @@ import { getQuoteSendFieldErrors, quoteSendFieldOrder } from '../utils/quoteSend
 import { FieldError } from './FieldError';
 import { UiIcon } from './UiIcon';
 import { useFieldValidation } from './useFieldValidation';
-import { ResponsibleSelect } from './ResponsibleSelect';
+import { ResponsibleField } from './ResponsibleSelect';
 
 export type QuoteSendChannel = 'whatsapp' | 'email' | 'meeting' | 'other';
 export interface QuoteSendInput {
@@ -205,19 +205,19 @@ export function RegisterQuoteSendDrawer({
             message={validation.visibleError('sentAt')}
           />
         </label>
-        <label className="field">
-          <span>Responsable</span>
-          <ResponsibleSelect
-            value={responsible}
-            disabled={saving}
-            onChange={setResponsible}
-            {...validation.fieldProps('responsible')}
-          />
-          <FieldError
-            id={validation.errorId('responsible')}
-            message={validation.visibleError('responsible')}
-          />
-        </label>
+        <ResponsibleField
+          label="Responsable"
+          value={responsible}
+          disabled={saving}
+          onChange={setResponsible}
+          {...validation.fieldProps('responsible')}
+          error={
+            <FieldError
+              id={validation.errorId('responsible')}
+              message={validation.visibleError('responsible')}
+            />
+          }
+        />
         <label className="field">
           <span>Nota</span>
           <textarea

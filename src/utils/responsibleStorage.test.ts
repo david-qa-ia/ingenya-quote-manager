@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addResponsible,
+  hasSingleResponsible,
   primaryResponsibleName,
   removeResponsible,
   responsibleOptions,
@@ -77,5 +78,16 @@ describe('responsibles (SCRUM-117)', () => {
   it('keeps the field as free text in a new workspace while a name is typed', () => {
     expect(responsibleOptions([], 'D')).toEqual([]);
     expect(responsibleOptions([], 'Daniel')).toEqual([]);
+  });
+
+  it('treats a team with one active person as a single shared user', () => {
+    let list: Responsible[] = [];
+    expect(hasSingleResponsible(list)).toBe(false);
+    list = unwrap(addResponsible(list, 'Daniel', id));
+    expect(hasSingleResponsible(list)).toBe(true);
+    list = unwrap(addResponsible(list, 'Lucía', id));
+    expect(hasSingleResponsible(list)).toBe(false);
+    list = list.map((item) => (item.name === 'Lucía' ? { ...item, active: false } : item));
+    expect(hasSingleResponsible(list)).toBe(true);
   });
 });

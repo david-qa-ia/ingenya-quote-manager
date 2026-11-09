@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Client } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
 import type { DirectClientInput, DirectQuoteFollowUpInput } from '../utils/directClientQuote';
-import { ResponsibleSelect } from './ResponsibleSelect';
+import { ResponsibleField } from './ResponsibleSelect';
 
 interface Props {
   clients: readonly Client[];
@@ -419,18 +419,16 @@ export function DirectClientQuotePanel({
                         <option value="other">Otro</option>
                       </select>
                     </label>
-                    <label className="field">
-                      <span>Responsable</span>
-                      <ResponsibleSelect
-                        value={followUp.responsible}
-                        onChange={(value) => {
-                          const next = { ...followUp, responsible: value };
-                          setFollowUp(next);
-                          onDirectChange(input, next);
-                        }}
-                        required
-                      />
-                    </label>
+                    <ResponsibleField
+                      label="Responsable"
+                      value={followUp.responsible}
+                      onChange={(value) => {
+                        const next = { ...followUp, responsible: value };
+                        setFollowUp(next);
+                        onDirectChange(input, next);
+                      }}
+                      required
+                    />
                   </div>
                 )}
               </section>

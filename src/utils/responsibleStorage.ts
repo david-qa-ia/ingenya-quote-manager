@@ -63,6 +63,15 @@ export function primaryResponsibleName(list: readonly Responsible[]): string {
   return (active.find((item) => item.isPrimary) ?? active[0])?.name ?? '';
 }
 
+/**
+ * One shared user (product decision 2026-11-09): while the team list has a single active
+ * person there is nobody to choose, so "Responsable" fields and labels are hidden and that
+ * person is used. With no list yet the field stays, so the first person can be typed.
+ */
+export function hasSingleResponsible(list: readonly Responsible[]): boolean {
+  return activeResponsibles(list).length === 1;
+}
+
 export type ResponsibleChange = { ok: true; list: Responsible[] } | { ok: false; error: string };
 
 export function addResponsible(
