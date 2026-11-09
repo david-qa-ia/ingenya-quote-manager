@@ -139,7 +139,7 @@ import { canCreateQuoteVersion, collectQuoteVersions } from './utils/quoteVersio
 import { mirrorProspectActivitiesToOpportunity } from './utils/prospectConversion';
 import { completeCadenceAction } from './utils/cadenceTransitions';
 import { loadCommercialOutcomes } from './utils/commercialOutcomeStorage';
-import { deriveFollowUpInbox } from './utils/followUpInbox';
+import { loadFollowUpInbox } from './utils/followUpInboxSources';
 import { deriveGlobalSearchResults } from './utils/globalSearch';
 import type { GlobalSearchResult } from './types/globalSearch';
 import type { Prospect } from './types/prospect';
@@ -2029,8 +2029,6 @@ function App() {
       </>
     );
   }
-  const currentOpportunities = loadOpportunities().items;
-  const followUpClients = loadClients();
   function recoverProspectResult(item: FollowUpInboxItem): RegisterResultSubmitResult {
     const recovery = loadProspectResultRecovery();
     const workspaceId = workspaceContext.session?.activeWorkspaceId;
@@ -2056,17 +2054,8 @@ function App() {
     return { ok: true };
   }
 
-  const followUpExecutions = loadCadenceExecutions();
-  const followUpActivities = loadActivities();
-  const followUpItems = deriveFollowUpInbox(
-    currentOpportunities,
-    followUpClients.items,
-    savedQuotes,
-    followUpExecutions.items,
-    followUpActivities.items,
-    new Date(),
-    prospects,
-  );
+  const followUpInbox = loadFollowUpInbox(savedQuotes, prospects);
+  const followUpItems = followUpInbox.items;
   const resultDrawer = drawerItem && (
     <RegisterResultDrawer
       item={drawerItem}
@@ -2094,11 +2083,7 @@ function App() {
         {appHeader}
         <TodayView
           items={followUpItems}
-          issues={
-            [followUpClients.issue, followUpExecutions.issue, followUpActivities.issue].filter(
-              (issue) => issue !== null,
-            ) as string[]
-          }
+          issues={followUpInbox.issues}
           onOpen={setDrawerItem}
           onOpenContext={handleFollowUpOpen}
           onShowMetrics={() => setCurrentView('metrics')}
