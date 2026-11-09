@@ -18,13 +18,17 @@ export function useAppNavigation() {
   );
   const [opportunityOrigin, setOpportunityOrigin] = useState<OpportunityOrigin>('today');
   const navigatingFromHistoryRef = useRef(false);
+  const replacingRef = useRef(false);
 
   useEffect(() => {
     const hash = hashForView(currentView);
     const fromHistory = navigatingFromHistoryRef.current;
+    const replacing = replacingRef.current;
     navigatingFromHistoryRef.current = false;
+    replacingRef.current = false;
     if (window.location.hash === hash) return;
-    if (fromHistory || !window.location.hash) window.history.replaceState(null, '', hash);
+    if (fromHistory || replacing || !window.location.hash)
+      window.history.replaceState(null, '', hash);
     else window.history.pushState(null, '', hash);
   }, [currentView]);
 
@@ -45,5 +49,20 @@ export function useAppNavigation() {
     [currentView],
   );
 
-  return { currentView, setCurrentView, opportunityOrigin, rememberOpportunityOrigin };
+  /**
+   * Shows `view` in place of the current screen, without a new history entry: the browser back
+   * button skips the screen that was replaced (a prospect file that became an opportunity).
+   */
+  const replaceView = useCallback((view: AppView) => {
+    replacingRef.current = true;
+    setCurrentView(view);
+  }, []);
+
+  return {
+    currentView,
+    setCurrentView,
+    replaceView,
+    opportunityOrigin,
+    rememberOpportunityOrigin,
+  };
 }

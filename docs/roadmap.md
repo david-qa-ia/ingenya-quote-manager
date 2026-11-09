@@ -21,7 +21,7 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
 3. [x] Menu: Hoy (merge "Mi trabajo de hoy" and "A quién contactar hoy"), Trabajos, Clientes;
        saved quotes as a secondary item; Indicadores reachable from Hoy.
 4. [x] Split `src/App.tsx` into views and hooks, without behavior changes.
-5. [ ] Single job file: prospect and opportunity shown as one job.
+5. [x] Single job file: prospect and opportunity shown as one job (#97, #98).
 
 ## Stage 2: actions and simplification
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Client } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
 import type { Prospect, ProspectConversion } from '../types/prospect';
-import { getJobFileHeading, resolveJobRef } from './jobFile';
+import { getJobFileHeading, getJobProjectName, resolveJobRef } from './jobFile';
 
 const conversion = (state: ProspectConversion['state']): ProspectConversion => ({
   state,
@@ -130,5 +130,16 @@ describe('getJobFileHeading', () => {
       stage: 'contacted',
     });
     expect(after).toEqual({ ...before, stage: 'quoting' });
+  });
+});
+
+describe('getJobProjectName', () => {
+  it('shows a project name only when it says more than the service', () => {
+    const named = (name: string) => getJobProjectName({ ...opportunity, name });
+
+    expect(named('Edificio Mitre 450')).toBe('Edificio Mitre 450');
+    expect(named('Consorcio Belgrano · Pintura')).toBe('');
+    expect(named('pintura')).toBe('');
+    expect(getJobProjectName({ ...opportunity, qualification: undefined })).toBe('');
   });
 });

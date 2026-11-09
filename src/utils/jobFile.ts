@@ -1,6 +1,7 @@
 import type { Opportunity } from '../types/opportunity';
 import type { Prospect } from '../types/prospect';
 import {
+  normalizeSearchText,
   opportunityJobRow,
   prospectJobRow,
   type JobRow,
@@ -81,4 +82,16 @@ export function jobFileHeadingFromRow(row: JobRow): JobFileHeading {
     detail: [row.company, row.service].filter(Boolean).join(' · '),
     stage: row.stage,
   };
+}
+
+/**
+ * The project name to show under a job file header, or '' when it adds nothing: when it is
+ * empty, or when it already repeats the service (a converted prospect is named
+ * "Empresa · Servicio" by default).
+ */
+export function getJobProjectName(opportunity: Opportunity): string {
+  const name = opportunity.name.trim();
+  const service = opportunity.qualification?.serviceOfInterest.trim() ?? '';
+  if (!name || !service) return '';
+  return normalizeSearchText(name).includes(normalizeSearchText(service)) ? '' : name;
 }
