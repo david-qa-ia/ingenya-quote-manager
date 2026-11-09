@@ -69,15 +69,51 @@ describe('buildOpportunityContactActivity', () => {
     expect(metrics.kpis.effectiveContacts.value).toBe(0);
   });
 
-  it('keeps the channel and outcome in the history for channels without an activity type', () => {
-    const activity = buildOpportunityContactActivity({
+  it('counts meetings and Instagram as contacts, like calls, WhatsApp and email', () => {
+    const meeting = buildOpportunityContactActivity({
       ...input,
       channel: 'meeting',
       result: 'effectiveContact',
     });
+    const instagram = buildOpportunityContactActivity({
+      ...input,
+      id: 'result-2',
+      channel: 'instagram',
+      result: 'noAnswer',
+    });
 
-    expect(activity?.note).toBe('Reunión: Contactado. Lo ve con el consejo');
-    expect(isActivity(activity)).toBe(true);
+    expect(meeting).toMatchObject({ type: 'meeting', note: 'Lo ve con el consejo' });
+    expect(instagram).toMatchObject({ type: 'instagram', result: 'noAnswer' });
+    expect([meeting, instagram].every(isActivity)).toBe(true);
+    const metrics = metricsFor({ activities: [meeting!, instagram!] });
+    expect(metrics.kpis.contactsRegistered.value).toBe(2);
+    expect(metrics.kpis.effectiveContacts.value).toBe(1);
+    expect(metrics.kpis.notesAdded.value).toBe(0);
+  });
+
+  it('counts meetings and Instagram saved as notes before they had a type', () => {
+    const legacy = (id: string, result: string) => ({
+      id,
+      type: 'note' as const,
+      occurredAt: input.occurredAt,
+      author: 'Daniel',
+      result,
+      note: `${result} Lo ve con el consejo`,
+      subject: { kind: 'opportunity' as const, opportunityId: 'opportunity' },
+      source: 'manual' as const,
+      noteRevisions: [],
+    });
+    const metrics = metricsFor({
+      activities: [
+        legacy('old-meeting', 'Reunión: Interesado.'),
+        legacy('old-instagram', 'Instagram: No respondió.'),
+        legacy('plain-note', 'Nota registrada'),
+      ],
+    });
+
+    expect(metrics.kpis.contactsRegistered.value).toBe(2);
+    expect(metrics.kpis.effectiveContacts.value).toBe(1);
+    expect(metrics.kpis.notesAdded.value).toBe(1);
   });
 
   it('keeps only the note when there is no channel or no known outcome', () => {

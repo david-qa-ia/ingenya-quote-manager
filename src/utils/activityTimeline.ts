@@ -73,8 +73,11 @@ const quoteResultLabels: Record<string, string> = {
   paused: 'Presupuesto pausado',
 };
 
+/** Contact types whose outcome is saved with the call result codes. */
+const callCodedTypes: readonly Activity['type'][] = ['call', 'email', 'instagram', 'meeting'];
+
 export function getActivityResultLabel(activity: Activity): string {
-  if (activity.type === 'call' && activity.result in callResultLabels)
+  if (callCodedTypes.includes(activity.type) && activity.result in callResultLabels)
     return callResultLabels[activity.result as CallResult];
   return quoteResultLabels[activity.result] ?? activity.result;
 }

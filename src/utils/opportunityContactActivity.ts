@@ -29,11 +29,6 @@ const whatsappResults: Record<ContactResult, WhatsAppResult> = {
   invalidNumber: 'invalidNumber',
 };
 
-const untypedChannelLabels: Record<'instagram' | 'meeting', string> = {
-  instagram: 'Instagram',
-  meeting: 'Reunión',
-};
-
 export interface OpportunityContactInput {
   id: string;
   occurredAt: string;
@@ -70,13 +65,31 @@ export function buildOpportunityContactActivity(input: OpportunityContactInput):
   if (input.channel === 'call') return { ...base, type: 'call', result: callResults[result] };
   if (input.channel === 'whatsapp')
     return { ...base, type: 'whatsapp', result: whatsappResults[result] };
-  if (input.channel === 'email') return { ...base, type: 'email', result: callResults[result] };
-  // Instagram and meetings have no activity type yet: the history still says how it went.
-  const summary = `${untypedChannelLabels[input.channel]}: ${contactResultLabels[result]}.`;
-  return {
-    ...base,
-    type: 'note',
-    result: summary,
-    note: note ? `${summary} ${note}` : summary,
-  };
+  // Email, Instagram and meetings record the outcome with the same values as a call.
+  return { ...base, type: input.channel, result: callResults[result] };
+}
+
+const legacyChannels: Record<string, 'instagram' | 'meeting'> = {
+  Instagram: 'instagram',
+  Reunión: 'meeting',
+};
+
+/**
+ * Before Instagram and meetings had their own activity type, their results were saved as notes
+ * whose result reads "Instagram: Contactado." or "Reunión: No respondió.". Indicadores reads
+ * them as the contacts they were, without rewriting stored data.
+ */
+export function readLegacyContactNote(
+  activity: Activity,
+): { channel: 'instagram' | 'meeting'; effective: boolean } | null {
+  if (activity.type !== 'note' || activity.source !== 'manual') return null;
+  const match = /^(Instagram|Reunión): (.+)\.$/.exec(activity.result);
+  const channel = match && legacyChannels[match[1]];
+  const outcome =
+    match &&
+    (Object.keys(contactResultLabels) as ContactResult[]).find(
+      (key) => contactResultLabels[key] === match[2],
+    );
+  if (!channel || !outcome) return null;
+  return { channel, effective: outcome === 'effectiveContact' || outcome === 'interested' };
 }

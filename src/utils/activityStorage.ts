@@ -18,7 +18,15 @@ function notifyActivityChange(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('activitiesupdated'));
 }
 
-const activityTypes: ActivityType[] = ['call', 'whatsapp', 'email', 'note', 'relevantChange'];
+const activityTypes: ActivityType[] = [
+  'call',
+  'whatsapp',
+  'email',
+  'instagram',
+  'meeting',
+  'note',
+  'relevantChange',
+];
 const callResults: CallResult[] = [
   'effectiveContact',
   'noAnswer',

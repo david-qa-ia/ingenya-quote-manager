@@ -97,6 +97,15 @@ function dateTime(iso: string) {
   }).format(new Date(iso));
 }
 
+const recentActivityIcons: Partial<Record<Activity['type'], UiIconName>> = {
+  call: 'phone',
+  whatsapp: 'whatsapp',
+  email: 'email',
+  instagram: 'instagram',
+  meeting: 'users',
+  note: 'note',
+};
+
 export function OpportunityDetailView({
   opportunity,
   client,
@@ -866,17 +875,7 @@ export function OpportunityDetailView({
                   {recentActivities.map((activity) => (
                     <li key={activity.id}>
                       <span className="opportunity-activity-icon">
-                        <UiIcon
-                          name={
-                            activity.type === 'whatsapp'
-                              ? 'whatsapp'
-                              : activity.type === 'email'
-                                ? 'email'
-                                : activity.type === 'note'
-                                  ? 'note'
-                                  : 'document'
-                          }
-                        />
+                        <UiIcon name={recentActivityIcons[activity.type] ?? 'document'} />
                       </span>
                       <div>
                         <strong>{getActivityResultLabel(activity)}</strong>
