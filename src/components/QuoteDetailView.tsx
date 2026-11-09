@@ -14,7 +14,7 @@ import {
   commercialStatusLabels,
   getCommercialTransitionTargets,
 } from '../utils/quoteCommercialStatus';
-import { ResponsibleSelect } from './ResponsibleSelect';
+import { ResponsibleField } from './ResponsibleSelect';
 import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
 import { quoteStatusLabel } from '../utils/quoteCommercialStatus';
 
@@ -427,10 +427,7 @@ export function QuoteDetailView({
           <section className="confirmation-modal" role="dialog" aria-modal="true">
             <h2>¿Registrar {commercialStatusLabels[target].toLowerCase()}?</h2>
             <p>Este cambio se auditará; no se cerrará si el guardado falla.</p>
-            <label className="field">
-              <span>Responsable</span>
-              <ResponsibleSelect value={author} onChange={setAuthor} />
-            </label>
+            <ResponsibleField label="Responsable" value={author} onChange={setAuthor} />
             <label className="field">
               <span>Motivo</span>
               <textarea value={reason} onChange={(event) => setReason(event.target.value)} />
@@ -453,10 +450,11 @@ export function QuoteDetailView({
             <p>
               La versión enviada se conserva como historial y se crea una nueva versión vigente.
             </p>
-            <label className="field">
-              <span>Responsable</span>
-              <ResponsibleSelect value={changeResponsible} onChange={setChangeResponsible} />
-            </label>
+            <ResponsibleField
+              label="Responsable"
+              value={changeResponsible}
+              onChange={setChangeResponsible}
+            />
             <label className="field">
               <span>Pedido de cambio</span>
               <textarea

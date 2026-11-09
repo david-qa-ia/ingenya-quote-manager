@@ -8,6 +8,7 @@ import {
 } from '../utils/opportunityValidation';
 import { FieldError } from './FieldError';
 import { useFieldValidation } from './useFieldValidation';
+import { useSingleResponsible } from '../utils/useResponsibles';
 
 interface Props {
   clientId: string;
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function OpportunityForm({ clientId, opportunity, onSave, onCancel }: Props) {
+  const singleResponsible = useSingleResponsible();
   const [input, setInput] = useState<OpportunityInput>(
     opportunity ?? {
       clientId,
@@ -70,13 +72,15 @@ export function OpportunityForm({ clientId, opportunity, onSave, onCancel }: Pro
           message={validation.visibleError('estimatedStartDate')}
         />
       </label>
-      <label className="field">
-        <span>Vendedor responsable (opcional)</span>
-        <input
-          value={input.responsibleSeller}
-          onChange={(e) => setInput({ ...input, responsibleSeller: e.target.value })}
-        />
-      </label>
+      {!singleResponsible && (
+        <label className="field">
+          <span>Vendedor responsable (opcional)</span>
+          <input
+            value={input.responsibleSeller}
+            onChange={(e) => setInput({ ...input, responsibleSeller: e.target.value })}
+          />
+        </label>
+      )}
       {error && (
         <p className="form-error" role="alert">
           {error}

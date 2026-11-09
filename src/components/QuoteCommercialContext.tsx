@@ -26,6 +26,7 @@ import { completeCadenceAction, updateCadenceAction } from '../utils/cadenceTran
 import { appendCommercialOutcome } from '../utils/commercialOutcomeStorage';
 import { applyCommercialOutcome, commercialOutcomeLabels } from '../utils/commercialOutcome';
 import { CommercialOutcomePanel } from './CommercialOutcomePanel';
+import { useSingleResponsible } from '../utils/useResponsibles';
 
 interface Props {
   quote: Quote;
@@ -60,6 +61,7 @@ export function QuoteCommercialContext({
   onEntitiesChange,
   onQuoteResult,
 }: Props) {
+  const singleResponsible = useSingleResponsible();
   const [clientLoad, setClientLoad] = useState(loadClients);
   const [opportunityLoad, setOpportunityLoad] = useState(loadOpportunities);
   const [form, setForm] = useState<
@@ -411,10 +413,12 @@ export function QuoteCommercialContext({
                 {opportunity?.name || 'Este presupuesto no está vinculado a un proyecto'}
               </strong>
               <dl className="context-key-data">
-                <div>
-                  <dt>Responsable</dt>
-                  <dd>{opportunity?.responsibleSeller || 'Sin asignar'}</dd>
-                </div>
+                {!singleResponsible && (
+                  <div>
+                    <dt>Responsable</dt>
+                    <dd>{opportunity?.responsibleSeller || 'Sin asignar'}</dd>
+                  </div>
+                )}
                 <div>
                   <dt>Próximo paso</dt>
                   <dd>{opportunity?.nextAction?.description || 'Sin próximo paso'}</dd>

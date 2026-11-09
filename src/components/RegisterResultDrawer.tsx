@@ -8,7 +8,7 @@ import {
   getRegisterResultFieldErrors,
   type RegisterResultField,
 } from '../utils/registerResultValidation';
-import { ResponsibleSelect } from './ResponsibleSelect';
+import { ResponsibleField } from './ResponsibleSelect';
 
 export type ResultChannel = 'call' | 'whatsapp' | 'email' | 'instagram' | 'meeting';
 export type ResultNextStep =
@@ -452,19 +452,17 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
               </label>
             </fieldset>
           )}
-          <label className="field">
-            <span>Responsable</span>
-            <ResponsibleSelect
-              ref={(element) => {
-                fieldRefs.current.actor = element;
-              }}
-              value={actor}
-              onChange={setActor}
-              aria-invalid={fieldErrors.actor ? true : undefined}
-              aria-describedby={fieldErrors.actor ? fieldErrorId('actor') : undefined}
-            />
-            <FieldError id={fieldErrorId('actor')} message={fieldErrors.actor} />
-          </label>
+          <ResponsibleField
+            label="Responsable"
+            ref={(element) => {
+              fieldRefs.current.actor = element;
+            }}
+            value={actor}
+            onChange={setActor}
+            aria-invalid={fieldErrors.actor ? true : undefined}
+            aria-describedby={fieldErrors.actor ? fieldErrorId('actor') : undefined}
+            error={<FieldError id={fieldErrorId('actor')} message={fieldErrors.actor} />}
+          />
           <label className="field">
             <span>Nota</span>
             <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={4} />

@@ -6,7 +6,7 @@ import {
   removeCadenceTemplate,
   saveCadenceTemplate,
 } from '../utils/cadenceStorage';
-import { ResponsibleSelect } from './ResponsibleSelect';
+import { ResponsibleField } from './ResponsibleSelect';
 
 const channels = [
   ['call', 'Llamada'],
@@ -280,21 +280,19 @@ function CadenceForm({
               <option value="days">Días</option>
             </select>
           </label>
-          <label className="field">
-            <span>Responsable</span>
-            <ResponsibleSelect
-              value={step.responsible}
-              defaultToPrimary={false}
-              onChange={(value) =>
-                setDraft({
-                  ...draft,
-                  steps: draft.steps.map((item) =>
-                    item.id === step.id ? { ...item, responsible: value } : item,
-                  ),
-                })
-              }
-            />
-          </label>
+          <ResponsibleField
+            label="Responsable"
+            value={step.responsible}
+            defaultToPrimary={false}
+            onChange={(value) =>
+              setDraft({
+                ...draft,
+                steps: draft.steps.map((item) =>
+                  item.id === step.id ? { ...item, responsible: value } : item,
+                ),
+              })
+            }
+          />
           <label className="field">
             <span>Estado</span>
             <select

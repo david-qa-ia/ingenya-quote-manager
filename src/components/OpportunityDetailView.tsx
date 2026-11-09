@@ -8,6 +8,7 @@ import { UiIcon, type UiIconName } from './UiIcon';
 import { JobFileHeader } from './JobFileHeader';
 import { getJobFileHeading, getJobProjectName } from '../utils/jobFile';
 import { currentActivityNote } from '../utils/activityNoteEditing';
+import { useSingleResponsible } from '../utils/useResponsibles';
 import type { Client, ClientInput } from '../types/client';
 import type { Opportunity, OpportunityPipelineStage } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
@@ -196,6 +197,7 @@ export function OpportunityDetailView({
     action?.kind === 'sendQuote' ||
     action?.description.trim().toLowerCase() === 'enviar presupuesto';
   const currentStage = opportunity.pipelineStage ?? 'opportunity';
+  const singleResponsible = useSingleResponsible();
   // Same header as the row in Trabajos and as the prospect this job started as.
   const heading = getJobFileHeading(
     { kind: 'opportunity', id: opportunity.id },
@@ -490,10 +492,14 @@ export function OpportunityDetailView({
                     <p>
                       <UiIcon name="calendar" /> {fullDateTime.format(new Date(action.dueAt))}
                     </p>
-                    <p>
-                      <UiIcon name="person" /> {action.responsible}
-                      {client?.company && ` · ${client.company}`}
-                    </p>
+                    {(!singleResponsible || client?.company) && (
+                      <p>
+                        <UiIcon name="person" />{' '}
+                        {[singleResponsible ? '' : action.responsible, client?.company]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -735,28 +741,30 @@ export function OpportunityDetailView({
                     )}
                   </dd>
                 </div>
-                <div className="opportunity-data-row">
-                  <span className="opportunity-data-icon" aria-hidden="true">
-                    <UiIcon name="person" />
-                  </span>
-                  <dt>Responsable</dt>
-                  <dd>
-                    {editingOpportunityData ? (
-                      <input
-                        className="opportunity-data-input"
-                        value={dataDraft.responsibleSeller}
-                        onChange={(event) =>
-                          setDataDraft((draft) => ({
-                            ...draft,
-                            responsibleSeller: event.target.value,
-                          }))
-                        }
-                      />
-                    ) : (
-                      opportunity.responsibleSeller || 'Sin asignar'
-                    )}
-                  </dd>
-                </div>
+                {!singleResponsible && (
+                  <div className="opportunity-data-row">
+                    <span className="opportunity-data-icon" aria-hidden="true">
+                      <UiIcon name="person" />
+                    </span>
+                    <dt>Responsable</dt>
+                    <dd>
+                      {editingOpportunityData ? (
+                        <input
+                          className="opportunity-data-input"
+                          value={dataDraft.responsibleSeller}
+                          onChange={(event) =>
+                            setDataDraft((draft) => ({
+                              ...draft,
+                              responsibleSeller: event.target.value,
+                            }))
+                          }
+                        />
+                      ) : (
+                        opportunity.responsibleSeller || 'Sin asignar'
+                      )}
+                    </dd>
+                  </div>
+                )}
                 <div className="opportunity-data-row">
                   <span className="opportunity-data-icon" aria-hidden="true">
                     <UiIcon name="calendar" />

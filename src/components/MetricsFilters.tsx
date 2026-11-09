@@ -1,6 +1,7 @@
 import type { CommercialMetricsFilters } from '../types/commercialMetrics';
 import { getCommercialChannelLabel } from '../utils/commercialMetrics';
 import { UiIcon } from './UiIcon';
+import { useSingleResponsible } from '../utils/useResponsibles';
 
 interface Props {
   filters: CommercialMetricsFilters;
@@ -21,6 +22,7 @@ export function MetricsFilters({
   quotes,
   onChange,
 }: Props) {
+  const singleResponsible = useSingleResponsible();
   const set = <K extends keyof CommercialMetricsFilters>(
     key: K,
     value: CommercialMetricsFilters[K],
@@ -54,18 +56,20 @@ export function MetricsFilters({
             onChange={(event) => set('endDate', event.target.value)}
           />
         </label>
-        <label className="field">
-          <span>Responsable</span>
-          <select
-            value={filters.responsible}
-            onChange={(event) => set('responsible', event.target.value)}
-          >
-            <option value="all">Todos</option>
-            {responsible.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-        </label>
+        {!singleResponsible && (
+          <label className="field">
+            <span>Responsable</span>
+            <select
+              value={filters.responsible}
+              onChange={(event) => set('responsible', event.target.value)}
+            >
+              <option value="all">Todos</option>
+              {responsible.map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="field">
           <span>Canal</span>
           <select value={filters.channel} onChange={(event) => set('channel', event.target.value)}>
