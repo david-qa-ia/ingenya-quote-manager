@@ -96,6 +96,7 @@ import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
 import { TodayView } from './components/TodayView';
 import { SavedQuotesView } from './components/SavedQuotesView';
+import { QuoteSummaryView } from './components/QuoteSummaryView';
 import {
   RegisterResultDrawer,
   type InboxActionInput,
@@ -2498,278 +2499,38 @@ function App() {
     return (
       <>
         {appHeader}
-        <main className="app-shell summary-shell">
-          <header className="summary-header">
-            <div>
-              <p className="eyebrow">Ventro · Presupuestos</p>
-              <h1>
-                {quoteStatus === 'draft' ? 'Revisá el presupuesto' : 'Presupuesto finalizado'}
-              </h1>
-              <p className="page-description">
-                {quoteStatus === 'draft'
-                  ? 'Confirmá los datos antes de finalizarlo.'
-                  : 'Consultá el detalle o descargá el PDF del presupuesto.'}
-              </p>
-            </div>
-            <div className="page-context">
-              <div
-                className="quote-identity"
-                aria-label={`Presupuesto ${quoteId}, ${
-                  quoteStatus === 'draft' ? 'Borrador' : 'Finalizado'
-                }`}
-              >
-                <span>{quoteId}</span>
-                <strong>{quoteStatus === 'draft' ? 'Borrador' : 'Finalizado'}</strong>
-              </div>
-            </div>
-          </header>
-
-          <div className="summary-layout">
-            <div className="summary-main-column">
-              <section
-                className="quote-card summary-action-card"
-                aria-label="Acciones del presupuesto"
-              >
-                <div className="summary-action-row">
-                  {quoteStatus === 'draft' && (
-                    <>
-                      <button
-                        className="button button-line"
-                        type="button"
-                        onClick={() => setCurrentView('editor')}
-                      >
-                        <span aria-hidden="true">←</span> Volver a editar
-                      </button>
-                      <button
-                        className="button button-line"
-                        type="button"
-                        onClick={handleDraftSave}
-                      >
-                        Guardar borrador
-                      </button>
-                    </>
-                  )}
-                  <button
-                    className="button button-secondary summary-pdf-button"
-                    type="button"
-                    onClick={handlePdfDownload}
-                    disabled={quoteLines.length === 0 || isDownloadingPdf}
-                  >
-                    {isDownloadingPdf ? 'Generando PDF…' : 'Descargar PDF'}
-                  </button>
-                  {quoteStatus === 'draft' && (
-                    <button
-                      ref={finalizationTriggerRef}
-                      className="button button-primary"
-                      type="button"
-                      onClick={handleFinalizationRequest}
-                      disabled={isFinalizing}
-                    >
-                      Finalizar presupuesto
-                    </button>
-                  )}
-                  {quoteStatus === 'finalized' && (
-                    <button
-                      className="button button-primary"
-                      type="button"
-                      onClick={() => {
-                        // SCRUM-118: from here the user can register the send and follow it up.
-                        const saved = savedQuotes.find((quote) => quote.id === quoteId);
-                        if (saved) handleQuoteDetailOpen(saved);
-                      }}
-                    >
-                      Registrar envío y seguimiento
-                    </button>
-                  )}
-                  {quoteStatus === 'finalized' && (
-                    <button
-                      className="button button-line"
-                      type="button"
-                      onClick={() => setCurrentView('savedQuotes')}
-                    >
-                      Ir a Mis presupuestos
-                    </button>
-                  )}
-                </div>
-                {quoteStatus === 'draft' && (
-                  <p className="finalization-note">
-                    Finalizar no envía el presupuesto al cliente ni registra un cobro.
-                  </p>
-                )}
-                {saveFeedback && (
-                  <p
-                    className={`save-feedback save-feedback-${saveFeedback.type}`}
-                    role={saveFeedback.type === 'error' ? 'alert' : 'status'}
-                  >
-                    {saveFeedback.message}
-                  </p>
-                )}
-                {finalizationFeedback && (
-                  <p
-                    className={`save-feedback save-feedback-${finalizationFeedback.type}`}
-                    role={finalizationFeedback.type === 'error' ? 'alert' : 'status'}
-                  >
-                    {finalizationFeedback.message}
-                  </p>
-                )}
-                {pdfFeedback && (
-                  <p
-                    className={`save-feedback save-feedback-${pdfFeedback.type}`}
-                    role={pdfFeedback.type === 'error' ? 'alert' : 'status'}
-                  >
-                    {pdfFeedback.message}
-                  </p>
-                )}
-                <section className="document-data-card" aria-labelledby="document-data-title">
-                  <div className="summary-panel-heading">
-                    <p className="eyebrow">Datos del documento</p>
-                    <h2 id="document-data-title">¿Para quién es este presupuesto?</h2>
-                  </div>
-                  <p className="commercial-note">
-                    Estos datos aparecen en el presupuesto y PDF. Quedan congelados al finalizarlo y
-                    no cambian al vincular una ficha comercial.
-                  </p>
-                  <dl className="summary-read-only-data">
-                    <div>
-                      <dt>Cliente en el presupuesto</dt>
-                      <dd>{clientName.trim() || 'Sin especificar'}</dd>
-                    </div>
-                    <div>
-                      <dt>Proyecto / referencia</dt>
-                      <dd>{projectName.trim() || 'Sin especificar'}</dd>
-                    </div>
-                  </dl>
-                  {quoteStatus === 'draft' && (
-                    <button
-                      className="button button-line"
-                      type="button"
-                      aria-expanded={isOptionalDataOpen}
-                      aria-controls="document-data-edit"
-                      onClick={() => setIsOptionalDataOpen((isOpen) => !isOpen)}
-                    >
-                      {isOptionalDataOpen ? 'Cerrar edición' : 'Editar datos del documento'}
-                    </button>
-                  )}
-                  {quoteStatus === 'draft' && isOptionalDataOpen && (
-                    <div id="document-data-edit" className="document-data-edit">
-                      <label className="field">
-                        <span>Cliente en el presupuesto</span>
-                        <input
-                          type="text"
-                          value={clientName}
-                          onChange={(event) => setClientName(event.target.value)}
-                          placeholder="Nombre que figurará en el presupuesto"
-                        />
-                        <small>Podés dejar este campo vacío.</small>
-                      </label>
-                      <label className="field">
-                        <span>Proyecto / referencia</span>
-                        <input
-                          type="text"
-                          value={projectName}
-                          onChange={(event) => setProjectName(event.target.value)}
-                          placeholder="Nombre o ubicación del proyecto"
-                        />
-                        <small>Podés dejar este campo vacío.</small>
-                      </label>
-                    </div>
-                  )}
-                </section>
-              </section>
-
-              <section className="quote-card summary-lines" aria-labelledby="summary-lines-title">
-                <div className="quote-heading">
-                  <div>
-                    <p className="eyebrow">Detalle</p>
-                    <h2 id="summary-lines-title">Servicios incluidos</h2>
-                  </div>
-                  <span className="line-count">
-                    {quoteLines.length} {quoteLines.length === 1 ? 'servicio' : 'servicios'}
-                  </span>
-                </div>
-
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Servicio</th>
-                        <th>Unidad</th>
-                        <th className="numeric-cell">Cantidad</th>
-                        <th className="numeric-cell">Precio unitario</th>
-                        <th className="numeric-cell">Subtotal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {quoteLines.map((line) => (
-                        <tr key={line.id}>
-                          <td>
-                            <strong>{line.name}</strong>
-                            {line.description && <small>{line.description}</small>}
-                            <small>{line.source === 'catalog' ? 'Catálogo' : 'Manual'}</small>
-                          </td>
-                          <td>
-                            {workUnitLabels[line.unit]} ({workUnitSymbols[line.unit]})
-                          </td>
-                          <td className="numeric-cell">{line.quantity}</td>
-                          <td className="numeric-cell">
-                            {currencyFormatter.format(line.unitPrice)}
-                          </td>
-                          <td className="numeric-cell subtotal">
-                            {currencyFormatter.format(
-                              calculateLineSubtotal(line.quantity, line.unitPrice),
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <footer className="summary-total">
-                  <span>Total del presupuesto</span>
-                  <strong>{currencyFormatter.format(quoteTotal)}</strong>
-                </footer>
-              </section>
-            </div>
-          </div>
-          {isFinalizationConfirmationOpen && (
-            <div className="modal-backdrop">
-              <section
-                className="confirmation-modal"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="finalization-title"
-                aria-describedby="finalization-description"
-              >
-                <h2 id="finalization-title">¿Finalizar este presupuesto?</h2>
-                <p id="finalization-description">
-                  Se guardará con estado “Finalizado”. No se enviará al cliente y podrás descargar
-                  el PDF después.
-                </p>
-                <div className="confirmation-actions">
-                  <button
-                    ref={finalizationCancelRef}
-                    className="button button-line"
-                    type="button"
-                    onClick={() => setIsFinalizationConfirmationOpen(false)}
-                    disabled={isFinalizing}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    ref={finalizationConfirmRef}
-                    className="button button-primary"
-                    type="button"
-                    onClick={handleFinalizationConfirm}
-                    disabled={isFinalizing}
-                  >
-                    {isFinalizing ? 'Finalizando…' : 'Sí, finalizar'}
-                  </button>
-                </div>
-              </section>
-            </div>
-          )}
-        </main>
+        <QuoteSummaryView
+          quoteId={quoteId}
+          status={quoteStatus}
+          clientName={clientName}
+          onClientNameChange={setClientName}
+          projectName={projectName}
+          onProjectNameChange={setProjectName}
+          lines={quoteLines}
+          total={quoteTotal}
+          saveFeedback={saveFeedback}
+          finalizationFeedback={finalizationFeedback}
+          pdfFeedback={pdfFeedback}
+          isDownloadingPdf={isDownloadingPdf}
+          isFinalizing={isFinalizing}
+          isDocumentDataOpen={isOptionalDataOpen}
+          onToggleDocumentData={() => setIsOptionalDataOpen((isOpen) => !isOpen)}
+          isConfirmationOpen={isFinalizationConfirmationOpen}
+          finalizationTriggerRef={finalizationTriggerRef}
+          finalizationCancelRef={finalizationCancelRef}
+          finalizationConfirmRef={finalizationConfirmRef}
+          onEdit={() => setCurrentView('editor')}
+          onSaveDraft={handleDraftSave}
+          onDownloadPdf={handlePdfDownload}
+          onRequestFinalization={handleFinalizationRequest}
+          onCancelFinalization={() => setIsFinalizationConfirmationOpen(false)}
+          onConfirmFinalization={handleFinalizationConfirm}
+          onRegisterSend={() => {
+            const saved = savedQuotes.find((quote) => quote.id === quoteId);
+            if (saved) handleQuoteDetailOpen(saved);
+          }}
+          onShowSavedQuotes={() => setCurrentView('savedQuotes')}
+        />
       </>
     );
   }
