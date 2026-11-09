@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { FieldError } from './FieldError';
-import { resultNextStepLabels } from '../utils/resultNextStep';
+import {
+  isDiscardResult,
+  resultNextStepLabels,
+  suggestNextStep,
+  type NextStepSuggestion,
+} from '../utils/resultNextStep';
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 import type { FollowUpResultSaveResult } from '../utils/followUpResultTransaction';
 import {
@@ -184,6 +189,9 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
   );
   const [nextStep, setNextStep] = useState<ResultNextStep>('none');
   const [dueAt, setDueAt] = useState('');
+  // The next step follows the result until the user picks one by hand.
+  const [nextStepTouched, setNextStepTouched] = useState(false);
+  const [suggestion, setSuggestion] = useState<NextStepSuggestion | null>(null);
   // SCRUM-117: starts with the primary responsible from Configuración (filled by the select).
   const [actor, setActor] = useState('');
   const [note, setNote] = useState('');
@@ -214,6 +222,18 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
     target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     focusable?.focus({ preventScroll: true });
   };
+  function applySuggestion(nextResult: string, nextChannel: ResultChannel) {
+    if (nextStepTouched) return;
+    const next = suggestNextStep({
+      result: nextResult,
+      channel: nextChannel,
+      hasQuote: Boolean(item.quoteId),
+      isUnavailable: (step) => Boolean(unavailableChannelReason(step)),
+    });
+    setSuggestion(next);
+    setNextStep(next?.nextStep ?? 'none');
+    setDueAt(next?.dueAt ?? '');
+  }
   const unavailableChannelReason = (value: ResultChannel | ResultNextStep) => {
     if (value === 'whatsapp' && !item.phone) return 'Falta un teléfono válido para WhatsApp.';
     if (value === 'email' && !item.email) return 'Falta un email válido para este canal.';
@@ -360,7 +380,10 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
                     selected={result === value}
                     label={label}
                     icon={icon}
-                    onClick={() => setResult(value)}
+                    onClick={() => {
+                      setResult(value);
+                      applySuggestion(value, channel);
+                    }}
                   />
                 ))}
             </div>
@@ -385,7 +408,10 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
                   icon={value}
                   disabled={Boolean(unavailableChannelReason(value))}
                   unavailableReason={unavailableChannelReason(value)}
-                  onClick={() => setChannel(value)}
+                  onClick={() => {
+                    setChannel(value);
+                    applySuggestion(result, value);
+                  }}
                 />
               ))}
             </div>
@@ -397,7 +423,15 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
             }}
             aria-describedby={fieldErrors.nextStep ? fieldErrorId('nextStep') : undefined}
           >
-            <legend>Próximo paso</legend>
+            <legend>
+              Próximo paso{isDiscardResult(result) && nextStep === 'none' ? ' (opcional)' : ''}
+            </legend>
+            {suggestion && !nextStepTouched && (
+              <p className="field-hint result-suggestion" role="status">
+                Sugerido: {resultNextStepLabels[suggestion.nextStep].toLocaleLowerCase('es')}.{' '}
+                {suggestion.reason} Podés cambiarlo.
+              </p>
+            )}
             <div className="result-option-grid result-option-grid-six">
               {(['call', 'sendQuote', 'email', 'whatsapp', 'instagram', 'meeting', 'none'] as const)
                 .map((value) => [value, resultNextStepLabels[value]] as const)
@@ -409,7 +443,10 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
                     icon={value}
                     disabled={Boolean(unavailableChannelReason(value))}
                     unavailableReason={unavailableChannelReason(value)}
-                    onClick={() => setNextStep(value)}
+                    onClick={() => {
+                      setNextStep(value);
+                      setNextStepTouched(true);
+                    }}
                   />
                 ))}
             </div>
@@ -424,7 +461,10 @@ export function RegisterResultDrawer({ item, onClose, onSubmit, onQuoteIntent, o
                 }}
                 type="datetime-local"
                 value={dueAt}
-                onChange={(event) => setDueAt(event.target.value)}
+                onChange={(event) => {
+                  setDueAt(event.target.value);
+                  setNextStepTouched(true);
+                }}
                 aria-invalid={fieldErrors.dueAt ? true : undefined}
                 aria-describedby={fieldErrors.dueAt ? fieldErrorId('dueAt') : undefined}
               />

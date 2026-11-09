@@ -8,6 +8,7 @@ import { CLIENTS_STORAGE_KEY, loadClients, saveClient } from './utils/clientStor
 import { buildOpportunityContactActivity } from './utils/opportunityContactActivity';
 import { buildJobList } from './utils/jobList';
 import { resolveJobRef, type JobRef } from './utils/jobFile';
+import { isDiscardResult } from './utils/resultNextStep';
 import { JobsView } from './components/JobsView';
 import { ClientsView } from './components/ClientsView';
 import { buildClientList } from './utils/clientList';
@@ -1282,7 +1283,17 @@ function App() {
         note: manualNote,
       });
       if (!currentAction) {
-        if (!input.nextStep || input.nextStep === 'none' || !input.dueAt) return { ok: false };
+        if (!input.nextStep || input.nextStep === 'none' || !input.dueAt) {
+          // Discarding needs no next step: only the contact is recorded.
+          if (!isDiscardResult(input.result) || !contactActivity) return { ok: false };
+          const saved = commitLocalFollowUpResult(
+            [ACTIVITIES_STORAGE_KEY],
+            [() => saveActivity(contactActivity)],
+          );
+          if (!saved.ok) return saved;
+          reloadOpportunities();
+          return { ok: true };
+        }
         const nextAction = {
           id: crypto.randomUUID(),
           kind: input.nextStep === 'sendQuote' ? ('sendQuote' as const) : ('followUp' as const),

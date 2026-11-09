@@ -34,6 +34,13 @@ describe('getRegisterResultFieldErrors', () => {
     expect(getFirstInvalidRegisterResultField(errors)).toBe('result');
   });
 
+  it('lets a discarded contact be saved without a next step', () => {
+    for (const result of ['notInterested', 'invalidNumber'])
+      expect(
+        getRegisterResultFieldErrors({ ...valid, result, nextStep: 'none', dueAt: '' }),
+      ).toEqual({});
+  });
+
   it('keeps requiring a next step when the follow-up has no pending action', () => {
     expect(getRegisterResultFieldErrors({ ...valid, nextStep: 'none', dueAt: '' })).toEqual({
       nextStep: 'Elegí un próximo paso: este seguimiento no tiene otra acción pendiente.',

@@ -28,7 +28,7 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
 1. [x] One shared user: notes editable by anyone, hide "Responsable" with a single person (#99, #100).
 2. [x] Meetings and Instagram as contact activity types that count in Indicadores (#101).
 3. [x] WhatsApp and Llamar buttons open the chat or dialer with the message ready (#102).
-4. [ ] Suggested next step after each result; optional next step when discarding.
+4. [x] Suggested next step after each result; optional next step when discarding (#103).
 5. [ ] Loss reason as a list (price, chose another, no answer, postponed, other).
 6. [ ] "Enviar" finalizes and registers the send in one step.
 
