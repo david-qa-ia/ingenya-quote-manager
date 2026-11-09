@@ -62,9 +62,12 @@ import { addQuickService } from './utils/quickServiceAddition';
 import {
   hashForView,
   initialViewFromHash,
+  opportunityOriginLabels,
   resolveActiveNavigationSection,
+  resolveOpportunityOrigin,
   viewFromHash,
   type AppView,
+  type OpportunityOrigin,
 } from './utils/appNavigation';
 import {
   ACTIVITIES_STORAGE_KEY,
@@ -74,10 +77,6 @@ import {
   recordNextActionActivity,
   saveActivity,
 } from './utils/activityStorage';
-import {
-  OpportunityNextActionsInbox,
-  type InboxActionInput,
-} from './components/OpportunityNextActionsInbox';
 import { MetricsDashboard } from './components/MetricsDashboard';
 import { FieldError } from './components/FieldError';
 import { UnsavedQuoteDialog } from './components/UnsavedQuoteDialog';
@@ -103,9 +102,10 @@ import {
 import { CadenceView } from './components/CadenceView';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
-import { DailyWorkDashboard } from './components/DailyWorkDashboard';
+import { TodayView } from './components/TodayView';
 import {
   RegisterResultDrawer,
+  type InboxActionInput,
   type RegisterResultSubmitResult,
 } from './components/RegisterResultDrawer';
 import { resultNextStepLabels } from './utils/resultNextStep';
@@ -316,6 +316,8 @@ function App() {
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [shouldRefreshDocumentSnapshots, setShouldRefreshDocumentSnapshots] = useState(false);
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
+  // "Volver" in the opportunity detail returns to the list it was opened from.
+  const [opportunityOrigin, setOpportunityOrigin] = useState<OpportunityOrigin>('today');
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
   const [quoteSendTarget, setQuoteSendTarget] = useState<SavedQuote | null>(null);
   const [quoteSendRecoveryRequired, setQuoteSendRecoveryRequired] = useState(false);
@@ -458,7 +460,7 @@ function App() {
 
   function resetWorkspaceContext() {
     setProspectHasUnsavedChanges(false);
-    setCurrentView('dailyDashboard');
+    setCurrentView('today');
     setProspectFilters(defaultProspectFilters);
     setInboxContact(null);
     setDrawerItem(null);
@@ -979,6 +981,7 @@ function App() {
     setDirectClientInput(null);
     setDirectFollowUp(undefined);
     setDetailQuoteId(savedQuote.id);
+    setOpportunityOrigin((previous) => resolveOpportunityOrigin(currentView, previous));
     setCurrentView('quoteDetail');
   }
 
@@ -1010,6 +1013,13 @@ function App() {
     setCurrentView('editor');
   }
 
+  function openOpportunityDetail(id: string) {
+    setOpportunities(loadOpportunities().items);
+    setDetailOpportunityId(id);
+    setOpportunityOrigin((previous) => resolveOpportunityOrigin(currentView, previous));
+    setCurrentView('opportunityDetail');
+  }
+
   function handleFollowUpOpen(item: FollowUpInboxItem) {
     if (item.prospectId) {
       setRequestedProspectId(item.prospectId);
@@ -1017,9 +1027,7 @@ function App() {
       return;
     }
     if (item.opportunityId) {
-      setOpportunities(loadOpportunities().items);
-      setDetailOpportunityId(item.opportunityId);
-      setCurrentView('opportunityDetail');
+      openOpportunityDetail(item.opportunityId);
       return;
     }
     const target = item.quoteId
@@ -1040,9 +1048,7 @@ function App() {
     setIsSearchOpen(false);
     setSearchQuery('');
     if (result.opportunity) {
-      setOpportunities(loadOpportunities().items);
-      setDetailOpportunityId(result.opportunity.id);
-      setCurrentView('opportunityDetail');
+      openOpportunityDetail(result.opportunity.id);
       return;
     }
     if (result.quote) {
@@ -1953,12 +1959,7 @@ function App() {
       activeSection={resolveActiveNavigationSection(currentView)}
       onNewQuote={handleNewQuote}
       onShowSavedQuotes={() => setCurrentView('savedQuotes')}
-      onShowNextActions={() => setCurrentView('dailyDashboard')}
-      onShowMetrics={() => setCurrentView('metrics')}
-      onShowProspects={() => {
-        setCurrentView('prospects');
-        setProspectsResetToken((value) => value + 1);
-      }}
+      onShowToday={() => setCurrentView('today')}
       onShowJobs={() => setCurrentView('jobs')}
       onShowClients={() => setCurrentView('clients')}
       onShowSettings={() => setCurrentView('settings')}
@@ -2161,15 +2162,21 @@ function App() {
     />
   );
 
-  if (currentView === 'dailyDashboard') {
+  if (currentView === 'today') {
     return (
       <>
         {appHeader}
-        <DailyWorkDashboard
+        <TodayView
           items={followUpItems}
-          onShowFollowUp={() => setCurrentView('nextActions')}
+          issues={
+            [followUpClients.issue, followUpExecutions.issue, followUpActivities.issue].filter(
+              (issue) => issue !== null,
+            ) as string[]
+          }
           onOpen={setDrawerItem}
           onOpenContext={handleFollowUpOpen}
+          onShowMetrics={() => setCurrentView('metrics')}
+          onShowCadences={() => setCurrentView('cadences')}
         />
         {resultDrawer}
       </>
@@ -2186,11 +2193,7 @@ function App() {
             clients,
             buildJobList({ prospects, opportunities, clients, quotes: savedQuotes }),
           )}
-          onOpenJob={(job) => {
-            setOpportunities(loadOpportunities().items);
-            setDetailOpportunityId(job.id);
-            setCurrentView('opportunityDetail');
-          }}
+          onOpenJob={(job) => openOpportunityDetail(job.id)}
         />
       </>
     );
@@ -2213,13 +2216,15 @@ function App() {
               setCurrentView('prospects');
               return;
             }
-            setOpportunities(loadOpportunities().items);
-            setDetailOpportunityId(row.id);
-            setCurrentView('opportunityDetail');
+            openOpportunityDetail(row.id);
           }}
           onNewProspect={() => {
             setCurrentView('prospects');
             setOpenNewProspect(true);
+          }}
+          onShowProspects={() => {
+            setCurrentView('prospects');
+            setProspectsResetToken((value) => value + 1);
           }}
         />
       </>
@@ -2246,11 +2251,7 @@ function App() {
               // Filter persistence is a convenience; navigation remains usable when storage is unavailable.
             }
           }}
-          onOpenOpportunity={(id) => {
-            setOpportunities(loadOpportunities().items);
-            setDetailOpportunityId(id);
-            setCurrentView('opportunityDetail');
-          }}
+          onOpenOpportunity={openOpportunityDetail}
           onOpenResult={setDrawerItem}
           openProspectId={requestedProspectId}
           onOpenProspectHandled={() => setRequestedProspectId(null)}
@@ -2283,60 +2284,7 @@ function App() {
     return (
       <>
         {appHeader}
-        <CadenceView onBack={() => setCurrentView('nextActions')} />
-      </>
-    );
-  }
-
-  if (currentView === 'nextActions') {
-    return (
-      <>
-        {appHeader}
-        <OpportunityNextActionsInbox
-          items={followUpItems}
-          issues={
-            [followUpClients.issue, followUpExecutions.issue, followUpActivities.issue].filter(
-              (issue) => issue !== null,
-            ) as string[]
-          }
-          onOpen={handleFollowUpOpen}
-          onRegisterResult={setDrawerItem}
-          onShowCadences={() => setCurrentView('cadences')}
-        />
-        {inboxContact && (
-          <ContactAssistant
-            context={{
-              client: loadClients().items.find((item) => item.id === inboxContact.clientId),
-              opportunity: opportunities.find((item) => item.id === inboxContact.opportunityId),
-              quote: savedQuotes.find((item) => item.id === inboxContact.quoteId),
-            }}
-            subject={
-              inboxContact.opportunityId
-                ? { kind: 'opportunity', opportunityId: inboxContact.opportunityId }
-                : { kind: 'quote', quoteId: inboxContact.quoteId! }
-            }
-            initialChannel={inboxContact.channel as 'call' | 'whatsapp'}
-            restrictedChannel={inboxContact.channel as 'call' | 'whatsapp'}
-            origin={
-              inboxContact.cadenceStep
-                ? {
-                    kind: 'cadence',
-                    cadenceExecutionId: inboxContact.cadenceStep.executionId,
-                    stepExecutionId: inboxContact.cadenceStep.stepExecutionId,
-                    templateStepId:
-                      inboxContact.action?.cadenceOrigin?.templateStepId ??
-                      inboxContact.cadenceStep.stepExecutionId,
-                  }
-                : { kind: 'manual' }
-            }
-            onClose={() => setInboxContact(null)}
-            onRecorded={() => {
-              setInboxContact(null);
-              setOpportunities(loadOpportunities().items);
-            }}
-          />
-        )}
-        {resultDrawer}
+        <CadenceView onBack={() => setCurrentView('today')} />
       </>
     );
   }
@@ -2352,7 +2300,8 @@ function App() {
               opportunity={opportunity}
               client={loadClients().items.find((item) => item.id === opportunity.clientId)}
               quotes={savedQuotes}
-              onBack={() => setCurrentView('nextActions')}
+              backLabel={opportunityOriginLabels[opportunityOrigin]}
+              onBack={() => setCurrentView(opportunityOrigin)}
               onSaveOpportunity={saveOpportunityFromDetail}
               onUpdateClient={(input, extras) => {
                 const client = loadClients().items.find((item) => item.id === opportunity.clientId);
@@ -2415,14 +2364,14 @@ function App() {
           <main className="app-shell">
             <p className="commercial-warning" role="alert">
               No encontramos esta oportunidad en este navegador. Si se creó en otro navegador o
-              dispositivo, revisala desde Seguimiento en el equipo donde se creó.
+              dispositivo, revisala desde Trabajos en el equipo donde se creó.
             </p>
             <button
               className="button button-line"
               type="button"
-              onClick={() => setCurrentView('nextActions')}
+              onClick={() => setCurrentView(opportunityOrigin)}
             >
-              Volver a seguimiento
+              {opportunityOriginLabels[opportunityOrigin]}
             </button>
           </main>
         )}
@@ -2464,9 +2413,9 @@ function App() {
           <button
             className="button button-line"
             type="button"
-            onClick={() => setCurrentView('nextActions')}
+            onClick={() => setCurrentView('savedQuotes')}
           >
-            Volver a seguimiento
+            Volver a presupuestos
           </button>
         </main>
       );

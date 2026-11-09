@@ -60,7 +60,7 @@ export function ArchiveProspectDialog({
       >
         <h2 id="archive-prospect-title">Archivar a {prospectName}</h2>
         <p>
-          Sale de Prospectos y de Seguimiento, pero conserva su historial. Lo podés restaurar desde
+          Sale de Trabajos y de Hoy, pero conserva su historial. Lo podés restaurar desde
           Archivados.
         </p>
         <label className="field">

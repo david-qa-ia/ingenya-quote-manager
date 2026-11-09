@@ -14,6 +14,17 @@ export type ResultChannel = 'call' | 'whatsapp' | 'email' | 'instagram' | 'meeti
 export type ResultNextStep =
   'none' | 'call' | 'sendQuote' | 'email' | 'whatsapp' | 'instagram' | 'meeting';
 
+/** What a "Registrar resultado" from Hoy or a detail sends to be saved. */
+export interface InboxActionInput {
+  actor: string;
+  reason: string;
+  note?: string;
+  result: string;
+  dueAt: string;
+  channel?: RegisterResultInput['channel'];
+  nextStep?: RegisterResultInput['nextStep'];
+  quoteMode?: RegisterResultInput['quoteMode'];
+}
 export interface RegisterResultInput {
   actor: string;
   reason: string;

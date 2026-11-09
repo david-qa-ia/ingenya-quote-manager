@@ -58,8 +58,8 @@ export function MetricsDashboard({ sources }: { sources: CommercialMetricsSource
           <p className="eyebrow">Actividad comercial</p>
           <h1>Mi actividad</h1>
           <p className="page-description">
-            Lo que registraste y avanzaste en el período. Para ver el estado de cada oportunidad,
-            usá Seguimiento.
+            Lo que registraste y avanzaste en el período. Para ver el estado de cada trabajo, usá
+            Trabajos.
           </p>
         </div>
       </header>
