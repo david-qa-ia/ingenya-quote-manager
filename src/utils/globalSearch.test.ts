@@ -63,6 +63,16 @@ describe('global search', () => {
     expect(deriveGlobalSearchResults('3718 2246', [client], [], [])[0]?.title).toBe(client.name);
   });
 
+  it('labels an opportunity with its stage in Trabajos, never the internal stage word', () => {
+    const stored = { ...opportunity, pipelineStage: 'opportunity' as const };
+    const withoutQuote = deriveGlobalSearchResults('fisherton', [client], [stored], [])[0];
+    expect(withoutQuote?.context).toBe('Presupuestando · Constructech S.A.');
+    const withSentQuote = deriveGlobalSearchResults('fisherton', [client], [stored], [quote]).find(
+      (result) => result.group === 'opportunities',
+    );
+    expect(withSentQuote?.context).toBe('Presupuesto enviado · Constructech S.A.');
+  });
+
   it('flags a current sent quote only after seven calendar days', () => {
     const now = new Date('2024-04-19T10:01:00.000Z');
     expect(isQuoteWithoutResponse(quote, now)).toBe(true);
