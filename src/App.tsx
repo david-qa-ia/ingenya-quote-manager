@@ -95,6 +95,7 @@ import { CadenceView } from './components/CadenceView';
 import { ProspectingView } from './components/ProspectingView';
 import { OpportunityDetailView } from './components/OpportunityDetailView';
 import { TodayView } from './components/TodayView';
+import { SavedQuotesView } from './components/SavedQuotesView';
 import {
   RegisterResultDrawer,
   type InboxActionInput,
@@ -2473,216 +2474,22 @@ function App() {
     return (
       <>
         {appHeader}
-        <main className="app-shell saved-quotes-shell">
-          <header className="saved-quotes-header">
-            <div>
-              <p className="eyebrow">Ventro · Presupuestos</p>
-              <h1>Mis presupuestos</h1>
-              <p className="page-description">
-                Continuá un borrador o consultá un presupuesto finalizado.
-              </p>
-            </div>
-          </header>
-
-          <section className="quote-card" aria-labelledby="saved-quotes-title">
-            <div className="quote-heading">
-              <div>
-                <p className="eyebrow">
-                  {isAuthConfigured()
-                    ? 'Guardados en el espacio de trabajo'
-                    : 'Guardados en este navegador'}
-                </p>
-                <h2 id="saved-quotes-title">Tus presupuestos</h2>
-              </div>
-              <span className="line-count">
-                {visibleSavedQuotes.length}{' '}
-                {visibleSavedQuotes.length === 1 ? 'presupuesto' : 'presupuestos'}
-              </span>
-            </div>
-
-            <div
-              className="saved-quote-filters saved-quote-lifecycle-filters"
-              aria-label="Filtrar presupuestos por estado"
-            >
-              <span className="saved-quote-filter-label">Documento</span>
-              {(
-                [
-                  ['all', 'Todos'],
-                  ['draft', 'Borradores'],
-                  ['finalized', 'Finalizados'],
-                ] as const
-              ).map(([filter, label]) => (
-                <button
-                  key={filter}
-                  className={`saved-quote-filter ${savedQuoteFilter === filter ? 'saved-quote-filter-active' : ''}`}
-                  type="button"
-                  aria-pressed={savedQuoteFilter === filter}
-                  onClick={() => setSavedQuoteFilter(filter)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div
-              className="saved-quote-filters saved-quote-commercial-filters"
-              aria-label="Filtrar presupuestos por estado comercial"
-            >
-              <span className="saved-quote-filter-label">Seguimiento comercial</span>
-              {(
-                [
-                  'all',
-                  'prepared',
-                  'sent',
-                  'followingUp',
-                  'accepted',
-                  'rejected',
-                  'expired',
-                  'paused',
-                ] as const
-              ).map((filter) => (
-                <button
-                  key={filter}
-                  className={`saved-quote-filter ${savedQuoteCommercialFilter === filter ? 'saved-quote-filter-active' : ''}`}
-                  type="button"
-                  aria-pressed={savedQuoteCommercialFilter === filter}
-                  onClick={() => setSavedQuoteCommercialFilter(filter)}
-                >
-                  {filter === 'all' ? 'Comerciales: todos' : commercialStatusLabels[filter]}
-                </button>
-              ))}
-            </div>
-
-            {visibleSavedQuotes.length === 0 ? (
-              <div className="empty-state saved-quotes-empty-state">
-                <span aria-hidden="true">⌁</span>
-                <h3>No hay presupuestos en este estado</h3>
-                <p>
-                  {savedQuoteFilter === 'all'
-                    ? 'Creá un presupuesto nuevo para comenzar.'
-                    : 'Podés volver a ver todos los presupuestos o crear uno nuevo.'}
-                </p>
-                <div className="empty-state-actions">
-                  {savedQuoteFilter !== 'all' && savedQuotes.length > 0 && (
-                    <button
-                      className="button button-line"
-                      type="button"
-                      onClick={() => setSavedQuoteFilter('all')}
-                    >
-                      Ver todos
-                    </button>
-                  )}
-                  <button
-                    className="button button-secondary"
-                    type="button"
-                    onClick={handleNewQuote}
-                  >
-                    Nuevo presupuesto
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="table-scroll">
-                <table className="saved-quotes-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Cliente</th>
-                      <th>Proyecto en seguimiento</th>
-                      <th>Estado</th>
-                      <th>Estado comercial</th>
-                      <th>Fecha</th>
-                      <th className="numeric-cell">Total</th>
-                      <th className="actions-cell">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleSavedQuotes.map((savedQuote) => (
-                      <tr key={savedQuote.id}>
-                        <td data-label="ID">
-                          <strong>{savedQuote.id}</strong>
-                        </td>
-                        <td data-label="Cliente">
-                          {savedQuote.clientName.trim() || 'Sin cliente'}
-                        </td>
-                        <td data-label="Proyecto en seguimiento">
-                          {savedQuote.projectName.trim() || 'Sin proyecto'}
-                          {savedQuote.opportunityId && (
-                            <small>
-                              Proyecto:{' '}
-                              {opportunities.find(
-                                (item) =>
-                                  item.id === savedQuote.opportunityId &&
-                                  item.clientId === savedQuote.clientId,
-                              )?.name ?? 'Asociación no disponible'}
-                            </small>
-                          )}
-                        </td>
-                        <td data-label="Estado">
-                          <span className={`status-badge status-badge-${savedQuote.status}`}>
-                            {savedQuote.status === 'draft' ? 'Borrador' : 'Finalizado'}
-                          </span>
-                        </td>
-                        <td data-label="Estado comercial">
-                          <span
-                            className={`status-badge commercial-status-badge status-badge-${savedQuote.commercialStatus}`}
-                          >
-                            {commercialStatusLabels[savedQuote.commercialStatus]}
-                          </span>
-                        </td>
-                        <td data-label="Fecha">
-                          {dateFormatter.format(new Date(savedQuote.savedAt))}
-                        </td>
-                        <td data-label="Total" className="numeric-cell subtotal">
-                          {currencyFormatter.format(calculateQuoteTotal(savedQuote.lines))}
-                        </td>
-                        <td data-label="Acciones" className="actions-cell saved-quote-actions-cell">
-                          <div className="saved-quote-actions">
-                            <button
-                              className="button button-line"
-                              type="button"
-                              onClick={() => handleSavedQuoteOpen(savedQuote)}
-                            >
-                              {savedQuote.status === 'draft'
-                                ? 'Continuar editando'
-                                : 'Ver presupuesto'}
-                            </button>
-                            {savedQuote.status === 'finalized' && (
-                              <button
-                                className="button button-line"
-                                type="button"
-                                onClick={() => handleSavedQuotePdfDownload(savedQuote)}
-                                disabled={downloadingSavedQuoteId !== null}
-                              >
-                                {downloadingSavedQuoteId === savedQuote.id ? 'Generando…' : 'PDF'}
-                              </button>
-                            )}
-                          </div>
-                          {savedQuotePdfFeedback?.quoteId === savedQuote.id && (
-                            <p
-                              className={`saved-quote-pdf-feedback save-feedback-${savedQuotePdfFeedback.type}`}
-                              role={savedQuotePdfFeedback.type === 'error' ? 'alert' : 'status'}
-                            >
-                              {savedQuotePdfFeedback.message}
-                            </p>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <button
-            className="button button-link back-to-current"
-            type="button"
-            onClick={() => setCurrentView(quoteStatus === 'draft' ? 'editor' : 'summary')}
-          >
-            <span aria-hidden="true">←</span> Volver al presupuesto actual
-          </button>
-        </main>
+        <SavedQuotesView
+          quotes={savedQuotes}
+          visibleQuotes={visibleSavedQuotes}
+          opportunities={opportunities}
+          documentFilter={savedQuoteFilter}
+          onDocumentFilterChange={setSavedQuoteFilter}
+          commercialFilter={savedQuoteCommercialFilter}
+          onCommercialFilterChange={setSavedQuoteCommercialFilter}
+          storedInWorkspace={isAuthConfigured()}
+          downloadingQuoteId={downloadingSavedQuoteId}
+          pdfFeedback={savedQuotePdfFeedback}
+          onOpen={handleSavedQuoteOpen}
+          onDownloadPdf={(quote) => void handleSavedQuotePdfDownload(quote)}
+          onNewQuote={handleNewQuote}
+          onBackToCurrent={() => setCurrentView(quoteStatus === 'draft' ? 'editor' : 'summary')}
+        />
       </>
     );
   }
