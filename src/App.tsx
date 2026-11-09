@@ -230,7 +230,7 @@ function App() {
     pdfFeedback: savedQuotePdfFeedback,
     downloadSavedQuotePdf,
   } = useSavedQuotes();
-  const { currentView, setCurrentView, opportunityOrigin, rememberOpportunityOrigin } =
+  const { currentView, setCurrentView, replaceView, opportunityOrigin, rememberOpportunityOrigin } =
     useAppNavigation();
   const { opportunities, reloadOpportunities, prospects, setProspects, reloadProspects } =
     useCommercialRecords();
@@ -247,6 +247,8 @@ function App() {
   const [opportunityId, setOpportunityId] = useState<string | undefined>();
   const [shouldRefreshDocumentSnapshots, setShouldRefreshDocumentSnapshots] = useState(false);
   const [detailOpportunityId, setDetailOpportunityId] = useState<string | null>(null);
+  /** Shown once at the top of a job file right after its prospect was converted. */
+  const [convertedJobNotice, setConvertedJobNotice] = useState<string | null>(null);
   const [detailQuoteId, setDetailQuoteId] = useState<string | null>(null);
   const [quoteSendTarget, setQuoteSendTarget] = useState<SavedQuote | null>(null);
   const [quoteSendRecoveryRequired, setQuoteSendRecoveryRequired] = useState(false);
@@ -945,7 +947,27 @@ function App() {
     setCurrentView('prospects');
   }
 
+  /**
+   * After converting a prospect from its file, the same job file keeps showing the sale, now as
+   * an opportunity: same header, same way back, and no extra step in the browser history.
+   */
+  function showConvertedJob(opportunityId: string) {
+    reloadOpportunities();
+    // A prospect opened from another list keeps that list as the way back; one opened from the
+    // prospect list goes back to it.
+    if (!requestedProspectId) rememberOpportunityOrigin();
+    setRequestedProspectId(null);
+    setDetailOpportunityId(opportunityId);
+    setConvertedJobNotice(
+      'Listo, ya es una oportunidad. El historial y el próximo paso siguen en esta ficha.',
+    );
+    replaceView('opportunityDetail');
+    // The conversion form sits low in the prospect file; start the opportunity at its header.
+    window.scrollTo({ top: 0 });
+  }
+
   function openOpportunityDetail(id: string) {
+    setConvertedJobNotice(null);
     reloadOpportunities();
     setDetailOpportunityId(id);
     rememberOpportunityOrigin();
@@ -2122,6 +2144,7 @@ function App() {
           onOpenOpportunity={openOpportunityDetail}
           onOpenResult={setDrawerItem}
           openProspectId={requestedProspectId}
+          onProspectConverted={showConvertedJob}
           openProspectBack={
             requestedProspectId
               ? {
@@ -2180,7 +2203,11 @@ function App() {
               client={loadClients().items.find((item) => item.id === opportunity.clientId)}
               quotes={savedQuotes}
               backLabel={opportunityOriginLabels[opportunityOrigin]}
-              onBack={() => setCurrentView(opportunityOrigin)}
+              onBack={() => {
+                setConvertedJobNotice(null);
+                setCurrentView(opportunityOrigin);
+              }}
+              notice={convertedJobNotice}
               onSaveOpportunity={saveOpportunityFromDetail}
               onUpdateClient={(input, extras) => {
                 const client = loadClients().items.find((item) => item.id === opportunity.clientId);
@@ -2290,6 +2317,7 @@ function App() {
           client={loadClients().items.find((item) => item.id === quote.clientId)}
           onBack={() => {
             if (opportunity) {
+              setConvertedJobNotice(null);
               setDetailOpportunityId(opportunity.id);
               setCurrentView('opportunityDetail');
             } else setCurrentView('savedQuotes');

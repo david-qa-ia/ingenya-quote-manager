@@ -94,7 +94,8 @@ import {
 import type { FollowUpInboxItem } from '../types/followUpInbox';
 import { UiIcon } from './UiIcon';
 import { JobFileHeader } from './JobFileHeader';
-import { jobFileHeadingFromRow } from '../utils/jobFile';
+import { opportunityOriginLabels } from '../utils/appNavigation';
+import { getConvertedOpportunityId, jobFileHeadingFromRow } from '../utils/jobFile';
 import { prospectJobRow } from '../utils/jobList';
 import { useResponsibles } from '../utils/useResponsibles';
 import { loadResponsibles, primaryResponsibleName } from '../utils/responsibleStorage';
@@ -161,6 +162,8 @@ interface Props {
    * the search). A prospect opened from this list goes back to it.
    */
   openProspectBack?: { label: string; onBack: () => void };
+  /** A prospect converted from its file keeps the same job file, now as an opportunity. */
+  onProspectConverted?: (opportunityId: string) => void;
   /** SCRUM-119: changes when the user picks "Prospectos" in the menu; shows the list again. */
   resetToken?: number;
   /** Opens a blank new-prospect form on arrival (from Trabajos). */
@@ -179,6 +182,7 @@ export function ProspectingView({
   onOpenResult,
   openProspectId,
   openProspectBack,
+  onProspectConverted,
   resetToken,
   openNewProspect,
   onOpenNewProspectHandled,
@@ -798,6 +802,7 @@ export function ProspectingView({
           onOpportunitiesChanged={onOpportunitiesChanged}
           onDirtyChange={onDirtyChange}
           onRegisterResult={() => onOpenResult(prospectToInboxItem(selected))}
+          onConverted={onProspectConverted}
         />
       </>
     );
@@ -1298,10 +1303,7 @@ function ProspectRow({
   onRegister: () => void;
   onOpenOpportunity?: (id: string) => void;
 }) {
-  const convertedOpportunityId =
-    prospect.conversion?.state === 'completed'
-      ? prospect.conversion.draft.opportunityId
-      : undefined;
+  const convertedOpportunityId = getConvertedOpportunityId(prospect);
   const whatsappUrl = createProspectWhatsAppUrl(prospect.phone);
   const instagramUrl = createProspectInstagramUrl(prospect.instagram);
   const initials = prospect.name
@@ -1531,10 +1533,7 @@ export function ProspectInboxDetail({
   onQualify: () => void;
   onOpenOpportunity: (id: string) => void;
 }) {
-  const convertedOpportunityId =
-    prospect.conversion?.state === 'completed'
-      ? prospect.conversion.draft.opportunityId
-      : undefined;
+  const convertedOpportunityId = getConvertedOpportunityId(prospect);
   const initials = prospect.name
     .split(/\s+/)
     .filter(Boolean)
@@ -1703,8 +1702,11 @@ function ProspectDetail({
   onRestore,
   existingProspects = [],
   onOpenExisting,
-  backLabel = 'Volver a prospectos',
+  backLabel = opportunityOriginLabels.prospects,
+  onConverted,
 }: {
+  /** Called once the prospect is an opportunity, to keep showing the same job file. */
+  onConverted?: (opportunityId: string) => void;
   prospect: Prospect;
   /** Where "Volver" leads: the prospect list, or the list the job was opened from. */
   backLabel?: string;
@@ -1725,10 +1727,7 @@ function ProspectDetail({
   onDirtyChange?: (dirty: boolean) => void;
   onRegisterResult?: () => void;
 }) {
-  const convertedOpportunityId =
-    prospect.conversion?.state === 'completed'
-      ? prospect.conversion.draft.opportunityId
-      : undefined;
+  const convertedOpportunityId = getConvertedOpportunityId(prospect);
   const workspaceContext = useWorkspace();
   const responsibles = useResponsibles();
   const [draft, setDraft] = useState(prospect);
@@ -1851,7 +1850,7 @@ function ProspectDetail({
       onOpportunitiesChanged?.();
       setPendingConversion(null);
       setIsConversionOpen(false);
-      showConversionSuccess();
+      finishConversion(result.prospect);
     } catch (error) {
       showConversionError(
         error instanceof Error ? error.message : 'No se pudo iniciar la conversión.',
@@ -1864,7 +1863,13 @@ function ProspectDetail({
     onReload();
     onOpportunitiesChanged?.();
     setPendingConversion(null);
-    showConversionSuccess();
+    finishConversion(result.prospect);
+  }
+  /** The job file now shows the opportunity; without that callback, a message points to it. */
+  function finishConversion(converted: Prospect) {
+    const opportunityId = getConvertedOpportunityId(converted);
+    if (opportunityId && onConverted) onConverted(opportunityId);
+    else showConversionSuccess();
   }
   async function saveDraft(acceptDuplicates = false) {
     if (!validation.validateForSubmit()) return;

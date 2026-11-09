@@ -6,7 +6,7 @@ import { ClientForm, type ContactProspectExtras } from './ClientForm';
 import { isPendingEmail, isPendingPhone } from '../utils/clientValidation';
 import { UiIcon, type UiIconName } from './UiIcon';
 import { JobFileHeader } from './JobFileHeader';
-import { getJobFileHeading } from '../utils/jobFile';
+import { getJobFileHeading, getJobProjectName } from '../utils/jobFile';
 import type { Client, ClientInput } from '../types/client';
 import type { Opportunity, OpportunityPipelineStage } from '../types/opportunity';
 import type { SavedQuote } from '../types/quote';
@@ -39,6 +39,8 @@ interface Props {
   /** Names the list "Volver" returns to, the one the opportunity was opened from. */
   backLabel: string;
   onBack: () => void;
+  /** A one-time message under the header, such as the confirmation of a conversion. */
+  notice?: string | null;
   onSaveOpportunity: (opportunity: Opportunity, event: string) => boolean;
   onUpdateClient: (
     input: ClientInput,
@@ -99,6 +101,7 @@ export function OpportunityDetailView({
   quotes,
   backLabel,
   onBack,
+  notice,
   onSaveOpportunity,
   onUpdateClient,
   onRegisterResult,
@@ -197,8 +200,7 @@ export function OpportunityDetailView({
     { kind: 'opportunity', id: opportunity.id },
     { prospects: [], opportunities: [opportunity], clients: client ? [client] : [], quotes },
   ) ?? { name: opportunity.name, detail: '', stage: 'quoting' as const };
-  const service = opportunity.qualification?.serviceOfInterest.trim();
-  const projectName = service && opportunity.name.trim() !== service ? opportunity.name.trim() : '';
+  const projectName = getJobProjectName(opportunity);
   const pipeline: readonly (readonly [OpportunityPipelineStage, string])[] = [
     ['prospect', 'Prospecto'],
     ['contacted', 'Contactado'],
@@ -324,6 +326,11 @@ export function OpportunityDetailView({
           </button>
         }
       />
+      {notice && (
+        <p className="save-feedback save-feedback-success job-file-notice" role="status">
+          {notice}
+        </p>
+      )}
       {isMissingClient && (
         <p className="commercial-warning" role="alert">
           No se encontró el cliente vinculado. La oportunidad se muestra en modo de solo lectura.
