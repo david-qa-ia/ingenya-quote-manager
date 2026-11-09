@@ -1,32 +1,59 @@
-import { workUnitLabels, workUnitSymbols } from '../data/workUnits';
+import { workUnitSymbols } from '../data/workUnits';
 import { loadCompanyBrand } from './companyProfileStorage';
 import type { DeploymentBrandConfig } from '../types/branding';
+import type { Client } from '../types/client';
+import type { Opportunity } from '../types/opportunity';
 import type { Quote, SavedQuote } from '../types/quote';
 import { calculateLineSubtotal, calculateQuoteTotal } from './quoteCalculations';
 import { isValidQuoteLine } from './quoteValidation';
 
 export interface QuotePdfLine {
-  readonly description: string;
+  /** The service as the client reads it, and the scope written for it (may be empty). */
+  readonly name: string;
+  readonly details: string;
+  /** Unit symbol printed next to the quantity (m², ml, u). */
   readonly unit: string;
   readonly quantity: number;
   readonly unitPrice: number;
   readonly subtotal: number;
 }
 
+/** Who the quote is for. The name is the quote snapshot; contact data comes from the client. */
+export interface QuotePdfRecipient {
+  readonly name: string;
+  readonly company: string;
+  readonly phone: string;
+  readonly email: string;
+}
+
+/** A label and its text in the conditions block of the document. */
+export interface QuotePdfCondition {
+  readonly label: string;
+  readonly text: string;
+}
+
 export interface QuotePdfModel {
   readonly id: string;
-  readonly clientName: string;
-  readonly projectName: string;
-  readonly status: 'Borrador' | 'Finalizado';
+  readonly isDraft: boolean;
+  readonly title: string;
+  readonly recipient: QuotePdfRecipient;
+  /** Address of the job, when the quote belongs to an opportunity that has one. */
+  readonly siteAddress: string;
   readonly lines: readonly QuotePdfLine[];
   readonly total: number;
+  readonly conditions: readonly QuotePdfCondition[];
+  readonly acceptanceText: string;
   readonly fileName: string;
-  readonly proposalTitle: string;
-  readonly isDraft: boolean;
   readonly brand: DeploymentBrandConfig;
   /** SCRUM-119: issue date and the date the quote stays valid until (dd/mm/aaaa). */
   readonly issuedOn: string;
   readonly validUntil: string;
+}
+
+/** Current data of the client and opportunity linked to the quote, read when the PDF is made. */
+export interface QuotePdfContext {
+  readonly client?: Pick<Client, 'company' | 'phone' | 'email'>;
+  readonly opportunity?: Pick<Opportunity, 'address'>;
 }
 
 const pdfDateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -57,10 +84,19 @@ function validateBrandConfig(brand: DeploymentBrandConfig): void {
   }
 }
 
+/** How the client confirms: by WhatsApp when the company has one, otherwise by answering. */
+export function quotePdfAcceptanceText(brand: DeploymentBrandConfig): string {
+  const whatsapp = brand.whatsapp.display.trim();
+  return whatsapp
+    ? `Para aceptarlo, firmá esta página y enviala, o confirmalo por WhatsApp al ${whatsapp}. Con tu confirmación coordinamos el inicio.`
+    : 'Para aceptarlo, firmá esta página y enviala, o confirmalo respondiendo este envío. Con tu confirmación coordinamos el inicio.';
+}
+
 export function prepareQuotePdfModel(
   quote: Readonly<Quote>,
   brand: DeploymentBrandConfig = loadCompanyBrand(),
   now: Date = new Date(),
+  context: QuotePdfContext = {},
 ): QuotePdfModel {
   validateBrandConfig(brand);
 
@@ -77,6 +113,7 @@ export function prepareQuotePdfModel(
   }
 
   const projectName = quote.projectName.trim();
+  const clientName = quote.clientName.trim();
   // A finalized quote keeps the date it was saved; a draft is dated when the PDF is made.
   const savedAt = (quote as Partial<SavedQuote>).savedAt;
   const issued =
@@ -84,26 +121,41 @@ export function prepareQuotePdfModel(
       ? new Date(savedAt)
       : now;
   const validityDays = brand.quoteValidityDays ?? 15;
-  const validUntil = new Date(issued.getTime() + validityDays * 86_400_000);
+  const validUntil = pdfDateFormatter.format(
+    new Date(issued.getTime() + validityDays * 86_400_000),
+  );
+  const company = context.client?.company?.trim() ?? '';
 
   return {
     id: quote.id,
-    clientName: quote.clientName.trim() || 'Sin cliente',
-    projectName: projectName || 'Sin proyecto',
-    status: quote.status === 'draft' ? 'Borrador' : 'Finalizado',
+    isDraft: quote.status === 'draft',
+    title: projectName || 'Propuesta de servicios',
+    recipient: {
+      name: clientName || 'Sin cliente',
+      company: company && company !== clientName ? company : '',
+      phone: context.client?.phone.trim() ?? '',
+      email: context.client?.email.trim() ?? '',
+    },
+    siteAddress: context.opportunity?.address.trim() ?? '',
     lines: quote.lines.map((line) => ({
-      description: line.name,
-      unit: `${workUnitLabels[line.unit]} (${workUnitSymbols[line.unit]})`,
+      name: line.name.trim(),
+      details: line.description?.trim() ?? '',
+      unit: workUnitSymbols[line.unit],
       quantity: line.quantity,
       unitPrice: line.unitPrice,
       subtotal: calculateLineSubtotal(line.quantity, line.unitPrice),
     })),
     total: calculateQuoteTotal(quote.lines),
+    conditions: [
+      {
+        label: 'Validez',
+        text: `Los precios de este presupuesto se mantienen hasta el ${validUntil}.`,
+      },
+    ],
+    acceptanceText: quotePdfAcceptanceText(brand),
     fileName: createSafeQuotePdfFileName(quote.id),
-    proposalTitle: projectName || 'Propuesta de servicios',
-    isDraft: quote.status === 'draft',
     brand,
     issuedOn: pdfDateFormatter.format(issued),
-    validUntil: pdfDateFormatter.format(validUntil),
+    validUntil,
   };
 }

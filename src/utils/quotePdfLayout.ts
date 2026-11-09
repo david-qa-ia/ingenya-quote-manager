@@ -1,32 +1,42 @@
-import type { QuotePdfModel } from './quotePdfModel';
-
+/**
+ * Page plan of the quote PDF (A4, millimetres). The services table flows across pages; after it
+ * come the document blocks (total, conditions, acceptance) in order, each one kept whole. The
+ * total never starts a page alone: if it does not fit after the last service, that service moves
+ * with it, so the amount always sits right below the table.
+ */
 export const PDF_PAGE_WIDTH = 210;
 export const PDF_PAGE_HEIGHT = 297;
-export const PDF_MARGIN = 14;
-export const PDF_FOOTER_TOP = 278;
-export const PDF_TABLE_HEADER_HEIGHT = 9;
-export const PDF_ROW_PADDING = 2.4;
-export const PDF_ROW_LINE_HEIGHT = 4.2;
-export const PDF_CLOSING_HEIGHT = 38;
-export const PDF_CLOSING_GAP = 5;
-export const PDF_CONTINUATION_TABLE_TOP = 40;
-export const PDF_COLUMN_WIDTHS = [67, 28, 18, 34, 35] as const;
-
-export interface PdfTextMeasurer {
-  splitTextToSize(text: string, maxWidth: number): string[];
-}
+export const PDF_MARGIN = 16;
+export const PDF_CONTENT_WIDTH = PDF_PAGE_WIDTH - PDF_MARGIN * 2;
+export const PDF_FOOTER_TOP = 280;
+export const PDF_TABLE_HEADER_HEIGHT = 8;
+export const PDF_ROW_PADDING = 2.6;
+export const PDF_CONTINUATION_TABLE_TOP = 34;
+export const PDF_BLOCK_GAP = 7;
+export const PDF_BOTTOM_GAP = 4;
+/** Servicio, Cantidad, Precio unitario, Importe. */
+export const PDF_COLUMN_WIDTHS = [94, 24, 30, 30] as const;
 
 export interface QuotePdfMeasuredRow {
   readonly index: number;
-  readonly cells: readonly string[][];
   readonly height: number;
+}
+
+export interface QuotePdfBlock {
+  readonly key: string;
+  readonly height: number;
+}
+
+export interface QuotePdfPlacedBlock {
+  readonly key: string;
+  readonly top: number;
 }
 
 export interface QuotePdfPagePlan {
   readonly isFirstPage: boolean;
   readonly tableTop: number;
   readonly rows: readonly QuotePdfMeasuredRow[];
-  readonly hasClosingBlock: boolean;
+  readonly blocks: readonly QuotePdfPlacedBlock[];
 }
 
 export class QuotePdfLayoutError extends Error {
@@ -36,125 +46,85 @@ export class QuotePdfLayoutError extends Error {
   }
 }
 
-export function measureQuotePdfRows(
-  measurer: PdfTextMeasurer,
-  model: QuotePdfModel,
-  formattedRows: readonly (readonly string[])[],
-): QuotePdfMeasuredRow[] {
-  return model.lines.map((_line, index) => {
-    const cells = formattedRows[index].map((value, cellIndex) =>
-      measurer.splitTextToSize(value, PDF_COLUMN_WIDTHS[cellIndex] - PDF_ROW_PADDING * 2),
-    );
-    const lineCount = Math.max(1, ...cells.map((cell) => cell.length));
-
-    return {
-      index,
-      cells,
-      height: Math.max(9, lineCount * PDF_ROW_LINE_HEIGHT + PDF_ROW_PADDING * 2),
-    };
-  });
+interface MutablePage {
+  isFirstPage: boolean;
+  tableTop: number;
+  rows: QuotePdfMeasuredRow[];
+  blocks: QuotePdfPlacedBlock[];
 }
 
-function rowsHeight(rows: readonly QuotePdfMeasuredRow[]): number {
-  return rows.reduce((total, row) => total + row.height, 0);
-}
+const contentBottom = PDF_FOOTER_TOP - PDF_BOTTOM_GAP;
 
-function rowsBottom(page: Pick<QuotePdfPagePlan, 'tableTop' | 'rows'>): number {
-  return page.tableTop + PDF_TABLE_HEADER_HEIGHT + rowsHeight(page.rows);
-}
+const rowsBottom = (page: MutablePage) =>
+  page.tableTop +
+  (page.rows.length ? PDF_TABLE_HEADER_HEIGHT : 0) +
+  page.rows.reduce((total, row) => total + row.height, 0);
+
+const continuationPage = (): MutablePage => ({
+  isFirstPage: false,
+  tableTop: PDF_CONTINUATION_TABLE_TOP,
+  rows: [],
+  blocks: [],
+});
 
 export function planQuotePdfPages(
   rows: readonly QuotePdfMeasuredRow[],
   firstPageTableTop: number,
+  blocks: readonly QuotePdfBlock[],
 ): QuotePdfPagePlan[] {
-  const normalBottom = PDF_FOOTER_TOP - PDF_CLOSING_GAP;
-  const continuationCapacity = normalBottom - PDF_CONTINUATION_TABLE_TOP - PDF_TABLE_HEADER_HEIGHT;
-
-  for (const row of rows) {
-    if (row.height > continuationCapacity) {
-      throw new QuotePdfLayoutError(
-        'No se puede generar el PDF porque un servicio es demasiado extenso para una página.',
-      );
-    }
+  const pageCapacity = contentBottom - PDF_CONTINUATION_TABLE_TOP;
+  if (rows.some((row) => row.height + PDF_TABLE_HEADER_HEIGHT > pageCapacity)) {
+    throw new QuotePdfLayoutError(
+      'No se puede generar el PDF porque un servicio es demasiado extenso para una página.',
+    );
+  }
+  if (blocks.some((block) => block.height > pageCapacity)) {
+    throw new QuotePdfLayoutError(
+      'No se puede generar el PDF porque las condiciones son demasiado extensas para una página.',
+    );
   }
 
-  const pages: Array<{
-    isFirstPage: boolean;
-    tableTop: number;
-    rows: QuotePdfMeasuredRow[];
-    hasClosingBlock: boolean;
-  }> = [
-    {
-      isFirstPage: true,
-      tableTop: firstPageTableTop,
-      rows: [],
-      hasClosingBlock: false,
-    },
+  const pages: MutablePage[] = [
+    { isFirstPage: true, tableTop: firstPageTableTop, rows: [], blocks: [] },
   ];
 
   for (const row of rows) {
-    let currentPage = pages.at(-1)!;
-    const rowBottom = rowsBottom(currentPage) + row.height;
-
-    if (rowBottom > normalBottom) {
-      currentPage = {
-        isFirstPage: false,
-        tableTop: PDF_CONTINUATION_TABLE_TOP,
-        rows: [],
-        hasClosingBlock: false,
-      };
-      pages.push(currentPage);
+    let page = pages.at(-1)!;
+    const headerHeight = page.rows.length ? 0 : PDF_TABLE_HEADER_HEIGHT;
+    if (rowsBottom(page) + headerHeight + row.height > contentBottom) {
+      page = continuationPage();
+      pages.push(page);
     }
-
-    currentPage.rows.push(row);
+    page.rows.push(row);
   }
 
-  const closingTop = PDF_FOOTER_TOP - PDF_CLOSING_HEIGHT;
-  const lastPage = pages.at(-1)!;
-
-  if (rowsBottom(lastPage) <= closingTop - PDF_CLOSING_GAP) {
-    lastPage.hasClosingBlock = true;
-    return pages;
-  }
-
-  const finalPage = {
-    isFirstPage: false,
-    tableTop: PDF_CONTINUATION_TABLE_TOP,
-    rows: [] as QuotePdfMeasuredRow[],
-    hasClosingBlock: true,
-  };
-  pages.push(finalPage);
-
-  let sourcePageIndex = pages.length - 2;
-  while (sourcePageIndex >= 0) {
-    const sourcePage = pages[sourcePageIndex];
-    const candidate = sourcePage.rows.at(-1);
-
-    if (!candidate) {
-      if (pages.length > 2) {
-        pages.splice(sourcePageIndex, 1);
-        sourcePageIndex -= 1;
-        continue;
-      }
-      break;
+  let page = pages.at(-1)!;
+  let cursor = rowsBottom(page) + PDF_BLOCK_GAP;
+  blocks.forEach((block, blockIndex) => {
+    if (cursor + block.height <= contentBottom) {
+      page.blocks.push({ key: block.key, top: cursor });
+      cursor += block.height + PDF_BLOCK_GAP;
+      return;
     }
-
-    const proposedFinalRows = [candidate, ...finalPage.rows];
-    const proposedFinalBottom =
-      finalPage.tableTop + PDF_TABLE_HEADER_HEIGHT + rowsHeight(proposedFinalRows);
-    if (proposedFinalBottom > closingTop - PDF_CLOSING_GAP) break;
-
-    sourcePage.rows.pop();
-    finalPage.rows.unshift(candidate);
-
-    if (
-      finalPage.rows.length > 0 &&
-      rowsBottom(sourcePage) <= normalBottom &&
-      sourcePage.rows.length > 0
-    ) {
-      break;
-    }
-  }
+    const next = continuationPage();
+    // The first block (the total) takes the last service with it when that leaves rows behind.
+    const lastRow = page.rows.at(-1);
+    const fitsWithLastRow =
+      lastRow &&
+      PDF_CONTINUATION_TABLE_TOP +
+        PDF_TABLE_HEADER_HEIGHT +
+        lastRow.height +
+        PDF_BLOCK_GAP +
+        block.height <=
+        contentBottom;
+    if (blockIndex === 0 && page.rows.length > 1 && fitsWithLastRow)
+      next.rows.push(page.rows.pop()!);
+    pages.push(next);
+    page = next;
+    cursor = rowsBottom(page) + (page.rows.length ? PDF_BLOCK_GAP : 0);
+    page.blocks.push({ key: block.key, top: cursor });
+    cursor += block.height + PDF_BLOCK_GAP;
+  });
 
   return pages;
 }

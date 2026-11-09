@@ -41,24 +41,25 @@ describe('prepareQuotePdfModel', () => {
 
     expect(prepareQuotePdfModel(input)).toMatchObject({
       id: draft.id,
-      clientName: 'Sin cliente',
-      projectName: 'Sin proyecto',
-      status: 'Borrador',
+      title: 'Propuesta de servicios',
+      recipient: { name: 'Sin cliente', company: '', phone: '', email: '' },
+      siteAddress: '',
       total: 187500,
       fileName: 'presupuesto-PRES-2026-0001.pdf',
-      proposalTitle: 'Propuesta de servicios',
       isDraft: true,
       lines: [
         {
-          description: 'Pintar pared',
-          unit: 'Metro cuadrado (m²)',
+          name: 'Pintar pared',
+          details: '',
+          unit: 'm²',
           quantity: 12.5,
           unitPrice: 15000,
           subtotal: 187500,
         },
         {
-          description: 'Revisión sin cargo',
-          unit: 'Unidad (u)',
+          name: 'Revisión sin cargo',
+          details: '',
+          unit: 'u',
           quantity: 1,
           unitPrice: 0,
           subtotal: 0,
@@ -68,21 +69,71 @@ describe('prepareQuotePdfModel', () => {
     expect(input).toEqual(original);
   });
 
+  it('prints the scope written for each service under its name', () => {
+    const withScope = {
+      ...draft,
+      lines: [{ ...draft.lines[0], description: '  Látex lavable, dos manos.  ' }],
+    };
+    expect(prepareQuotePdfModel(withScope).lines[0]).toMatchObject({
+      name: 'Pintar pared',
+      details: 'Látex lavable, dos manos.',
+    });
+  });
+
+  it('completes the client block and the job address from the linked records', () => {
+    const model = prepareQuotePdfModel(draft, undefined, undefined, {
+      client: { company: 'Constructora Sur', phone: '+54 9 341 555-1234', email: 'ana@sur.com' },
+      opportunity: { address: ' Av. Pellegrini 1200, Rosario ' },
+    });
+    expect(model.recipient).toEqual({
+      name: 'Ana Pérez',
+      company: 'Constructora Sur',
+      phone: '+54 9 341 555-1234',
+      email: 'ana@sur.com',
+    });
+    expect(model.siteAddress).toBe('Av. Pellegrini 1200, Rosario');
+    const sameAsName = prepareQuotePdfModel(draft, undefined, undefined, {
+      client: { company: 'Ana Pérez', phone: '', email: '' },
+    });
+    expect(sameAsName.recipient.company).toBe('');
+  });
+
   it('rejects a quote without lines', () => {
     expect(() => prepareQuotePdfModel({ ...draft, lines: [] })).toThrow(
       'Agregá al menos un servicio válido antes de descargar el PDF.',
     );
   });
 
-  it('shows the real status of a finalized quote', () => {
-    expect(prepareQuotePdfModel({ ...draft, status: 'finalized' })).toMatchObject({
-      status: 'Finalizado',
-      isDraft: false,
-    });
+  it('marks only drafts; a finalized quote carries no internal status for the client', () => {
+    const finalized = prepareQuotePdfModel({ ...draft, status: 'finalized' });
+    expect(finalized.isDraft).toBe(false);
+    expect(JSON.stringify(finalized)).not.toMatch(/Finalizado|FINALIZADO/);
   });
 
-  it('uses the project as proposal title without expanding the quote contract', () => {
-    expect(prepareQuotePdfModel(draft).proposalTitle).toBe('Reforma cocina');
+  it('uses the project as the document title', () => {
+    expect(prepareQuotePdfModel(draft).title).toBe('Reforma cocina');
+  });
+
+  it('explains the validity and how to accept with the company WhatsApp', () => {
+    const brand: DeploymentBrandConfig = {
+      companyName: 'Ventro',
+      email: '',
+      whatsapp: { display: '341 779-3657', value: '3417793657' },
+      footerBusinessText: 'Ventro',
+      quoteValidityDays: 15,
+    };
+    const model = prepareQuotePdfModel(draft, brand, new Date('2026-11-04T15:00:00.000Z'));
+    expect(model.conditions).toEqual([
+      {
+        label: 'Validez',
+        text: 'Los precios de este presupuesto se mantienen hasta el 19/11/2026.',
+      },
+    ]);
+    expect(model.acceptanceText).toContain('por WhatsApp al 341 779-3657');
+    const withoutWhatsapp = { ...brand, whatsapp: { display: '', value: '' } };
+    expect(prepareQuotePdfModel(draft, withoutWhatsapp).acceptanceText).toContain(
+      'respondiendo este envío',
+    );
   });
 
   it('preserves optional branding without inventing logo or Instagram', () => {
