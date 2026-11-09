@@ -33,6 +33,8 @@ export const jobStageOrder: readonly JobStage[] = [
 export interface JobRow {
   kind: 'prospect' | 'opportunity';
   id: string;
+  /** The client of an opportunity; prospects have none until they are converted. */
+  clientId?: string;
   name: string;
   company: string;
   service: string;
@@ -106,6 +108,7 @@ function opportunityRow(
   return {
     kind: 'opportunity',
     id: opportunity.id,
+    clientId: opportunity.clientId,
     name: client?.name ?? opportunity.name,
     company: client?.company ?? '',
     service: opportunity.qualification?.serviceOfInterest || opportunity.name,
@@ -158,7 +161,8 @@ export function buildJobList(sources: JobSources): JobRow[] {
   return [...prospects, ...opportunities].sort(compareJobs);
 }
 
-const normalize = (value: string) =>
+/** Lowercase without accents, so "Gomez" finds "Gómez". */
+export const normalizeSearchText = (value: string) =>
   value
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -168,12 +172,14 @@ export function filterJobs(
   rows: readonly JobRow[],
   filter: { stage: JobStageFilter; query: string },
 ): JobRow[] {
-  const query = normalize(filter.query.trim());
+  const query = normalizeSearchText(filter.query.trim());
   return rows.filter((row) => {
     if (filter.stage === 'open' && !isOpenJob(row)) return false;
     if (filter.stage !== 'open' && filter.stage !== 'all' && row.stage !== filter.stage)
       return false;
-    return !query || normalize(`${row.name} ${row.company} ${row.service}`).includes(query);
+    return (
+      !query || normalizeSearchText(`${row.name} ${row.company} ${row.service}`).includes(query)
+    );
   });
 }
 

@@ -1,5 +1,6 @@
 export type AppView =
   | 'jobs'
+  | 'clients'
   | 'dailyDashboard'
   | 'editor'
   | 'summary'
@@ -13,10 +14,18 @@ export type AppView =
   | 'quoteDetail'
   | 'settings';
 export type NavigationSection =
-  'jobs' | 'newQuote' | 'savedQuotes' | 'nextActions' | 'metrics' | 'prospects' | 'settings';
+  | 'jobs'
+  | 'clients'
+  | 'newQuote'
+  | 'savedQuotes'
+  | 'nextActions'
+  | 'metrics'
+  | 'prospects'
+  | 'settings';
 
 export function resolveActiveNavigationSection(view: AppView): NavigationSection {
   if (view === 'jobs') return 'jobs';
+  if (view === 'clients') return 'clients';
   if (view === 'settings') return 'settings';
   if (view === 'dailyDashboard') return 'nextActions';
   if (view === 'savedQuotes') return 'savedQuotes';
@@ -50,6 +59,7 @@ export function getCircularFocusIndex(
  */
 const viewHashes: Record<AppView, string> = {
   jobs: '#/trabajos',
+  clients: '#/clientes',
   dailyDashboard: '#/seguimiento',
   nextActions: '#/seguimiento-completo',
   cadences: '#/automatizaciones',

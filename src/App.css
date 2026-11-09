@@ -8783,3 +8783,112 @@ tr:last-child td {
     display: none;
   }
 }
+
+/* Clientes: each client with their contact and jobs. */
+.clients-item {
+  border-radius: var(--radius-md);
+}
+.clients-row {
+  grid-template-columns: minmax(200px, 1.4fr) 170px 130px minmax(160px, 1fr) 20px;
+}
+.clients-item.is-expanded .clients-row {
+  border-color: var(--accent-border);
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.clients-summary {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+.clients-chevron {
+  transition: transform 0.15s ease;
+}
+.clients-item.is-expanded .clients-chevron {
+  transform: rotate(180deg);
+}
+.clients-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--accent-border);
+  border-top: 0;
+  border-bottom-right-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+  background: var(--surface);
+}
+.clients-panel p {
+  margin: 0;
+}
+.clients-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.clients-contact .button {
+  flex: 0 0 auto;
+  width: auto;
+}
+.clients-jobs {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.clients-job {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 130px 18px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  background: var(--surface-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.clients-job:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.clients-job:focus-visible {
+  outline: 3px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+.clients-job .jobs-amount {
+  text-align: right;
+}
+@container (max-width: 760px) {
+  .clients-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .clients-row .jobs-identity {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  .clients-row .jobs-identity > span:last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .clients-row .clients-chevron {
+    display: block;
+    grid-row: 1;
+    grid-column: 2;
+    justify-self: end;
+  }
+  .clients-summary {
+    grid-column: 1 / -1;
+  }
+  .clients-job {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .clients-job .jobs-amount {
+    text-align: left;
+  }
+  .clients-job .jobs-chevron {
+    display: none;
+  }
+}
