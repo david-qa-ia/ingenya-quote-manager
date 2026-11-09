@@ -8987,3 +8987,36 @@ span.daily-bucket-icon svg {
     display: none;
   }
 }
+
+/* Narrow job file: five pipeline steps and the "Datos de oportunidad" header must fit a phone. */
+@media (max-width: 520px) {
+  .opportunity-pipeline {
+    column-gap: 2px;
+  }
+  .opportunity-pipeline-step {
+    min-width: 0;
+    gap: 6px;
+    font-size: 0.62rem;
+    line-height: 1.2;
+    letter-spacing: 0;
+    hyphens: auto;
+  }
+  .opportunity-pipeline-icon {
+    width: 42px;
+    height: 42px;
+  }
+  .opportunity-pipeline-step i {
+    top: 20px;
+    left: calc(50% + 22px);
+    width: calc(100% - 44px);
+  }
+  .opportunity-data-heading h2 {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
+  }
+  .opportunity-data-heading .button {
+    flex: 0 0 auto;
+    width: auto;
+  }
+}
