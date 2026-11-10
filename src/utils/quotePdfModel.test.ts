@@ -102,6 +102,17 @@ describe('prepareQuotePdfModel', () => {
     expect(sameAsName.recipient.company).toBe('');
   });
 
+  it('shows subtotal, discount and final total when the quote has a discount', () => {
+    expect(
+      prepareQuotePdfModel({ ...draft, discount: { type: 'percent', value: 10 } }),
+    ).toMatchObject({
+      subtotal: 187500,
+      discountAmount: 18750,
+      discountLabel: 'Descuento 10%',
+      total: 168750,
+    });
+  });
+
   it('rejects a quote without lines', () => {
     expect(() => prepareQuotePdfModel({ ...draft, lines: [] })).toThrow(
       'Agregá al menos un servicio válido antes de descargar el PDF.',

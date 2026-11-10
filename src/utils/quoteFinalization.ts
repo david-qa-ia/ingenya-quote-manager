@@ -30,6 +30,7 @@ export function finalizeQuote(quote: Readonly<Quote>): Quote {
     clientName: quote.clientName,
     projectName: quote.projectName,
     lines: quote.lines.map((line) => ({ ...line })),
+    ...(quote.discount ? { discount: { ...quote.discount } } : {}),
     ...(quote.version !== undefined ? { version: quote.version } : {}),
     ...(quote.basedOnQuoteId ? { basedOnQuoteId: quote.basedOnQuoteId } : {}),
     ...(quote.changeRequest ? { changeRequest: { ...quote.changeRequest } } : {}),

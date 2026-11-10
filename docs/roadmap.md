@@ -49,7 +49,7 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
    Taxes stay out of scope unless the owner decides how to show them. Done in #113 (document
    layout), #114 (logo and brand color per workspace) and this PR (conditions per workspace).
 
-2. [ ] Discount on the whole quote, decided while preparing it (owner, 2026-11-09):
+2. [x] Discount on the whole quote, decided while preparing it (owner, 2026-11-09):
    - One "Descuento" field with a % / $ choice. A percentage goes from 0% to 100%; an amount
      from $0 up to the subtotal (never more than 100%).
    - A percentage is recalculated when services change in a draft; an amount stays fixed. If
@@ -68,3 +68,6 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
       lines.
 - [x] The automatic note "Próximo paso agendado: … responsable Daniel." names the responsible
       even when the team has a single person (Responsable is hidden everywhere else).
+- [ ] In the quote detail (Presupuestos guardados > Ver presupuesto), the document card is wider
+      than its column at 1366px and slides under the Contacto / Contexto operativo cards; at
+      ~390px the table, total and buttons are cut at the right edge.

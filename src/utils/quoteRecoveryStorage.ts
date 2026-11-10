@@ -50,6 +50,11 @@ export function isQuoteRecoveryUseful(
   const saved = savedQuotes.find((quote) => quote.id === recovery.id);
   if (!saved) return true;
   const content = (quote: Quote) =>
-    JSON.stringify([quote.lines, quote.clientName ?? '', quote.projectName ?? '']);
+    JSON.stringify([
+      quote.lines,
+      quote.discount ?? null,
+      quote.clientName ?? '',
+      quote.projectName ?? '',
+    ]);
   return saved.status === 'draft' && content(saved) !== content(recovery);
 }

@@ -357,3 +357,7 @@ journal retains only the conversion provenance and the prospect history records 
   default). The browser copy keeps them as `paymentTerms`, `executionTime`, `includedScope` and
   `excludedScope` in `ingenya.companyProfile.v1`. The PDF prints each one only when filled, and
   always ends the conditions with the validity date.
+- `ingenya.savedQuotes.v1` gains the optional, additive `discount` field
+  (`{ type: 'percent' | 'amount', value }`). A malformed discount is ignored in memory and the
+  stored record is not rewritten. With Supabase the quote travels whole in
+  `workspace_documents.data` (collection `savedQuotes`), so no migration is needed.

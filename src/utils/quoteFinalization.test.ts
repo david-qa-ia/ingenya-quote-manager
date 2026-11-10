@@ -76,3 +76,17 @@ describe('finalizeQuote', () => {
     );
   });
 });
+
+describe('finalizing a quote with a discount', () => {
+  it('keeps the discount, and blocks an amount larger than the subtotal', () => {
+    const subtotal = validQuote.lines.reduce(
+      (sum, line) => sum + line.quantity * line.unitPrice,
+      0,
+    );
+    const discounted = { ...validQuote, discount: { type: 'percent' as const, value: 10 } };
+    expect(finalizeQuote(discounted).discount).toEqual({ type: 'percent', value: 10 });
+    expect(() =>
+      finalizeQuote({ ...validQuote, discount: { type: 'amount', value: subtotal + 1 } }),
+    ).toThrow('Ajustalo antes de finalizar.');
+  });
+});

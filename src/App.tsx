@@ -25,12 +25,17 @@ import type {
   CatalogJob,
   CommercialStatus,
   Quote,
+  QuoteDiscount,
   QuoteLine,
   QuoteStatus,
   SavedQuote,
   WorkUnit,
 } from './types/quote';
-import { calculateQuoteTotal } from './utils/quoteCalculations';
+import {
+  calculateQuoteTotal,
+  getQuoteDiscountError,
+  getQuoteTotals,
+} from './utils/quoteCalculations';
 import {
   loadSavedQuotes,
   saveFinalizedQuoteCommercialState,
@@ -39,6 +44,7 @@ import {
 import { finalizeQuote, QuoteFinalizationError } from './utils/quoteFinalization';
 import { currencyFormatter } from './utils/quoteFormatting';
 import { downloadQuotePdf } from './utils/quotePdf';
+import { getQuoteCompletionError } from './utils/quoteValidation';
 import { QuotePdfValidationError } from './utils/quotePdfModel';
 import {
   applyCommercialTransition,
@@ -90,6 +96,7 @@ import { SavedQuotesView } from './components/SavedQuotesView';
 import { QuoteSummaryView } from './components/QuoteSummaryView';
 import { QuoteLinkingSection } from './components/QuoteLinkingSection';
 import { ServiceEntryCard } from './components/ServiceEntryCard';
+import { QuoteDiscountField } from './components/QuoteDiscountField';
 import { QuoteLinesEditor } from './components/QuoteLinesEditor';
 import {
   RegisterResultDrawer,
@@ -224,6 +231,7 @@ function App() {
   );
   const [sentAudit, setSentAudit] = useState<Quote['sentAudit']>();
   const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([]);
+  const [quoteDiscount, setQuoteDiscount] = useState<QuoteDiscount | undefined>(undefined);
   const {
     savedQuotes,
     reloadSavedQuotes,
@@ -381,7 +389,8 @@ function App() {
       )
     : undefined;
   const isContextualOpportunityQuote = Boolean(associatedClient && associatedOpportunity);
-  const quoteTotal = calculateQuoteTotal(quoteLines);
+  const quoteTotals = getQuoteTotals(quoteLines, quoteDiscount);
+  const quoteDiscountError = getQuoteDiscountError(quoteDiscount, quoteTotals.subtotal);
   const globalSearchResults = deriveGlobalSearchResults(
     searchQuery,
     loadClients().items,
@@ -528,6 +537,7 @@ function App() {
       clientName,
       projectName,
       lines: quoteLines,
+      ...(quoteDiscount ? { discount: quoteDiscount } : {}),
       version: quoteVersion,
       basedOnQuoteId: quoteBasedOnId,
       changeRequest: quoteChangeRequest,
@@ -821,6 +831,7 @@ function App() {
     setCommercialStatusAudit(createPreparedCommercialAudit(new Date().toISOString()));
     setSentAudit(undefined);
     setQuoteLines([]);
+    setQuoteDiscount(undefined);
     setClientName('');
     setProjectName('');
     setQuoteVersion(1);
@@ -853,6 +864,7 @@ function App() {
     setCommercialStatusAudit(savedQuote.commercialStatusAudit);
     setSentAudit(savedQuote.sentAudit);
     setQuoteLines(savedQuote.lines);
+    setQuoteDiscount(savedQuote.discount);
     setClientId(savedQuote.clientId);
     setOpportunityId(savedQuote.opportunityId);
     setShouldRefreshDocumentSnapshots(false);
@@ -893,6 +905,7 @@ function App() {
     setCommercialStatusAudit(savedQuote.commercialStatusAudit);
     setSentAudit(savedQuote.sentAudit);
     setQuoteLines(savedQuote.lines);
+    setQuoteDiscount(savedQuote.discount);
     setClientId(savedQuote.clientId);
     setOpportunityId(savedQuote.opportunityId);
     setShouldRefreshDocumentSnapshots(false);
@@ -920,6 +933,8 @@ function App() {
     setCommercialStatusAudit(createPreparedCommercialAudit(new Date().toISOString()));
     setSentAudit(undefined);
     setQuoteLines(source.lines.map((line) => ({ ...line, id: crypto.randomUUID() })));
+    // The new version starts with the same discount; it can be changed while preparing it.
+    setQuoteDiscount(source.discount);
     setClientId(source.clientId);
     setOpportunityId(source.opportunityId);
     setShouldRefreshDocumentSnapshots(false);
@@ -1725,6 +1740,19 @@ function App() {
     return null;
   }
 
+  /** "Enviar" checks the quote like "Finalizar" before opening the send drawer. */
+  function handleDraftSendRequest() {
+    setSaveFeedback(null);
+    setFinalizationFeedback(null);
+    const quote = getCurrentQuote();
+    const error = getQuoteCompletionError(quote);
+    if (error) {
+      setFinalizationFeedback({ type: 'error', message: error });
+      return;
+    }
+    setDraftSendTarget({ ...quote, savedAt: new Date().toISOString() });
+  }
+
   function handleFinalizationRequest() {
     setSaveFeedback(null);
     setFinalizationFeedback(null);
@@ -2032,8 +2060,10 @@ function App() {
               {pendingQuoteRecovery.clientName || 'Sin cliente'} ·{' '}
               {pendingQuoteRecovery.lines.length}{' '}
               {pendingQuoteRecovery.lines.length === 1 ? 'servicio' : 'servicios'} ·{' '}
-              {currencyFormatter.format(calculateQuoteTotal(pendingQuoteRecovery.lines))} · quedó
-              abierto el {dateFormatter.format(new Date(pendingQuoteRecovery.savedAt))}
+              {currencyFormatter.format(
+                calculateQuoteTotal(pendingQuoteRecovery.lines, pendingQuoteRecovery.discount),
+              )}{' '}
+              · quedó abierto el {dateFormatter.format(new Date(pendingQuoteRecovery.savedAt))}
             </span>
           </div>
           <button className="button button-primary" type="button" onClick={recoverPendingQuote}>
@@ -2508,7 +2538,7 @@ function App() {
           projectName={projectName}
           onProjectNameChange={setProjectName}
           lines={quoteLines}
-          total={quoteTotal}
+          totals={quoteTotals}
           saveFeedback={saveFeedback}
           finalizationFeedback={finalizationFeedback}
           pdfFeedback={pdfFeedback}
@@ -2540,11 +2570,7 @@ function App() {
               lineCount: quoteLines.length,
               hasPendingDirectClient: Boolean(directClientInput),
             })
-              ? () =>
-                  setDraftSendTarget({
-                    ...getCurrentQuote(),
-                    savedAt: new Date().toISOString(),
-                  })
+              ? handleDraftSendRequest
               : undefined
           }
         />
@@ -2594,10 +2620,10 @@ function App() {
           <div className="page-context">
             <div
               className="header-total"
-              aria-label={`Total actual: ${currencyFormatter.format(quoteTotal)}`}
+              aria-label={`Total actual: ${currencyFormatter.format(quoteTotals.total)}`}
             >
               <span>Total actual</span>
-              <strong>{currencyFormatter.format(quoteTotal)}</strong>
+              <strong>{currencyFormatter.format(quoteTotals.total)}</strong>
             </div>
           </div>
         </header>
@@ -2670,7 +2696,15 @@ function App() {
 
         <QuoteLinesEditor
           lines={quoteLines}
-          total={quoteTotal}
+          totals={quoteTotals}
+          discountField={
+            <QuoteDiscountField
+              key={quoteId}
+              discount={quoteDiscount}
+              onChange={setQuoteDiscount}
+              error={quoteDiscountError}
+            />
+          }
           editing={
             editingLineId
               ? {

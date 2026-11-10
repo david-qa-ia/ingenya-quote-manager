@@ -1,3 +1,4 @@
+import { isQuoteDiscount } from './quoteCalculations';
 import { hasRecordId, readCollection } from './localCollectionStorage';
 import { emitLocalWrite } from './localWriteEvents';
 import { workspaceStorageKey } from './workspaceStorage';
@@ -115,6 +116,8 @@ function recoverSavedQuote(value: unknown): SavedQuote | null {
     commercialStatusAudit,
   };
   if (isCommercialStatusAudit(quote.sentAudit)) recovered.sentAudit = quote.sentAudit;
+  // A malformed discount is ignored in memory (the stored record is not rewritten).
+  if ('discount' in recovered && !isQuoteDiscount(recovered.discount)) delete recovered.discount;
   return recovered;
 }
 
@@ -167,6 +170,7 @@ export function saveQuote(quote: Quote): boolean {
       clientName: quote.clientName,
       projectName: quote.projectName,
       lines: quote.lines,
+      ...(quote.discount ? { discount: quote.discount } : {}),
       ...(quote.version ? { version: quote.version } : {}),
       ...(quote.basedOnQuoteId ? { basedOnQuoteId: quote.basedOnQuoteId } : {}),
       ...(quote.changeRequest ? { changeRequest: quote.changeRequest } : {}),

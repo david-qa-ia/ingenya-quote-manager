@@ -37,6 +37,15 @@ export interface QuoteLine {
   source: QuoteLineSource;
 }
 
+/**
+ * Discount on the whole quote (owner, 2026-11-09). A percentage is recalculated when services
+ * change; an amount stays fixed. Absent means no discount.
+ */
+export interface QuoteDiscount {
+  type: 'percent' | 'amount';
+  value: number;
+}
+
 export interface Quote {
   id: string;
   status: QuoteDocumentStatus;
@@ -48,6 +57,7 @@ export interface Quote {
   clientName: string;
   projectName: string;
   lines: QuoteLine[];
+  discount?: QuoteDiscount;
   version?: number;
   basedOnQuoteId?: string;
   changeRequest?: {

@@ -119,6 +119,13 @@ describe('saved quote storage', () => {
     expect(loadSavedQuotes().map((quote) => quote.id)).toEqual([validDraft.id, secondDraft.id]);
   });
 
+  it('saves the discount with the quote', () => {
+    expect(saveQuoteDraft({ ...validDraft, discount: { type: 'percent', value: 12.5 } })).toBe(
+      true,
+    );
+    expect(loadSavedQuotes()[0].discount).toEqual({ type: 'percent', value: 12.5 });
+  });
+
   it('updates a saved quote by id instead of duplicating it', () => {
     expect(saveQuoteDraft(validDraft)).toBe(true);
     expect(saveQuoteDraft({ ...validDraft, clientName: 'Cliente actualizado' })).toBe(true);
@@ -196,5 +203,19 @@ describe('saved quote storage', () => {
 
     expect(saveFinalizedQuoteCommercialState(finalized.id, 'accepted', audit)).toBe(false);
     expect(loadSavedQuotes()[0].commercialStatus).toBe('prepared');
+  });
+});
+
+describe('saved quote discount', () => {
+  it('keeps a valid discount and ignores a malformed one without failing the quote', () => {
+    const [kept] = parseSavedQuotes(
+      JSON.stringify([{ ...validSavedQuote, discount: { type: 'amount', value: 5000 } }]),
+    );
+    expect(kept.discount).toEqual({ type: 'amount', value: 5000 });
+    const [recovered] = parseSavedQuotes(
+      JSON.stringify([{ ...validSavedQuote, discount: { type: 'percent', value: 'diez' } }]),
+    );
+    expect(recovered.id).toBe(validSavedQuote.id);
+    expect(recovered).not.toHaveProperty('discount');
   });
 });

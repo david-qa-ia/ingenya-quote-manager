@@ -113,7 +113,9 @@ export function opportunityJobRow(
     company: client?.company ?? '',
     service: opportunity.qualification?.serviceOfInterest || opportunity.name,
     stage: opportunityStage(opportunity, quote),
-    amount: quote ? calculateQuoteTotal(quote.lines) : opportunity.qualification?.estimatedValue,
+    amount: quote
+      ? calculateQuoteTotal(quote.lines, quote.discount)
+      : opportunity.qualification?.estimatedValue,
     nextStep:
       action?.status === 'pending'
         ? { description: action.description, dueAt: action.dueAt }
