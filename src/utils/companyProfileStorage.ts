@@ -1,5 +1,6 @@
 import { deploymentBrand } from '../config/deploymentBrand';
 import type { DeploymentBrandConfig } from '../types/branding';
+import { getBrandColorError, getLogoDataUrlError, logoFormat } from './companyBranding';
 import { workspaceStorageKey } from './workspaceStorage';
 
 /**
@@ -17,6 +18,10 @@ export interface CompanyProfile {
   instagram: string;
   footerText: string;
   quoteValidityDays: number;
+  /** Logo printed on the quote PDF as a PNG or JPEG data URL; empty when there is none. */
+  logoDataUrl: string;
+  /** Brand color of the quote PDF (#RRGGBB); empty uses Ventro blue. */
+  brandColor: string;
 }
 
 export const COMPANY_PROFILE_STORAGE_KEY = 'ingenya.companyProfile.v1';
@@ -33,6 +38,8 @@ export const defaultCompanyProfile: CompanyProfile = {
   instagram: deploymentBrand.instagram ?? '',
   footerText: deploymentBrand.footerBusinessText,
   quoteValidityDays: deploymentBrand.quoteValidityDays ?? DEFAULT_QUOTE_VALIDITY_DAYS,
+  logoDataUrl: '',
+  brandColor: '',
 };
 
 const text = (value: unknown, max: number) =>
@@ -55,10 +62,20 @@ export function normalizeCompanyProfile(value: unknown): CompanyProfile | null {
     footerText: text(record.footerText, 160),
     quoteValidityDays:
       Number.isInteger(days) && days >= 1 && days <= 365 ? days : DEFAULT_QUOTE_VALIDITY_DAYS,
+    // An invalid stored logo or color is dropped, never printed.
+    logoDataUrl:
+      typeof record.logoDataUrl === 'string' && !getLogoDataUrlError(record.logoDataUrl)
+        ? record.logoDataUrl
+        : '',
+    brandColor:
+      typeof record.brandColor === 'string' && !getBrandColorError(record.brandColor.trim())
+        ? record.brandColor.trim().toUpperCase()
+        : '',
   };
 }
 
-export type CompanyProfileField = 'companyName' | 'email' | 'whatsapp' | 'quoteValidityDays';
+export type CompanyProfileField =
+  'companyName' | 'email' | 'whatsapp' | 'quoteValidityDays' | 'brandColor';
 
 export function getCompanyProfileFieldErrors(
   profile: Omit<CompanyProfile, 'quoteValidityDays'> & { quoteValidityDays: string | number },
@@ -73,6 +90,8 @@ export function getCompanyProfileFieldErrors(
   const days = Number(profile.quoteValidityDays);
   if (!Number.isInteger(days) || days < 1 || days > 365)
     errors.quoteValidityDays = 'Elegí una validez de 1 a 365 días.';
+  const colorError = getBrandColorError(profile.brandColor.trim());
+  if (colorError) errors.brandColor = colorError;
   return errors;
 }
 
@@ -137,6 +156,10 @@ export function companyProfileToBrand(profile: CompanyProfile): DeploymentBrandC
     ...(profile.instagram ? { instagram: profile.instagram } : {}),
     footerBusinessText: profile.footerText || profile.companyName,
     quoteValidityDays: profile.quoteValidityDays,
+    ...(profile.logoDataUrl
+      ? { logo: { dataUrl: profile.logoDataUrl, format: logoFormat(profile.logoDataUrl) } }
+      : {}),
+    ...(profile.brandColor ? { accentColor: profile.brandColor } : {}),
   };
 }
 

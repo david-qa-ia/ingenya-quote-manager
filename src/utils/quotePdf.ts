@@ -32,8 +32,17 @@ const BORDER: Rgb = [227, 227, 224];
 const WHITE: Rgb = [255, 255, 255];
 const DRAFT_FILL: Rgb = [250, 241, 222];
 const DRAFT_TEXT: Rgb = [111, 76, 17];
-/** Ventro blue, the accent of the document. */
+/** Ventro blue, used when the workspace has no brand color of its own. */
 const DEFAULT_ACCENT: Rgb = [47, 107, 255];
+
+/** Turns the workspace brand color (#RRGGBB) into RGB; anything else keeps Ventro blue. */
+function brandAccent(color: string | undefined): Rgb {
+  const match = /^#([0-9a-f]{6})$/i.exec(color?.trim() ?? '');
+  if (!match) return DEFAULT_ACCENT;
+  return [0, 2, 4].map((offset) =>
+    parseInt(match[1].slice(offset, offset + 2), 16),
+  ) as unknown as Rgb;
+}
 
 const LOGO_MAX_WIDTH = 52;
 const LOGO_MAX_HEIGHT = 20;
@@ -89,10 +98,15 @@ const tint = (color: Rgb, amount: number): Rgb =>
 const whatsappLabel = (brand: DeploymentBrandConfig) =>
   brand.whatsapp.display.trim() ? `WhatsApp ${brand.whatsapp.display.trim()}` : '';
 
-function logoSize(doc: JsPdf, brand: DeploymentBrandConfig) {
+function logoSize(
+  doc: JsPdf,
+  brand: DeploymentBrandConfig,
+  maxWidth = LOGO_MAX_WIDTH,
+  maxHeight = LOGO_MAX_HEIGHT,
+) {
   if (!brand.logo) return null;
   const properties = doc.getImageProperties(brand.logo.dataUrl);
-  const scale = Math.min(LOGO_MAX_WIDTH / properties.width, LOGO_MAX_HEIGHT / properties.height);
+  const scale = Math.min(maxWidth / properties.width, maxHeight / properties.height);
   return { width: properties.width * scale, height: properties.height * scale };
 }
 
@@ -227,8 +241,20 @@ function drawFirstPageHeader(p: Painter, draw: boolean): number {
 
 function drawContinuationHeader(p: Painter): void {
   const { doc, model } = p;
-  font(doc, 'bold', 10.5, INK);
-  doc.text(split(doc, model.brand.companyName, 100)[0], PDF_MARGIN, 18);
+  const logo = logoSize(doc, model.brand, 34, 9);
+  if (logo && model.brand.logo) {
+    doc.addImage(
+      model.brand.logo.dataUrl,
+      model.brand.logo.format,
+      PDF_MARGIN,
+      20 - logo.height,
+      logo.width,
+      logo.height,
+    );
+  } else {
+    font(doc, 'bold', 10.5, INK);
+    doc.text(split(doc, model.brand.companyName, 100)[0], PDF_MARGIN, 18);
+  }
   font(doc, 'normal', 8.4, MUTED);
   doc.text(`Presupuesto ${model.id}`, RIGHT, 18, { align: 'right' });
   if (model.isDraft) {
@@ -419,7 +445,7 @@ function drawFooter(p: Painter, pageNumber: number, pageCount: number): void {
 async function renderQuote(doc: JsPdf, model: QuotePdfModel): Promise<void> {
   await registerFonts(doc);
   doc.setLineHeightFactor(1.15);
-  const accent = DEFAULT_ACCENT;
+  const accent = brandAccent(model.brand.accentColor);
   const painter: Painter = { doc, model, accent, accentTint: tint(accent, 0.9) };
 
   const tableTop = drawFirstPageHeader(painter, false);

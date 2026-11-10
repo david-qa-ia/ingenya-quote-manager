@@ -1044,18 +1044,24 @@ interface SupabaseCompanyProfileRow {
   instagram: string;
   footer_text: string;
   quote_validity_days: number;
+  /** Added by migration 202611090001; absent while that migration is not applied. */
+  logo_data_url?: string;
+  brand_color?: string;
   version: number;
 }
 
-export async function loadRemoteCompanyProfile(
-  workspaceId: string,
-): Promise<{ profile: CompanyProfile | null; version: number | null }> {
+export async function loadRemoteCompanyProfile(workspaceId: string): Promise<{
+  profile: CompanyProfile | null;
+  version: number | null;
+  /** Whether the database already stores the logo and brand color. */
+  supportsBranding: boolean;
+}> {
   const query = new URLSearchParams({ select: '*', workspace_id: `eq.${workspaceId}` });
   const rows = await request<SupabaseCompanyProfileRow[]>(
     `/rest/v1/workspace_company_profiles?${query.toString()}`,
   );
   const row = rows[0];
-  if (!row) return { profile: null, version: null };
+  if (!row) return { profile: null, version: null, supportsBranding: true };
   return {
     profile: normalizeCompanyProfile({
       companyName: row.company_name,
@@ -1066,13 +1072,22 @@ export async function loadRemoteCompanyProfile(
       instagram: row.instagram,
       footerText: row.footer_text,
       quoteValidityDays: row.quote_validity_days,
+      logoDataUrl: row.logo_data_url ?? '',
+      brandColor: row.brand_color ?? '',
     }),
     version: row.version,
+    supportsBranding: 'logo_data_url' in row,
   };
 }
 
 export type RemoteCompanyProfileSaveResult =
   { ok: true; version: number } | { ok: false; reason: 'conflict' | 'validation'; message: string };
+
+/** Short, stable key for a payload that may carry a logo (the key must not hold the image). */
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 export async function saveRemoteCompanyProfile(
   workspaceId: string,
@@ -1087,7 +1102,7 @@ export async function saveRemoteCompanyProfile(
         p_workspace_id: workspaceId,
         p_expected_version: expectedVersion,
         p_profile: profile,
-        p_idempotency_key: `save-company-profile:${expectedVersion ?? 0}:${JSON.stringify(profile)}`,
+        p_idempotency_key: `save-company-profile:${expectedVersion ?? 0}:${await sha256Hex(JSON.stringify(profile))}`,
         p_request_id: crypto.randomUUID(),
       }),
     },

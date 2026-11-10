@@ -338,3 +338,17 @@ journal retains only the conversion provenance and the prospect history records 
   page so nothing stays in memory either.
 - Before signing in, the starter catalog is shown but not stored.
 - Local mode is unchanged: the browser is the only copy, so sign-out keeps the data.
+
+## Stage 3: Quote PDF Branding
+
+- No new storage keys. `ingenya.companyProfile.v1` gains `logoDataUrl` (PNG or JPEG data URL,
+  at most 300,000 characters, reduced in the browser to 720×280 px) and `brandColor` (`#RRGGBB`,
+  dark enough for white text, 3:1). Missing or invalid values read as empty: no logo and Ventro
+  blue.
+- Migration `202611090001_company_profile_branding.sql` (additive): columns `logo_data_url` and
+  `brand_color` on `workspace_company_profiles`, both empty by default, and the same
+  `save_workspace_company_profile` signature. A payload without those keys keeps the stored
+  values, so an older app version cannot erase them. The audit records `has_logo`, not the image.
+- The idempotency key of the save is a SHA-256 of the payload, so it never carries the image.
+- If the migration is not applied yet, saving a logo or color reports it instead of claiming
+  success (the remote row has no `logo_data_url` column).
