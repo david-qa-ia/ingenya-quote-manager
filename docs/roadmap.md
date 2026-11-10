@@ -68,6 +68,6 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
       lines.
 - [x] The automatic note "Próximo paso agendado: … responsable Daniel." names the responsible
       even when the team has a single person (Responsable is hidden everywhere else).
-- [ ] In the quote detail (Presupuestos guardados > Ver presupuesto), the document card is wider
+- [x] In the quote detail (Presupuestos guardados > Ver presupuesto), the document card is wider
       than its column at 1366px and slides under the Contacto / Contexto operativo cards; at
       ~390px the table, total and buttons are cut at the right edge.

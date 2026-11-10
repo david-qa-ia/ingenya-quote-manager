@@ -4185,8 +4185,10 @@ button.opportunity-nav-item:hover {
 .quote-detail-main,
 .quote-detail-side {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 20px;
+  min-width: 0;
 }
 .quote-detail-card {
   background: #fff;
@@ -4228,6 +4230,10 @@ button.opportunity-nav-item:hover {
 .quote-detail-table td:not(:first-child),
 .quote-detail-table th:not(:first-child) {
   text-align: right;
+}
+.quote-detail-table td:first-child {
+  min-width: 180px;
+  white-space: normal;
 }
 .quote-detail-table small {
   color: #76766a;
@@ -4333,7 +4339,7 @@ button.opportunity-nav-item:hover {
     padding: 20px;
   }
   .quote-detail-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .quote-detail-tabs {
     gap: 20px;
