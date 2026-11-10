@@ -3,6 +3,14 @@ export interface DeploymentLogoConfig {
   readonly format: 'PNG' | 'JPEG';
 }
 
+/** Conditions printed on every quote of the workspace; an empty one is left out. */
+export interface QuoteConditionsConfig {
+  readonly paymentTerms: string;
+  readonly executionTime: string;
+  readonly included: string;
+  readonly excluded: string;
+}
+
 export interface DeploymentBrandConfig {
   readonly companyName: string;
   readonly experienceMessage?: string;
@@ -20,4 +28,5 @@ export interface DeploymentBrandConfig {
   readonly logo?: DeploymentLogoConfig;
   /** Brand color of the quote PDF (#RRGGBB); Ventro blue when absent. */
   readonly accentColor?: string;
+  readonly quoteConditions?: QuoteConditionsConfig;
 }

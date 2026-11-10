@@ -34,7 +34,7 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
 
 ## Stage 3: quote document
 
-1. [ ] The quote PDF reads as a complete quote document, not a summary of the data. Seen in
+1. [x] The quote PDF reads as a complete quote document, not a summary of the data. Seen in
        PRES-2026-E0080EC2 (2026-11-09):
    - The internal status badge ("FINALIZADO") is shown to the client.
    - The project name is repeated as "Propuesta" title and as "Proyecto".
@@ -46,7 +46,8 @@ mark it done here in the same PR. Merging is delegated: squash-merge when CI pas
    - The total sits at the bottom of the page, far from a one-line table, leaving a large empty
      area.
 
-   Taxes stay out of scope unless the owner decides how to show them.
+   Taxes stay out of scope unless the owner decides how to show them. Done in #113 (document
+   layout), #114 (logo and brand color per workspace) and this PR (conditions per workspace).
 
 2. [ ] Discount on the whole quote, decided while preparing it (owner, 2026-11-09):
    - One "Descuento" field with a % / $ choice. A percentage goes from 0% to 100%; an amount

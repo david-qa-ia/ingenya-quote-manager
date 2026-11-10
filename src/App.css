@@ -8467,6 +8467,13 @@ tr:last-child td {
   border-radius: 12px;
 }
 
+.company-conditions-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 .company-branding legend {
   padding: 0 6px;
   color: var(--text-heading);

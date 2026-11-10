@@ -92,6 +92,27 @@ export function quotePdfAcceptanceText(brand: DeploymentBrandConfig): string {
     : 'Para aceptarlo, firmá esta página y enviala, o confirmalo respondiendo este envío. Con tu confirmación coordinamos el inicio.';
 }
 
+/**
+ * The conditions block: what the workspace wrote in Configuración (each one only when filled)
+ * and always the validity, explained in words.
+ */
+export function quotePdfConditions(
+  brand: DeploymentBrandConfig,
+  validUntil: string,
+): QuotePdfCondition[] {
+  const conditions = brand.quoteConditions;
+  return [
+    { label: 'Incluye', text: conditions?.included.trim() ?? '' },
+    { label: 'No incluye', text: conditions?.excluded.trim() ?? '' },
+    { label: 'Plazo de ejecución', text: conditions?.executionTime.trim() ?? '' },
+    { label: 'Forma de pago', text: conditions?.paymentTerms.trim() ?? '' },
+    {
+      label: 'Validez',
+      text: `Los precios de este presupuesto se mantienen hasta el ${validUntil}.`,
+    },
+  ].filter((condition) => condition.text);
+}
+
 export function prepareQuotePdfModel(
   quote: Readonly<Quote>,
   brand: DeploymentBrandConfig = loadCompanyBrand(),
@@ -146,12 +167,7 @@ export function prepareQuotePdfModel(
       subtotal: calculateLineSubtotal(line.quantity, line.unitPrice),
     })),
     total: calculateQuoteTotal(quote.lines),
-    conditions: [
-      {
-        label: 'Validez',
-        text: `Los precios de este presupuesto se mantienen hasta el ${validUntil}.`,
-      },
-    ],
+    conditions: quotePdfConditions(brand, validUntil),
     acceptanceText: quotePdfAcceptanceText(brand),
     fileName: createSafeQuotePdfFileName(quote.id),
     brand,

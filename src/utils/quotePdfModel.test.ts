@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { QuoteDraft } from '../types/quote';
 import type { DeploymentBrandConfig } from '../types/branding';
-import { createSafeQuotePdfFileName, prepareQuotePdfModel } from './quotePdfModel';
+import {
+  createSafeQuotePdfFileName,
+  prepareQuotePdfModel,
+  quotePdfConditions,
+} from './quotePdfModel';
 
 const draft: QuoteDraft = {
   id: 'PRES-2026-0001',
@@ -197,6 +201,45 @@ describe('prepareQuotePdfModel', () => {
     expect(() => prepareQuotePdfModel({ ...draft, lines: [draft.lines[0], invalidLine] })).toThrow(
       'No se puede generar el PDF porque uno o más servicios tienen datos inválidos.',
     );
+  });
+});
+
+describe('quotePdfConditions', () => {
+  const brand: DeploymentBrandConfig = {
+    companyName: 'Obras Sur',
+    email: '',
+    whatsapp: { display: '', value: '' },
+    footerBusinessText: 'Obras Sur',
+  };
+
+  it('prints only the conditions the workspace filled in, always ending with the validity', () => {
+    const conditions = quotePdfConditions(
+      {
+        ...brand,
+        quoteConditions: {
+          paymentTerms: '50% al aceptar y 50% al terminar.',
+          executionTime: ' ',
+          included: 'Mano de obra y limpieza final.',
+          excluded: '',
+        },
+      },
+      '19/11/2026',
+    );
+    expect(conditions.map((condition) => condition.label)).toEqual([
+      'Incluye',
+      'Forma de pago',
+      'Validez',
+    ]);
+    expect(conditions[1].text).toBe('50% al aceptar y 50% al terminar.');
+  });
+
+  it('keeps the validity alone when nothing was configured', () => {
+    expect(quotePdfConditions(brand, '19/11/2026')).toEqual([
+      {
+        label: 'Validez',
+        text: 'Los precios de este presupuesto se mantienen hasta el 19/11/2026.',
+      },
+    ]);
   });
 });
 
