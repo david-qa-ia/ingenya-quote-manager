@@ -18,4 +18,6 @@ export interface DeploymentBrandConfig {
   /** SCRUM-119: days a quote stays valid; the PDF shows the resulting date. */
   readonly quoteValidityDays?: number;
   readonly logo?: DeploymentLogoConfig;
+  /** Brand color of the quote PDF (#RRGGBB); Ventro blue when absent. */
+  readonly accentColor?: string;
 }

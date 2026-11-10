@@ -70,4 +70,24 @@ describe('company profile (SCRUM-119)', () => {
     ).toBe('Ventro');
     expect(normalizeCompanyProfile({ companyName: '' })).toBeNull();
   });
+
+  it('prints the workspace logo and brand color, and drops an invalid stored one', () => {
+    const branded = normalizeCompanyProfile({
+      companyName: 'Obras Sur',
+      logoDataUrl: 'data:image/jpeg;base64,/9j/4AAQ',
+      brandColor: '#0e7c66',
+    })!;
+    expect(companyProfileToBrand(branded)).toMatchObject({
+      logo: { dataUrl: 'data:image/jpeg;base64,/9j/4AAQ', format: 'JPEG' },
+      accentColor: '#0E7C66',
+    });
+    const tampered = normalizeCompanyProfile({
+      companyName: 'Obras Sur',
+      logoDataUrl: 'javascript:alert(1)',
+      brandColor: '#FFFF00',
+    })!;
+    expect(tampered).toMatchObject({ logoDataUrl: '', brandColor: '' });
+    expect(companyProfileToBrand(tampered)).not.toHaveProperty('logo');
+    expect(companyProfileToBrand(tampered)).not.toHaveProperty('accentColor');
+  });
 });

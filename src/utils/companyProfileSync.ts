@@ -39,6 +39,15 @@ export async function persistCompanyProfile(
     }
     saveCompanyProfile(profile);
     saveCompanyProfileVersion(saved.version);
+    if (profile.logoDataUrl || profile.brandColor) {
+      const stored = await loadRemoteCompanyProfile(workspaceId);
+      if (!stored.supportsBranding)
+        return {
+          ok: false,
+          message:
+            'Se guardaron los datos, pero el logo y el color todavía no: falta actualizar la base de datos del espacio. Avisale a quien administra Ventro.',
+        };
+    }
     return { ok: true };
   } catch {
     return {
