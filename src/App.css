@@ -9148,3 +9148,117 @@ span.daily-bucket-icon svg {
     line-height: 1.25;
   }
 }
+
+/* Stage 3: discount on the whole quote and the subtotal / discount / total breakdown. */
+.summary-total,
+.quote-document-total {
+  flex-wrap: wrap;
+}
+
+.quote-totals-breakdown {
+  display: grid;
+  flex-basis: 100%;
+  gap: 4px;
+  width: 100%;
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.quote-totals-breakdown div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 340px;
+  margin-left: auto;
+}
+
+.quote-totals-breakdown dt {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.quote-totals-breakdown dd {
+  margin: 0;
+  color: var(--text-heading);
+  font-weight: 700;
+}
+
+.quote-totals-discount dd {
+  color: var(--accent-dark);
+}
+
+.quote-discount-field {
+  display: flex;
+  justify-content: flex-end;
+  padding: 20px 30px 0;
+  background: var(--surface-subtle);
+}
+
+.quote-discount-field .field {
+  width: 100%;
+  max-width: 340px;
+  margin: 0;
+}
+
+.quote-discount-input {
+  display: flex;
+  gap: 8px;
+}
+
+.quote-discount-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+}
+
+.quote-discount-type {
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.quote-discount-type button {
+  min-width: 44px;
+  padding: 0 12px;
+  border: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.quote-discount-type button.quote-discount-type-active {
+  color: #fff;
+  background: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .quote-discount-field {
+    justify-content: stretch;
+    padding: 18px 18px 0;
+  }
+  .quote-discount-field .field,
+  .quote-totals-breakdown div {
+    max-width: none;
+  }
+}
+
+/* Input groups inside a field are not its label: no focus dot after them. */
+.field:focus-within > .quote-discount-input::after,
+.field:focus-within > .company-color-input::after {
+  content: none;
+}
+
+.summary-total,
+.quote-document-total {
+  row-gap: 4px;
+}

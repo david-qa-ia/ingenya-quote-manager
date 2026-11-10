@@ -1,7 +1,9 @@
 import { workUnitSymbols } from '../data/workUnits';
 import type { QuoteLine } from '../types/quote';
-import { calculateLineSubtotal } from '../utils/quoteCalculations';
+import type { ReactNode } from 'react';
+import { calculateLineSubtotal, type QuoteTotals } from '../utils/quoteCalculations';
 import { currencyFormatter } from '../utils/quoteFormatting';
+import { QuoteTotalsBreakdown } from './QuoteTotalsBreakdown';
 
 /** The line being edited in place, with the values typed so far. */
 export interface LineEditing {
@@ -17,7 +19,9 @@ export interface LineEditing {
 
 interface Props {
   lines: readonly QuoteLine[];
-  total: number;
+  totals: QuoteTotals;
+  /** The discount field, shown next to the total once there are services. */
+  discountField: ReactNode;
   editing: LineEditing | null;
   onEditStart: (line: QuoteLine) => void;
   onDelete: (lineId: string) => void;
@@ -27,7 +31,8 @@ interface Props {
 /** "Servicios del presupuesto" in the editor: edit or remove lines and continue to the summary. */
 export function QuoteLinesEditor({
   lines,
-  total,
+  totals,
+  discountField,
   editing,
   onEditStart,
   onDelete,
@@ -163,11 +168,13 @@ export function QuoteLinesEditor({
         </div>
       )}
 
+      {lines.length > 0 && discountField}
       <footer className="quote-footer">
-        <div className="grand-total">
-          <span>Total del presupuesto</span>
-          <strong>{currencyFormatter.format(total)}</strong>
-        </div>
+        <QuoteTotalsBreakdown
+          totals={totals}
+          totalLabel="Total del presupuesto"
+          className="grand-total"
+        />
         <button
           className="button button-primary"
           type="button"

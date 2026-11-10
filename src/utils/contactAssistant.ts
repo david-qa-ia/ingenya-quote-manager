@@ -32,7 +32,9 @@ export function getContactValues(
     oportunidad: context.opportunity?.name || context.quote?.projectName || undefined,
     servicio: services.length === 1 ? services[0] : undefined,
     presupuesto: context.quote?.id,
-    total: context.quote ? formatCurrency(calculateQuoteTotal(context.quote.lines)) : undefined,
+    total: context.quote
+      ? formatCurrency(calculateQuoteTotal(context.quote.lines, context.quote.discount))
+      : undefined,
     responsable: context.opportunity?.responsibleSeller || undefined,
     proximaAccion:
       context.opportunity?.nextAction?.status === 'pending'

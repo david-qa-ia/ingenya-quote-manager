@@ -84,6 +84,21 @@ Subtotal is calculated as:
 quantity * unitPrice
 ```
 
+The quote subtotal is the sum of the line subtotals. A quote may carry one optional `discount`
+on the whole quote (owner, 2026-11-09): `{ type: 'percent' | 'amount', value }`.
+
+```text
+discount = percent ? round(subtotal * value) / 100 : value      (never above the subtotal)
+total    = subtotal - discount
+```
+
+- A percentage goes from 0% to 100% and follows the services when they change in a draft.
+- An amount goes from $0 up to the subtotal and stays fixed. If the subtotal drops below it,
+  finalizing and "Enviar" are blocked until it is adjusted.
+- Totals are derived, never stored. A finalized quote keeps its discount; a new version starts
+  with the discount of the version it comes from.
+- Not per service. If taxes are ever shown, the discount applies before them.
+
 ## Clients And Opportunities (SCRUM-46)
 
 Clients and opportunities are reusable local entities. A quote may have no association, a

@@ -351,9 +351,30 @@ function drawRows(p: Painter, page: QuotePdfPagePlan, cells: readonly RowCells[]
   }
 }
 
-function drawTotal(p: Painter, top: number): void {
+const DISCOUNT_ROW = 6;
+
+/** With a discount, subtotal and discount rows go above the total box. */
+const totalBlockHeight = (model: QuotePdfModel) =>
+  (model.discountAmount > 0 ? DISCOUNT_ROW * 2 + 2 : 0) + TOTAL_HEIGHT;
+
+function drawTotal(p: Painter, blockTop: number): void {
   const { doc, model } = p;
   const x = RIGHT - TOTAL_WIDTH;
+  let top = blockTop;
+  if (model.discountAmount > 0) {
+    const rows: [string, string][] = [
+      ['Subtotal', formatCurrency(model.subtotal)],
+      [model.discountLabel, `−${formatCurrency(model.discountAmount)}`],
+    ];
+    rows.forEach(([label, value], index) => {
+      const baseline = top + 4.2 + index * DISCOUNT_ROW;
+      font(doc, 'normal', 8.8, MUTED);
+      doc.text(label, x + 5, baseline);
+      font(doc, index === 1 ? 'bold' : 'normal', 8.8, index === 1 ? p.accent : INK);
+      doc.text(value, RIGHT - 5, baseline, { align: 'right' });
+    });
+    top += DISCOUNT_ROW * 2 + 2;
+  }
   doc.setFillColor(...p.accent);
   doc.roundedRect(x, top, TOTAL_WIDTH, TOTAL_HEIGHT, 1.5, 1.5, 'F');
   font(doc, 'bold', 9, WHITE);
@@ -451,7 +472,7 @@ async function renderQuote(doc: JsPdf, model: QuotePdfModel): Promise<void> {
   const tableTop = drawFirstPageHeader(painter, false);
   const { cells, rows } = measureRows(painter);
   const blocks: QuotePdfBlock[] = [
-    { key: 'total', height: TOTAL_HEIGHT },
+    { key: 'total', height: totalBlockHeight(model) },
     { key: 'conditions', height: conditionsHeight(painter) },
     { key: 'acceptance', height: acceptanceHeight(painter) },
   ];

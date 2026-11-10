@@ -1,4 +1,5 @@
 import type { Quote, QuoteLine, WorkUnit } from '../types/quote';
+import { calculateQuoteSubtotal, getQuoteDiscountError } from './quoteCalculations';
 
 const validWorkUnits = new Set<WorkUnit>(['squareMeter', 'linearMeter', 'unit']);
 
@@ -22,5 +23,5 @@ export function getQuoteCompletionError(quote: Readonly<Quote>): string | null {
     return 'Revisá los servicios: la descripción, la unidad, la cantidad o el precio no son válidos.';
   }
 
-  return null;
+  return getQuoteDiscountError(quote.discount, calculateQuoteSubtotal(quote.lines));
 }

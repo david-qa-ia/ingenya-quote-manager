@@ -4,7 +4,7 @@ import type { DeploymentBrandConfig } from '../types/branding';
 import type { Client } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
 import type { Quote, SavedQuote } from '../types/quote';
-import { calculateLineSubtotal, calculateQuoteTotal } from './quoteCalculations';
+import { calculateLineSubtotal, getQuoteTotals } from './quoteCalculations';
 import { isValidQuoteLine } from './quoteValidation';
 
 export interface QuotePdfLine {
@@ -40,6 +40,10 @@ export interface QuotePdfModel {
   /** Address of the job, when the quote belongs to an opportunity that has one. */
   readonly siteAddress: string;
   readonly lines: readonly QuotePdfLine[];
+  /** Sum of the services; with a discount the PDF shows it, the discount and the total. */
+  readonly subtotal: number;
+  readonly discountAmount: number;
+  readonly discountLabel: string;
   readonly total: number;
   readonly conditions: readonly QuotePdfCondition[];
   readonly acceptanceText: string;
@@ -166,7 +170,7 @@ export function prepareQuotePdfModel(
       unitPrice: line.unitPrice,
       subtotal: calculateLineSubtotal(line.quantity, line.unitPrice),
     })),
-    total: calculateQuoteTotal(quote.lines),
+    ...getQuoteTotals(quote.lines, quote.discount),
     conditions: quotePdfConditions(brand, validUntil),
     acceptanceText: quotePdfAcceptanceText(brand),
     fileName: createSafeQuotePdfFileName(quote.id),

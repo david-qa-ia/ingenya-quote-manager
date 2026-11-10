@@ -202,7 +202,9 @@ export function SavedQuotesView({
                     </td>
                     <td data-label="Fecha">{dateFormatter.format(new Date(savedQuote.savedAt))}</td>
                     <td data-label="Total" className="numeric-cell subtotal">
-                      {currencyFormatter.format(calculateQuoteTotal(savedQuote.lines))}
+                      {currencyFormatter.format(
+                        calculateQuoteTotal(savedQuote.lines, savedQuote.discount),
+                      )}
                     </td>
                     <td data-label="Acciones" className="actions-cell saved-quote-actions-cell">
                       <div className="saved-quote-actions">

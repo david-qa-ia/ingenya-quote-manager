@@ -2,7 +2,8 @@ import { UiIcon } from './UiIcon';
 import type { RefObject } from 'react';
 import { workUnitLabels, workUnitSymbols } from '../data/workUnits';
 import type { QuoteLine, QuoteStatus } from '../types/quote';
-import { calculateLineSubtotal } from '../utils/quoteCalculations';
+import { calculateLineSubtotal, type QuoteTotals } from '../utils/quoteCalculations';
+import { QuoteTotalsBreakdown } from './QuoteTotalsBreakdown';
 import { currencyFormatter } from '../utils/quoteFormatting';
 
 type Feedback = { type: 'success' | 'error'; message: string } | null;
@@ -15,7 +16,7 @@ interface Props {
   projectName: string;
   onProjectNameChange: (value: string) => void;
   lines: readonly QuoteLine[];
-  total: number;
+  totals: QuoteTotals;
   saveFeedback: Feedback;
   finalizationFeedback: Feedback;
   pdfFeedback: Feedback;
@@ -50,7 +51,7 @@ export function QuoteSummaryView({
   projectName,
   onProjectNameChange,
   lines,
-  total,
+  totals,
   saveFeedback,
   finalizationFeedback,
   pdfFeedback,
@@ -283,10 +284,11 @@ export function QuoteSummaryView({
               </table>
             </div>
 
-            <footer className="summary-total">
-              <span>Total del presupuesto</span>
-              <strong>{currencyFormatter.format(total)}</strong>
-            </footer>
+            <QuoteTotalsBreakdown
+              totals={totals}
+              totalLabel="Total del presupuesto"
+              className="summary-total"
+            />
           </section>
         </div>
       </div>

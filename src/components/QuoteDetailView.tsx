@@ -18,7 +18,8 @@ import { workUnitSymbols } from '../data/workUnits';
 import type { Client } from '../types/client';
 import type { Opportunity } from '../types/opportunity';
 import type { CommercialStatus, CommercialStatusAudit, SavedQuote } from '../types/quote';
-import { calculateLineSubtotal, calculateQuoteTotal } from '../utils/quoteCalculations';
+import { calculateLineSubtotal, getQuoteTotals } from '../utils/quoteCalculations';
+import { QuoteTotalsBreakdown } from './QuoteTotalsBreakdown';
 import { currencyFormatter } from '../utils/quoteFormatting';
 import {
   commercialStatusLabels,
@@ -72,7 +73,7 @@ export function QuoteDetailView({
   const [changeResponsible, setChangeResponsible] = useState('');
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [converting, setConverting] = useState(false);
-  const total = calculateQuoteTotal(quote.lines);
+  const totals = getQuoteTotals(quote.lines, quote.discount);
   const targets = getCommercialTransitionTargets(quote.commercialStatus, quote.status);
   const displayName = opportunity?.name || quote.projectName || 'Presupuesto';
   const isDraft = quote.status === 'draft';
@@ -212,10 +213,11 @@ export function QuoteDetailView({
             ) : (
               <p className="commercial-warning">Este presupuesto no tiene servicios.</p>
             )}
-            <footer className="quote-document-total">
-              <span>Total</span>
-              <strong>{currencyFormatter.format(total)}</strong>
-            </footer>
+            <QuoteTotalsBreakdown
+              totals={totals}
+              totalLabel="Total"
+              className="quote-document-total"
+            />
             <div className="quote-document-actions">
               {isDraft && (
                 <button
