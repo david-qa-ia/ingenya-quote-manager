@@ -352,3 +352,8 @@ journal retains only the conversion provenance and the prospect history records 
 - The idempotency key of the save is a SHA-256 of the payload, so it never carries the image.
 - If the migration is not applied yet, saving a logo or color reports it instead of claiming
   success (the remote row has no `logo_data_url` column).
+- Migration `202611090002_company_quote_conditions.sql` (additive): `payment_terms`,
+  `execution_time`, `included_scope` and `excluded_scope` (up to 500 characters each, empty by
+  default). The browser copy keeps them as `paymentTerms`, `executionTime`, `includedScope` and
+  `excludedScope` in `ingenya.companyProfile.v1`. The PDF prints each one only when filled, and
+  always ends the conditions with the validity date.

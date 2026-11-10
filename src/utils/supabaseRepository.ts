@@ -1047,6 +1047,11 @@ interface SupabaseCompanyProfileRow {
   /** Added by migration 202611090001; absent while that migration is not applied. */
   logo_data_url?: string;
   brand_color?: string;
+  /** Added by migration 202611090002. */
+  payment_terms?: string;
+  execution_time?: string;
+  included_scope?: string;
+  excluded_scope?: string;
   version: number;
 }
 
@@ -1055,13 +1060,16 @@ export async function loadRemoteCompanyProfile(workspaceId: string): Promise<{
   version: number | null;
   /** Whether the database already stores the logo and brand color. */
   supportsBranding: boolean;
+  /** Whether the database already stores the quote conditions. */
+  supportsConditions: boolean;
 }> {
   const query = new URLSearchParams({ select: '*', workspace_id: `eq.${workspaceId}` });
   const rows = await request<SupabaseCompanyProfileRow[]>(
     `/rest/v1/workspace_company_profiles?${query.toString()}`,
   );
   const row = rows[0];
-  if (!row) return { profile: null, version: null, supportsBranding: true };
+  if (!row)
+    return { profile: null, version: null, supportsBranding: true, supportsConditions: true };
   return {
     profile: normalizeCompanyProfile({
       companyName: row.company_name,
@@ -1074,9 +1082,14 @@ export async function loadRemoteCompanyProfile(workspaceId: string): Promise<{
       quoteValidityDays: row.quote_validity_days,
       logoDataUrl: row.logo_data_url ?? '',
       brandColor: row.brand_color ?? '',
+      paymentTerms: row.payment_terms ?? '',
+      executionTime: row.execution_time ?? '',
+      includedScope: row.included_scope ?? '',
+      excludedScope: row.excluded_scope ?? '',
     }),
     version: row.version,
     supportsBranding: 'logo_data_url' in row,
+    supportsConditions: 'payment_terms' in row,
   };
 }
 

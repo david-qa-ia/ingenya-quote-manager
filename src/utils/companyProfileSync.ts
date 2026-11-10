@@ -39,13 +39,23 @@ export async function persistCompanyProfile(
     }
     saveCompanyProfile(profile);
     saveCompanyProfileVersion(saved.version);
-    if (profile.logoDataUrl || profile.brandColor) {
+    const hasBranding = Boolean(profile.logoDataUrl || profile.brandColor);
+    const hasConditions = Boolean(
+      profile.paymentTerms ||
+      profile.executionTime ||
+      profile.includedScope ||
+      profile.excludedScope,
+    );
+    if (hasBranding || hasConditions) {
       const stored = await loadRemoteCompanyProfile(workspaceId);
-      if (!stored.supportsBranding)
+      const missing = [
+        hasBranding && !stored.supportsBranding ? 'el logo y el color' : '',
+        hasConditions && !stored.supportsConditions ? 'las condiciones' : '',
+      ].filter(Boolean);
+      if (missing.length)
         return {
           ok: false,
-          message:
-            'Se guardaron los datos, pero el logo y el color todavía no: falta actualizar la base de datos del espacio. Avisale a quien administra Ventro.',
+          message: `Se guardaron los datos, pero ${missing.join(' y ')} todavía no: falta actualizar la base de datos del espacio. Avisale a quien administra Ventro.`,
         };
     }
     return { ok: true };

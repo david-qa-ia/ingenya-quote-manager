@@ -22,7 +22,15 @@ export interface CompanyProfile {
   logoDataUrl: string;
   /** Brand color of the quote PDF (#RRGGBB); empty uses Ventro blue. */
   brandColor: string;
+  /** Conditions printed on every quote; each one is optional. */
+  paymentTerms: string;
+  executionTime: string;
+  includedScope: string;
+  excludedScope: string;
 }
+
+/** Longest text of each quote condition (a short paragraph). */
+export const QUOTE_CONDITION_MAX_LENGTH = 500;
 
 export const COMPANY_PROFILE_STORAGE_KEY = 'ingenya.companyProfile.v1';
 export const COMPANY_PROFILE_VERSION_STORAGE_KEY = 'ingenya.companyProfileVersion.v1';
@@ -40,6 +48,10 @@ export const defaultCompanyProfile: CompanyProfile = {
   quoteValidityDays: deploymentBrand.quoteValidityDays ?? DEFAULT_QUOTE_VALIDITY_DAYS,
   logoDataUrl: '',
   brandColor: '',
+  paymentTerms: '',
+  executionTime: '',
+  includedScope: '',
+  excludedScope: '',
 };
 
 const text = (value: unknown, max: number) =>
@@ -71,6 +83,10 @@ export function normalizeCompanyProfile(value: unknown): CompanyProfile | null {
       typeof record.brandColor === 'string' && !getBrandColorError(record.brandColor.trim())
         ? record.brandColor.trim().toUpperCase()
         : '',
+    paymentTerms: text(record.paymentTerms, QUOTE_CONDITION_MAX_LENGTH),
+    executionTime: text(record.executionTime, QUOTE_CONDITION_MAX_LENGTH),
+    includedScope: text(record.includedScope, QUOTE_CONDITION_MAX_LENGTH),
+    excludedScope: text(record.excludedScope, QUOTE_CONDITION_MAX_LENGTH),
   };
 }
 
@@ -160,6 +176,12 @@ export function companyProfileToBrand(profile: CompanyProfile): DeploymentBrandC
       ? { logo: { dataUrl: profile.logoDataUrl, format: logoFormat(profile.logoDataUrl) } }
       : {}),
     ...(profile.brandColor ? { accentColor: profile.brandColor } : {}),
+    quoteConditions: {
+      paymentTerms: profile.paymentTerms,
+      executionTime: profile.executionTime,
+      included: profile.includedScope,
+      excluded: profile.excludedScope,
+    },
   };
 }
 

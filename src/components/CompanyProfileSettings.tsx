@@ -5,6 +5,7 @@ import {
   hasStoredCompanyProfile,
   loadCompanyProfile,
   normalizeCompanyProfile,
+  QUOTE_CONDITION_MAX_LENGTH,
   type CompanyProfile,
   type CompanyProfileField,
 } from '../utils/companyProfileStorage';
@@ -28,8 +29,35 @@ const toDraft = (profile: CompanyProfile): Draft => ({
 
 const VENTRO_BLUE = '#2F6BFF';
 
+const conditionFields: {
+  key: 'includedScope' | 'excludedScope' | 'executionTime' | 'paymentTerms';
+  label: string;
+  placeholder: string;
+}[] = [
+  {
+    key: 'includedScope',
+    label: 'Qué incluye',
+    placeholder: 'Por ejemplo: mano de obra, materiales indicados y limpieza final.',
+  },
+  {
+    key: 'excludedScope',
+    label: 'Qué no incluye',
+    placeholder: 'Por ejemplo: trabajos no detallados en este presupuesto.',
+  },
+  {
+    key: 'executionTime',
+    label: 'Plazo de ejecución',
+    placeholder: 'Por ejemplo: a coordinar al aceptar el presupuesto.',
+  },
+  {
+    key: 'paymentTerms',
+    label: 'Forma de pago',
+    placeholder: 'Por ejemplo: transferencia o efectivo; anticipo al aceptar.',
+  },
+];
+
 const fields: {
-  key: Exclude<keyof Draft, 'logoDataUrl' | 'brandColor'>;
+  key: Exclude<keyof Draft, 'logoDataUrl' | 'brandColor' | (typeof conditionFields)[number]['key']>;
   label: string;
   placeholder?: string;
   hint?: string;
@@ -284,6 +312,26 @@ export function CompanyProfileSettings({ workspaceId }: Props) {
             </label>
           );
         })}
+        <fieldset className="company-branding company-conditions">
+          <legend>Condiciones del presupuesto</legend>
+          <p className="company-conditions-hint">
+            Se imprimen en todos los presupuestos, antes de la validez. Si dejás una vacía, no
+            aparece en el PDF.
+          </p>
+          {conditionFields.map(({ key, label, placeholder }) => (
+            <label className="field" key={key} htmlFor={`company-${key}`}>
+              <span>{label}</span>
+              <textarea
+                id={`company-${key}`}
+                rows={3}
+                maxLength={QUOTE_CONDITION_MAX_LENGTH}
+                value={draft[key]}
+                placeholder={placeholder}
+                onChange={(event) => update({ [key]: event.target.value })}
+              />
+            </label>
+          ))}
+        </fieldset>
         <div className="company-profile-actions">
           <button className="button button-primary" type="submit" disabled={saving}>
             {saving ? 'Guardando…' : 'Guardar datos'}
